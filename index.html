@@ -187,9 +187,10 @@ renderHistory();
 function lookup(trackCode) {
   const code = trackCode.trim();
   const isPartial = code.length <= 6;
+  const codeLower = code.toLowerCase();
 
   const allRows = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
-    .filter(r => isPartial ? r.track.endsWith(code) : r.track === code);
+    .filter(r => isPartial ? r.track.toLowerCase().endsWith(codeLower) : r.track.toLowerCase() === codeLower);
 
   if (allRows.length === 0) {
     showResult('error', code, null, isPartial
