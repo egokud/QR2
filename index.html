@@ -340,7 +340,7 @@ function startScanner() {
   scanning = true;
   scanner = new Html5Qrcode("reader");
   scanner.start(
-    { facingMode: "environment", advanced: [{ zoom: 1 }] },
+    { facingMode: "environment" },
     {
       fps: 15,
       qrbox: { width: 280, height: 180 },
