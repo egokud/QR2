@@ -85,6 +85,15 @@
 <div class="scanner-section">
   <button class="btn-scan" id="scanBtn" onclick="toggleScanner()">📷 Сканировать штрих-код</button>
   <div id="reader" style="display:none; margin-top:12px;"></div>
+  <div id="zoomSection" style="display:none; margin-top:10px; background:#fff; border-radius:10px; padding:10px 14px; border:1px solid #e0e0e0;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size:13px; color:#999; white-space:nowrap;">🔍 Zoom</span>
+      <input id="zoomSlider" type="range" min="1" max="4" step="0.5" value="1"
+        oninput="setZoom(this.value)"
+        style="flex:1; accent-color:#7c6ff7;">
+      <span id="zoomVal" style="font-size:13px; font-weight:600; color:#7c6ff7; width:28px;">1x</span>
+    </div>
+  </div>
 </div>
 
 <div class="manual-section">
@@ -325,22 +334,28 @@ function toggleScanner() {
 
 function startScanner() {
   document.getElementById('reader').style.display = 'block';
+  document.getElementById('zoomSection').style.display = 'block';
   document.getElementById('scanBtn').textContent = '⏹ Остановить сканер';
   document.getElementById('scanBtn').classList.add('stop');
   scanning = true;
   scanner = new Html5Qrcode("reader");
   scanner.start(
-    { facingMode: "environment" },
+    { facingMode: "environment", advanced: [{ zoom: 1 }] },
     {
-      fps: 10,
-      qrbox: { width: 300, height: 120 },
+      fps: 15,
+      qrbox: { width: 280, height: 180 },
+      aspectRatio: 1.5,
       formatsToSupport: [
         Html5QrcodeSupportedFormats.CODE_128,
         Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.QR_CODE
+        Html5QrcodeSupportedFormats.RSS_14,
+        Html5QrcodeSupportedFormats.RSS_EXPANDED,
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.DATA_MATRIX
       ]
     },
     (code) => { stopScanner(); lookup(code.trim()); },
@@ -351,9 +366,23 @@ function startScanner() {
   });
 }
 
+function setZoom(val) {
+  document.getElementById('zoomVal').textContent = val + 'x';
+  if (!scanner) return;
+  try {
+    const track = scanner.getRunningTrackCameraCapabilities();
+    if (track && track.zoomFeature().isSupported()) {
+      track.zoomFeature().apply(parseFloat(val));
+    }
+  } catch(e) {}
+}
+
 function stopScanner() {
   if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
   document.getElementById('reader').style.display = 'none';
+  document.getElementById('zoomSection').style.display = 'none';
+  document.getElementById('zoomSlider').value = 1;
+  document.getElementById('zoomVal').textContent = '1x';
   document.getElementById('scanBtn').textContent = '📷 Сканировать штрих-код';
   document.getElementById('scanBtn').classList.remove('stop');
   scanning = false;
