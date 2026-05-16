@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Сканер посылок</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; }
+
+  .header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header h1 { font-size: 18px; font-weight: 600; color: #1a1a1a; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+  .dot.active { background: #22c55e; }
+  .btn-settings { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; color: #888; }
+
+  .setup-section { background: #fff; margin: 16px; border-radius: 12px; padding: 20px; border: 1px solid #e0e0e0; }
+  .setup-section h2 { font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+  .setup-section p { font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.5; }
+  .setup-section a { color: #7c6ff7; }
+  .setup-section input { width: 100%; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #1a1a1a; outline: none; }
+  .setup-section input:focus { border-color: #7c6ff7; }
+  .btn-primary { margin-top: 10px; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-primary:active { opacity: 0.85; }
+  .btn-danger { margin-top: 8px; width: 100%; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
+
+  .scanner-section { margin: 16px; }
+  #reader { border-radius: 12px; overflow: hidden; background: #000; }
+  #reader video { width: 100% !important; border-radius: 12px; }
+
+  .btn-scan { display: block; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+  .btn-scan:active { transform: scale(0.98); }
+  .btn-scan.stop { background: #f0f0f0; color: #555; }
+
+  .manual-section { background: #fff; margin: 0 16px 16px; border-radius: 12px; padding: 16px; border: 1px solid #e0e0e0; }
+  .manual-section h3 { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .manual-row { display: flex; gap: 8px; }
+  .manual-row input { flex: 1; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #1a1a1a; outline: none; min-width: 0; }
+  .manual-row input:focus { border-color: #7c6ff7; }
+  .manual-row button { background: #7c6ff7; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+
+  .result-card { margin: 0 16px 16px; border-radius: 12px; padding: 20px; border: 1.5px solid; }
+  .result-card.success { background: #f0fdf4; border-color: #86efac; }
+  .result-card.error { background: #fef2f2; border-color: #fca5a5; }
+  .result-card.already { background: #fffbeb; border-color: #fcd34d; }
+  .result-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .result-card.success .result-label { color: #16a34a; }
+  .result-card.error .result-label { color: #dc2626; }
+  .result-card.already .result-label { color: #d97706; }
+  .result-track { font-size: 13px; color: #888; margin-bottom: 10px; word-break: break-all; }
+  .result-warehouse { font-size: 32px; font-weight: 700; color: #1a1a1a; }
+  .result-message { font-size: 14px; color: #555; line-height: 1.5; }
+
+  .loading { text-align: center; padding: 24px; color: #999; font-size: 14px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #e0e0e0; border-top-color: #7c6ff7; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .history { margin: 0 16px 40px; }
+  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .history-header h3 { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+  .history-header button { font-size: 12px; color: #dc2626; background: none; border: none; cursor: pointer; }
+  .history-item { background: #fff; border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; border: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .history-track { font-size: 12px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .history-wh { font-size: 14px; font-weight: 600; color: #7c6ff7; white-space: nowrap; }
+  .history-time { font-size: 11px; color: #bbb; white-space: nowrap; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 14px; border: 1px solid #e0e0e0; text-align: center; }
+  .stat-num { font-size: 26px; font-weight: 700; color: #7c6ff7; }
+  .stat-label { font-size: 12px; color: #999; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="dot" id="statusDot"></div>
+    <h1>📦 Сканер посылок</h1>
+  </div>
+  <button class="btn-settings" onclick="openSettings()" title="Настройки">⚙️</button>
+</div>
+
+<!-- Настройка -->
+<div class="setup-section" id="setupSection">
+  <h2>Подключение к таблице</h2>
+  <p>Вставь URL веб-приложения из Google Apps Script. <a href="#" onclick="showInstructions()">Как получить URL?</a></p>
+  <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+  <button class="btn-primary" onclick="saveUrl()">Сохранить и начать</button>
+</div>
+
+<!-- Инструкция -->
+<div class="setup-section" id="instructionSection" style="display:none">
+  <h2>Как получить URL скрипта</h2>
+  <p>1. Открой свою Google таблицу<br>
+  2. <b>Расширения → Apps Script</b><br>
+  3. Вставь код скрипта (есть в README на GitHub)<br>
+  4. <b>Развернуть → Новое развертывание</b><br>
+  5. Тип: <b>Веб-приложение</b>, доступ: <b>Все</b><br>
+  6. Нажми <b>Развернуть</b> и скопируй URL</p>
+  <button class="btn-primary" onclick="hideInstructions()">Понятно, ввести URL</button>
+</div>
+
+<!-- Основной экран -->
+<div id="mainSection" style="display:none">
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="statToday">0</div>
+      <div class="stat-label">сегодня</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statTotal">0</div>
+      <div class="stat-label">всего</div>
+    </div>
+  </div>
+
+  <div class="scanner-section">
+    <button class="btn-scan" id="scanBtn" onclick="toggleScanner()">📷 Сканировать QR-код</button>
+    <div id="reader" style="display:none"></div>
+  </div>
+
+  <div class="manual-section">
+    <h3>Ввести вручную</h3>
+    <div class="manual-row">
+      <input type="text" id="manualInput" placeholder="jt5477931681682" autocomplete="off" />
+      <button onclick="manualSearch()">Найти</button>
+    </div>
+  </div>
+
+  <div id="loadingBlock" class="loading" style="display:none">
+    <span class="spinner"></span> Ищу в таблице...
+  </div>
+
+  <div id="resultBlock"></div>
+
+  <div class="history" id="historySection" style="display:none">
+    <div class="history-header">
+      <h3>История</h3>
+      <button onclick="clearHistory()">Очистить</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- Настройки (повторный вход) -->
+<div class="setup-section" id="settingsSection" style="display:none">
+  <h2>Настройки</h2>
+  <p>Текущий URL скрипта:</p>
+  <input type="url" id="scriptUrlEdit" />
+  <button class="btn-primary" onclick="saveUrl(true)">Сохранить</button>
+  <button class="btn-danger" onclick="closeSettings()">Отмена</button>
+</div>
+
+<script>
+let scriptUrl = localStorage.getItem('scannerScriptUrl') || '';
+let scanner = null;
+let scanning = false;
+let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
+
+const today = new Date().toDateString();
+
+init();
+
+function init() {
+  if (scriptUrl) {
+    showMain();
+  }
+}
+
+function showMain() {
+  document.getElementById('setupSection').style.display = 'none';
+  document.getElementById('instructionSection').style.display = 'none';
+  document.getElementById('settingsSection').style.display = 'none';
+  document.getElementById('mainSection').style.display = 'block';
+  document.getElementById('statusDot').classList.add('active');
+  updateStats();
+  renderHistory();
+}
+
+function saveUrl(fromSettings) {
+  const inputId = fromSettings ? 'scriptUrlEdit' : 'scriptUrl';
+  const url = document.getElementById(inputId).value.trim();
+  if (!url.startsWith('https://script.google.com')) {
+    alert('Введи корректный URL Google Apps Script');
+    return;
+  }
+  localStorage.setItem('scannerScriptUrl', url);
+  scriptUrl = url;
+  showMain();
+}
+
+function openSettings() {
+  document.getElementById('mainSection').style.display = 'none';
+  document.getElementById('scriptUrlEdit').value = scriptUrl;
+  document.getElementById('settingsSection').style.display = 'block';
+}
+
+function closeSettings() {
+  document.getElementById('settingsSection').style.display = 'none';
+  document.getElementById('mainSection').style.display = 'block';
+}
+
+function showInstructions() {
+  document.getElementById('setupSection').style.display = 'none';
+  document.getElementById('instructionSection').style.display = 'block';
+}
+
+function hideInstructions() {
+  document.getElementById('instructionSection').style.display = 'none';
+  document.getElementById('setupSection').style.display = 'block';
+}
+
+function toggleScanner() {
+  scanning ? stopScanner() : startScanner();
+}
+
+function startScanner() {
+  document.getElementById('reader').style.display = 'block';
+  document.getElementById('scanBtn').textContent = '⏹ Остановить сканер';
+  document.getElementById('scanBtn').classList.add('stop');
+  scanning = true;
+
+  scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 240, height: 240 } },
+    (code) => {
+      stopScanner();
+      lookup(code.trim());
+    },
+    () => {}
+  ).catch(err => {
+    showResult('error', '', 'Нет доступа к камере. Разреши доступ в настройках браузера.');
+    stopScanner();
+  });
+}
+
+function stopScanner() {
+  if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
+  document.getElementById('reader').style.display = 'none';
+  document.getElementById('scanBtn').textContent = '📷 Сканировать QR-код';
+  document.getElementById('scanBtn').classList.remove('stop');
+  scanning = false;
+}
+
+function manualSearch() {
+  const val = document.getElementById('manualInput').value.trim();
+  if (!val) return;
+  lookup(val);
+  document.getElementById('manualInput').value = '';
+}
+
+document.getElementById('manualInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') manualSearch();
+});
+
+async function lookup(trackCode) {
+  document.getElementById('loadingBlock').style.display = 'block';
+  document.getElementById('resultBlock').innerHTML = '';
+
+  try {
+    const url = scriptUrl + '?track=' + encodeURIComponent(trackCode);
+    const res = await fetch(url);
+    const data = await res.json();
+    document.getElementById('loadingBlock').style.display = 'none';
+
+    if (data.status === 'ok') {
+      showResult('success', trackCode, null, data.warehouse);
+      addHistory(trackCode, data.warehouse);
+      vibrate();
+    } else if (data.status === 'already') {
+      showResult('already', trackCode, 'Уже отмечено ранее → склад: ' + data.warehouse);
+    } else {
+      showResult('error', trackCode, 'Трек-код не найден в таблице');
+    }
+  } catch(e) {
+    document.getElementById('loadingBlock').style.display = 'none';
+    showResult('error', trackCode, 'Ошибка соединения. Проверь интернет и URL скрипта.');
+  }
+}
+
+function showResult(type, track, message, warehouse) {
+  const block = document.getElementById('resultBlock');
+  if (type === 'success') {
+    block.innerHTML = `<div class="result-card success">
+      <div class="result-label">✅ Найдено и отмечено</div>
+      <div class="result-track">${track}</div>
+      <div class="result-warehouse">📦 ${warehouse}</div>
+    </div>`;
+  } else if (type === 'already') {
+    block.innerHTML = `<div class="result-card already">
+      <div class="result-label">⚠️ Уже было отмечено</div>
+      <div class="result-track">${track}</div>
+      <div class="result-message">${message}</div>
+    </div>`;
+  } else {
+    block.innerHTML = `<div class="result-card error">
+      <div class="result-label">❌ Ошибка</div>
+      ${track ? `<div class="result-track">${track}</div>` : ''}
+      <div class="result-message">${message}</div>
+    </div>`;
+  }
+  block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function addHistory(track, warehouse) {
+  const now = new Date();
+  const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  scanHistory.unshift({ track, warehouse, time, date: now.toDateString() });
+  if (scanHistory.length > 50) scanHistory = scanHistory.slice(0, 50);
+  localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+  updateStats();
+  renderHistory();
+}
+
+function updateStats() {
+  const todayCount = scanHistory.filter(h => h.date === today).length;
+  document.getElementById('statToday').textContent = todayCount;
+  document.getElementById('statTotal').textContent = scanHistory.length;
+}
+
+function renderHistory() {
+  if (scanHistory.length === 0) return;
+  document.getElementById('historySection').style.display = 'block';
+  document.getElementById('historyList').innerHTML = scanHistory.slice(0, 15).map(h => `
+    <div class="history-item">
+      <span class="history-track">${h.track}</span>
+      <span class="history-wh">${h.warehouse}</span>
+      <span class="history-time">${h.time}</span>
+    </div>`).join('');
+}
+
+function clearHistory() {
+  if (!confirm('Очистить историю сканирований?')) return;
+  scanHistory = [];
+  localStorage.removeItem('scanHistory');
+  document.getElementById('historySection').style.display = 'none';
+  updateStats();
+}
+
+function vibrate() {
+  if (navigator.vibrate) navigator.vibrate(100);
+}
+</script>
+</body>
+</html>
