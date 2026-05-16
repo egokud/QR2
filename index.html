@@ -157,20 +157,14 @@
 </div>
 
 <script>
-let scriptUrl = localStorage.getItem('scannerScriptUrl') || '';
+
 let scanner = null;
 let scanning = false;
 let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
 
 const today = new Date().toDateString();
 
-init();
-
-function init() {
-  if (scriptUrl) {
-    showMain();
-  }
-}
+showMain();
 
 function showMain() {
   document.getElementById('setupSection').style.display = 'none';
@@ -264,7 +258,7 @@ async function lookup(trackCode) {
   document.getElementById('resultBlock').innerHTML = '';
 
   try {
-    const url = scriptUrl + '?track=' + encodeURIComponent(trackCode);
+    const url = '/api/proxy?track=' + encodeURIComponent(trackCode);
     const res = await fetch(url);
     const data = await res.json();
     document.getElementById('loadingBlock').style.display = 'none';
@@ -320,7 +314,7 @@ function addHistory(track, warehouse) {
 
 function updateStats() {
   if (!scriptUrl) return;
-  fetch(scriptUrl + '?action=stats')
+  fetch('/api/proxy?action=stats')
     .then(r => r.json())
     .then(data => {
       document.getElementById('statScanned').textContent = data.scanned;
