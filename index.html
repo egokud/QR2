@@ -177,11 +177,22 @@ renderHistory();
 
 function lookup(trackCode) {
   const code = trackCode.trim();
+  const isPartial = code.length <= 6;
+
   const allRows = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
-    .filter(r => r.track === code);
+    .filter(r => isPartial ? r.track.endsWith(code) : r.track === code);
 
   if (allRows.length === 0) {
-    showResult('error', code, null, 'Трек-код не найден в списке');
+    showResult('error', code, null, isPartial
+      ? `Трек с окончанием «${code}» не найден`
+      : 'Трек-код не найден в списке');
+    return;
+  }
+
+  // Частичный поиск нашёл несколько разных треков — показать выбор
+  const uniqueTracks = [...new Set(allRows.map(r => r.track))];
+  if (isPartial && uniqueTracks.length > 1) {
+    showResult('multi', code, null, null, uniqueTracks);
     return;
   }
 
@@ -189,7 +200,7 @@ function lookup(trackCode) {
 
   if (!free) {
     const warehouses = [...new Set(allRows.map(r => r.warehouse))].join(', ');
-    showResult('already', code, warehouses, null);
+    showResult('already', allRows[0].track, warehouses, null);
     return;
   }
 
@@ -197,13 +208,13 @@ function lookup(trackCode) {
   localStorage.setItem('scannedItems', JSON.stringify(scanned));
 
   const allWarehouses = [...new Set(allRows.map(r => r.warehouse))].join(' + ');
-  showResult('success', code, allWarehouses, null);
-  addHistory(code, free.warehouse);
+  showResult('success', allRows[0].track, allWarehouses, null);
+  addHistory(allRows[0].track, free.warehouse);
   updateStats();
   vibrate();
 }
 
-function showResult(type, track, warehouses, message) {
+function showResult(type, track, warehouses, message, tracks) {
   const block = document.getElementById('resultBlock');
   if (type === 'success') {
     block.innerHTML = `<div class="result-card success">
@@ -216,6 +227,15 @@ function showResult(type, track, warehouses, message) {
       <div class="result-label">⚠️ Уже отмечено</div>
       <div class="result-track">${track}</div>
       <div class="result-message">Склад: ${warehouses}</div>
+    </div>`;
+  } else if (type === 'multi') {
+    const buttons = tracks.map(t =>
+      `<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;cursor:pointer;color:#1a1a1a;">${t}</button>`
+    ).join('');
+    block.innerHTML = `<div class="result-card already">
+      <div class="result-label">🔍 Найдено несколько треков</div>
+      <div class="result-message" style="margin-bottom:10px;">Выбери нужный:</div>
+      ${buttons}
     </div>`;
   } else {
     block.innerHTML = `<div class="result-card error">
