@@ -59,6 +59,18 @@
 
   .reset-wrap { margin: 0 16px 40px; }
   .btn-reset { width: 100%; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
+
+  .scan-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:24px; }
+  .scan-overlay.show { display:flex; }
+  .overlay-card { background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:360px; text-align:center; animation: popIn 0.2s ease; }
+  @keyframes popIn { from { transform:scale(0.85); opacity:0; } to { transform:scale(1); opacity:1; } }
+  .overlay-icon { font-size:48px; margin-bottom:12px; }
+  .overlay-warehouse { font-size:36px; font-weight:800; color:#1a1a1a; margin-bottom:4px; }
+  .overlay-track { font-size:12px; color:#aaa; margin-bottom:20px; word-break:break-all; }
+  .overlay-ok { width:100%; background:#7c6ff7; color:#fff; border:none; border-radius:12px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; }
+  .overlay-ok:active { opacity:0.85; }
+  .overlay-card.error-card .overlay-icon { }
+  .overlay-card.already-card .overlay-warehouse { color:#d97706; font-size:22px; }
 </style>
 </head>
 <body>
@@ -112,6 +124,16 @@
     <button onclick="clearHistory()">Очистить</button>
   </div>
   <div id="historyList"></div>
+</div>
+
+<!-- Scan result overlay -->
+<div class="scan-overlay" id="scanOverlay" onclick="overlayOk()">
+  <div class="overlay-card" id="overlayCard" onclick="event.stopPropagation()">
+    <div class="overlay-icon" id="overlayIcon"></div>
+    <div class="overlay-warehouse" id="overlayWarehouse"></div>
+    <div class="overlay-track" id="overlayTrack"></div>
+    <button class="overlay-ok" onclick="overlayOk()">OK — продолжить сканирование</button>
+  </div>
 </div>
 
 <div class="reset-wrap">
@@ -221,10 +243,13 @@ function lookup(trackCode) {
   showResult('success', allRows[0].track, allWarehouses, null);
   addHistory(allRows[0].track, free.warehouse);
   updateStats();
+  beep();
   vibrate();
 }
 
 function showResult(type, track, warehouses, message, tracks) {
+  // Always show overlay for success/already/multi when camera was active
+  showOverlay(type, track, warehouses, tracks);
   const block = document.getElementById('resultBlock');
   if (type === 'success') {
     block.innerHTML = `<div class="result-card success">
@@ -361,7 +386,7 @@ function startScanner() {
         Html5QrcodeSupportedFormats.DATA_MATRIX
       ]
     },
-    (code) => { stopScanner(); lookup(code.trim()); },
+    (code) => { lookup(code.trim()); },
     () => {}
   ).then(() => {
     setTimeout(() => setZoom(2.5), 500);
@@ -393,8 +418,78 @@ function stopScanner() {
   scanning = false;
 }
 
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.frequency.value = 1800;
+    o.type = 'sine';
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    o.start(ctx.currentTime);
+    o.stop(ctx.currentTime + 0.15);
+  } catch(e) {}
+}
+
 function vibrate() {
   if (navigator.vibrate) navigator.vibrate(100);
+}
+
+function showOverlay(type, track, warehouses, tracks) {
+  const overlay = document.getElementById('scanOverlay');
+  const card = document.getElementById('overlayCard');
+  const icon = document.getElementById('overlayIcon');
+  const wh = document.getElementById('overlayWarehouse');
+  const tr = document.getElementById('overlayTrack');
+
+  card.className = 'overlay-card';
+  if (type === 'success') {
+    icon.textContent = '✅';
+    wh.textContent = '📦 ' + warehouses;
+    wh.style.color = '#1a1a1a';
+    wh.style.fontSize = '36px';
+    tr.textContent = track;
+  } else if (type === 'already') {
+    card.className = 'overlay-card already-card';
+    icon.textContent = '⚠️';
+    wh.textContent = 'Уже отмечено: ' + warehouses;
+    wh.style.color = '#d97706';
+    wh.style.fontSize = '20px';
+    tr.textContent = track;
+  } else if (type === 'multi') {
+    icon.textContent = '🔍';
+    wh.textContent = 'Найдено несколько';
+    wh.style.color = '#7c6ff7';
+    wh.style.fontSize = '22px';
+    tr.textContent = 'Выбери трек:';
+    // inject buttons
+    const existing = card.querySelector('.multi-btns');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.className = 'multi-btns';
+    div.style.marginBottom = '12px';
+    tracks.forEach(t => {
+      const b = document.createElement('button');
+      b.textContent = t;
+      b.style.cssText = 'display:block;width:100%;text-align:left;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;cursor:pointer;';
+      b.onclick = () => { overlayOk(); lookup(t); };
+      div.appendChild(b);
+    });
+    card.insertBefore(div, card.querySelector('.overlay-ok'));
+  }
+  overlay.classList.add('show');
+}
+
+function overlayOk() {
+  document.getElementById('scanOverlay').classList.remove('show');
+  // Remove any multi buttons
+  const mb = document.querySelector('.multi-btns');
+  if (mb) mb.remove();
+  // Resume scanning if it was active
+  if (!scanning) startScanner();
 }
 </script>
 </body>
