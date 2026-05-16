@@ -107,13 +107,16 @@
 
   <div class="stats">
     <div class="stat-card">
-      <div class="stat-num" id="statToday">0</div>
-      <div class="stat-label">сегодня</div>
+      <div class="stat-num" id="statScanned">—</div>
+      <div class="stat-label">отсканировано</div>
     </div>
     <div class="stat-card">
-      <div class="stat-num" id="statTotal">0</div>
-      <div class="stat-label">всего</div>
+      <div class="stat-num" id="statTotal">—</div>
+      <div class="stat-label">всего в таблице</div>
     </div>
+  </div>
+  <div style="margin: 0 16px 12px; background:#fff; border-radius:10px; border:1px solid #e0e0e0; overflow:hidden; height:8px;">
+    <div id="progressBar" style="height:100%; background:#7c6ff7; width:0%; transition:width 0.4s;"></div>
   </div>
 
   <div class="scanner-section">
@@ -316,9 +319,16 @@ function addHistory(track, warehouse) {
 }
 
 function updateStats() {
-  const todayCount = scanHistory.filter(h => h.date === today).length;
-  document.getElementById('statToday').textContent = todayCount;
-  document.getElementById('statTotal').textContent = scanHistory.length;
+  if (!scriptUrl) return;
+  fetch(scriptUrl + '?action=stats')
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('statScanned').textContent = data.scanned;
+      document.getElementById('statTotal').textContent = data.total;
+      const pct = data.total > 0 ? Math.round(data.scanned / data.total * 100) : 0;
+      document.getElementById('progressBar').style.width = pct + '%';
+    })
+    .catch(() => {});
 }
 
 function renderHistory() {
