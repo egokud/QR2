@@ -88,10 +88,10 @@
   <div id="zoomSection" style="display:none; margin-top:10px; background:#fff; border-radius:10px; padding:10px 14px; border:1px solid #e0e0e0;">
     <div style="display:flex; align-items:center; gap:10px;">
       <span style="font-size:13px; color:#999; white-space:nowrap;">🔍 Zoom</span>
-      <input id="zoomSlider" type="range" min="1" max="4" step="0.5" value="1"
+      <input id="zoomSlider" type="range" min="1" max="5" step="0.5" value="2.5"
         oninput="setZoom(this.value)"
         style="flex:1; accent-color:#7c6ff7;">
-      <span id="zoomVal" style="font-size:13px; font-weight:600; color:#7c6ff7; width:28px;">1x</span>
+      <span id="zoomVal" style="font-size:13px; font-weight:600; color:#7c6ff7; width:28px;">2.5x</span>
     </div>
   </div>
 </div>
@@ -99,7 +99,7 @@
 <div class="manual-section">
   <h3>Ввести вручную</h3>
   <div class="manual-row">
-    <input type="text" id="manualInput" placeholder="jt5477931681682" autocomplete="off" />
+    <input type="tel" id="manualInput" placeholder="jt5477931681682" autocomplete="off" />
     <button onclick="manualSearch()">Найти</button>
   </div>
 </div>
@@ -338,6 +338,8 @@ function startScanner() {
   document.getElementById('scanBtn').textContent = '⏹ Остановить сканер';
   document.getElementById('scanBtn').classList.add('stop');
   scanning = true;
+  document.getElementById('zoomSlider').value = 2.5;
+  document.getElementById('zoomVal').textContent = '2.5x';
   scanner = new Html5Qrcode("reader");
   scanner.start(
     { facingMode: "environment" },
@@ -360,7 +362,9 @@ function startScanner() {
     },
     (code) => { stopScanner(); lookup(code.trim()); },
     () => {}
-  ).catch(() => {
+  ).then(() => {
+    setTimeout(() => setZoom(2.5), 500);
+  }).catch(() => {
     showResult('error', '', null, 'Нет доступа к камере. Разреши доступ в настройках браузера.');
     stopScanner();
   });
