@@ -559,17 +559,22 @@ function showOverlay(type, track, warehouses, tracks) {
   if (type === 'success') {
     card.className = 'overlay-card success-card';
     icon.textContent = '✅';
-    wh.textContent = '📦 ' + warehouses;
     tr.textContent = track;
-    // Multi-recipient warning
+    // Multi-recipient: split by " и " and show each on new line
     const existingWarn = card.querySelector('.multi-warn');
     if (existingWarn) existingWarn.remove();
     if (warehouses.includes(' и ')) {
+      const recipients = warehouses.split(' и ').map(r => r.trim());
+      wh.innerHTML = recipients.map(r => '📦 ' + r).join('<br>');
+      wh.style.fontSize = '26px';
       const warn = document.createElement('div');
       warn.className = 'multi-warn';
       warn.textContent = '⚠️ Товаров может быть несколько!';
       warn.style.cssText = 'background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:600;color:#ea580c;margin:8px 0 16px;';
       card.insertBefore(warn, card.querySelector('.overlay-ok'));
+    } else {
+      wh.textContent = '📦 ' + warehouses;
+      wh.style.fontSize = '';
     }
   } else if (type === 'already') {
     card.className = 'overlay-card already-card';
