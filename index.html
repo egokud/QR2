@@ -64,13 +64,18 @@
   .scan-overlay.show { display:flex; }
   .overlay-card { background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:360px; text-align:center; animation: popIn 0.2s ease; }
   @keyframes popIn { from { transform:scale(0.85); opacity:0; } to { transform:scale(1); opacity:1; } }
+  .overlay-card.success-card { background:#f0fdf4; border: 2px solid #86efac; }
+  .overlay-card.already-card { background:#fffbeb; border: 2px solid #fcd34d; }
+  .overlay-card.error-card { background:#fef2f2; border: 2px solid #fca5a5; }
   .overlay-icon { font-size:48px; margin-bottom:12px; }
   .overlay-warehouse { font-size:36px; font-weight:800; color:#1a1a1a; margin-bottom:4px; }
   .overlay-track { font-size:12px; color:#aaa; margin-bottom:20px; word-break:break-all; }
   .overlay-ok { width:100%; background:#7c6ff7; color:#fff; border:none; border-radius:12px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; }
   .overlay-ok:active { opacity:0.85; }
-  .overlay-card.error-card .overlay-icon { }
   .overlay-card.already-card .overlay-warehouse { color:#d97706; font-size:22px; }
+  .overlay-card.already-card .overlay-ok { background:#f59e0b; }
+  .overlay-card.error-card .overlay-warehouse { color:#dc2626; font-size:22px; }
+  .overlay-card.error-card .overlay-ok { background:#ef4444; }
 </style>
 </head>
 <body>
@@ -248,8 +253,10 @@ function lookup(trackCode) {
 }
 
 function showResult(type, track, warehouses, message, tracks) {
-  // Always show overlay for success/already/multi when camera was active
-  showOverlay(type, track, warehouses, tracks);
+  // Only overlay for success and multi
+  if (type === 'success' || type === 'multi') {
+    showOverlay(type, track, warehouses, tracks);
+  }
   const block = document.getElementById('resultBlock');
   if (type === 'success') {
     block.innerHTML = `<div class="result-card success">
@@ -439,6 +446,8 @@ function vibrate() {
 }
 
 function showOverlay(type, track, warehouses, tracks) {
+  // Pause scanner while overlay is open
+  if (scanner) scanner.pause(true);
   const overlay = document.getElementById('scanOverlay');
   const card = document.getElementById('overlayCard');
   const icon = document.getElementById('overlayIcon');
@@ -446,18 +455,17 @@ function showOverlay(type, track, warehouses, tracks) {
   const tr = document.getElementById('overlayTrack');
 
   card.className = 'overlay-card';
+  wh.style.color = '';
+  wh.style.fontSize = '';
   if (type === 'success') {
+    card.className = 'overlay-card success-card';
     icon.textContent = '✅';
     wh.textContent = '📦 ' + warehouses;
-    wh.style.color = '#1a1a1a';
-    wh.style.fontSize = '36px';
     tr.textContent = track;
   } else if (type === 'already') {
     card.className = 'overlay-card already-card';
     icon.textContent = '⚠️';
     wh.textContent = 'Уже отмечено: ' + warehouses;
-    wh.style.color = '#d97706';
-    wh.style.fontSize = '20px';
     tr.textContent = track;
   } else if (type === 'multi') {
     icon.textContent = '🔍';
@@ -485,11 +493,12 @@ function showOverlay(type, track, warehouses, tracks) {
 
 function overlayOk() {
   document.getElementById('scanOverlay').classList.remove('show');
-  // Remove any multi buttons
   const mb = document.querySelector('.multi-btns');
   if (mb) mb.remove();
-  // Resume scanning if it was active
-  if (!scanning) startScanner();
+  // Resume scanner
+  if (scanner) {
+    try { scanner.resume(); } catch(e) {}
+  }
 }
 </script>
 </body>
