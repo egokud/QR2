@@ -561,6 +561,16 @@ function showOverlay(type, track, warehouses, tracks) {
     icon.textContent = '✅';
     wh.textContent = '📦 ' + warehouses;
     tr.textContent = track;
+    // Multi-recipient warning
+    const existingWarn = card.querySelector('.multi-warn');
+    if (existingWarn) existingWarn.remove();
+    if (warehouses.includes(' и ')) {
+      const warn = document.createElement('div');
+      warn.className = 'multi-warn';
+      warn.textContent = '⚠️ Товаров может быть несколько!';
+      warn.style.cssText = 'background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:600;color:#ea580c;margin:8px 0 16px;';
+      card.insertBefore(warn, card.querySelector('.overlay-ok'));
+    }
   } else if (type === 'already') {
     card.className = 'overlay-card already-card';
     icon.textContent = '⚠️';
