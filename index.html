@@ -10,31 +10,26 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; }
 
   .header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
-  .header-left { display: flex; align-items: center; gap: 10px; }
   .header h1 { font-size: 18px; font-weight: 600; color: #1a1a1a; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
-  .dot.active { background: #22c55e; }
-  .btn-settings { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; color: #888; }
+  .btn-export { background: none; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; cursor: pointer; padding: 6px 12px; color: #555; }
 
-  .setup-section { background: #fff; margin: 16px; border-radius: 12px; padding: 20px; border: 1px solid #e0e0e0; }
-  .setup-section h2 { font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
-  .setup-section p { font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.5; }
-  .setup-section a { color: #7c6ff7; }
-  .setup-section input { width: 100%; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #1a1a1a; outline: none; }
-  .setup-section input:focus { border-color: #7c6ff7; }
-  .btn-primary { margin-top: 10px; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
-  .btn-primary:active { opacity: 0.85; }
-  .btn-danger { margin-top: 8px; width: 100%; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 14px; border: 1px solid #e0e0e0; text-align: center; }
+  .stat-num { font-size: 26px; font-weight: 700; color: #7c6ff7; }
+  .stat-label { font-size: 12px; color: #999; margin-top: 2px; }
+
+  .progress-wrap { margin: 0 16px 16px; background: #e0e0e0; border-radius: 10px; overflow: hidden; height: 8px; }
+  .progress-bar { height: 100%; background: #7c6ff7; transition: width 0.4s; }
 
   .scanner-section { margin: 16px; }
   #reader { border-radius: 12px; overflow: hidden; background: #000; }
   #reader video { width: 100% !important; border-radius: 12px; }
 
-  .btn-scan { display: block; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+  .btn-scan { display: block; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 0; }
   .btn-scan:active { transform: scale(0.98); }
   .btn-scan.stop { background: #f0f0f0; color: #555; }
 
-  .manual-section { background: #fff; margin: 0 16px 16px; border-radius: 12px; padding: 16px; border: 1px solid #e0e0e0; }
+  .manual-section { background: #fff; margin: 16px; border-radius: 12px; padding: 16px; border: 1px solid #e0e0e0; }
   .manual-section h3 { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
   .manual-row { display: flex; gap: 8px; }
   .manual-row input { flex: 1; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #1a1a1a; outline: none; min-width: 0; }
@@ -53,11 +48,7 @@
   .result-warehouse { font-size: 32px; font-weight: 700; color: #1a1a1a; }
   .result-message { font-size: 14px; color: #555; line-height: 1.5; }
 
-  .loading { text-align: center; padding: 24px; color: #999; font-size: 14px; }
-  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #e0e0e0; border-top-color: #7c6ff7; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .history { margin: 0 16px 40px; }
+  .history { margin: 0 16px 16px; }
   .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .history-header h3 { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
   .history-header button { font-size: 12px; color: #dc2626; background: none; border: none; cursor: pointer; }
@@ -66,263 +57,192 @@
   .history-wh { font-size: 14px; font-weight: 600; color: #7c6ff7; white-space: nowrap; }
   .history-time { font-size: 11px; color: #bbb; white-space: nowrap; }
 
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px; }
-  .stat-card { background: #fff; border-radius: 10px; padding: 14px; border: 1px solid #e0e0e0; text-align: center; }
-  .stat-num { font-size: 26px; font-weight: 700; color: #7c6ff7; }
-  .stat-label { font-size: 12px; color: #999; margin-top: 2px; }
+  .reset-wrap { margin: 0 16px 40px; }
+  .btn-reset { width: 100%; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-left">
-    <div class="dot" id="statusDot"></div>
-    <h1>📦 Сканер посылок</h1>
-  </div>
-  <button class="btn-settings" onclick="openSettings()" title="Настройки">⚙️</button>
+  <h1>📦 Сканер посылок</h1>
+  <button class="btn-export" onclick="exportScanned()">📋 Экспорт</button>
 </div>
 
-<!-- Настройка -->
-<div class="setup-section" id="setupSection">
-  <h2>Подключение к таблице</h2>
-  <p>Вставь URL веб-приложения из Google Apps Script. <a href="#" onclick="showInstructions()">Как получить URL?</a></p>
-  <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec" />
-  <button class="btn-primary" onclick="saveUrl()">Сохранить и начать</button>
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-num" id="statScanned">0</div>
+    <div class="stat-label">отсканировано</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="statTotal">0</div>
+    <div class="stat-label">всего в списке</div>
+  </div>
+</div>
+<div class="progress-wrap">
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
 </div>
 
-<!-- Инструкция -->
-<div class="setup-section" id="instructionSection" style="display:none">
-  <h2>Как получить URL скрипта</h2>
-  <p>1. Открой свою Google таблицу<br>
-  2. <b>Расширения → Apps Script</b><br>
-  3. Вставь код скрипта (есть в README на GitHub)<br>
-  4. <b>Развернуть → Новое развертывание</b><br>
-  5. Тип: <b>Веб-приложение</b>, доступ: <b>Все</b><br>
-  6. Нажми <b>Развернуть</b> и скопируй URL</p>
-  <button class="btn-primary" onclick="hideInstructions()">Понятно, ввести URL</button>
+<div class="scanner-section">
+  <button class="btn-scan" id="scanBtn" onclick="toggleScanner()">📷 Сканировать штрих-код</button>
+  <div id="reader" style="display:none; margin-top:12px;"></div>
 </div>
 
-<!-- Основной экран -->
-<div id="mainSection" style="display:none">
-
-  <div class="stats">
-    <div class="stat-card">
-      <div class="stat-num" id="statScanned">—</div>
-      <div class="stat-label">отсканировано</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" id="statTotal">—</div>
-      <div class="stat-label">всего в таблице</div>
-    </div>
-  </div>
-  <div style="margin: 0 16px 12px; background:#fff; border-radius:10px; border:1px solid #e0e0e0; overflow:hidden; height:8px;">
-    <div id="progressBar" style="height:100%; background:#7c6ff7; width:0%; transition:width 0.4s;"></div>
-  </div>
-
-  <div class="scanner-section">
-    <button class="btn-scan" id="scanBtn" onclick="toggleScanner()">📷 Сканировать QR-код</button>
-    <div id="reader" style="display:none"></div>
-  </div>
-
-  <div class="manual-section">
-    <h3>Ввести вручную</h3>
-    <div class="manual-row">
-      <input type="text" id="manualInput" placeholder="jt5477931681682" autocomplete="off" />
-      <button onclick="manualSearch()">Найти</button>
-    </div>
-  </div>
-
-  <div id="loadingBlock" class="loading" style="display:none">
-    <span class="spinner"></span> Ищу в таблице...
-  </div>
-
-  <div id="resultBlock"></div>
-
-  <div class="history" id="historySection" style="display:none">
-    <div class="history-header">
-      <h3>История</h3>
-      <button onclick="clearHistory()">Очистить</button>
-    </div>
-    <div id="historyList"></div>
+<div class="manual-section">
+  <h3>Ввести вручную</h3>
+  <div class="manual-row">
+    <input type="text" id="manualInput" placeholder="jt5477931681682" autocomplete="off" />
+    <button onclick="manualSearch()">Найти</button>
   </div>
 </div>
 
-<!-- Настройки (повторный вход) -->
-<div class="setup-section" id="settingsSection" style="display:none">
-  <h2>Настройки</h2>
-  <p>Текущий URL скрипта:</p>
-  <input type="url" id="scriptUrlEdit" />
-  <button class="btn-primary" onclick="saveUrl(true)">Сохранить</button>
-  <button class="btn-danger" onclick="closeSettings()">Отмена</button>
+<div id="resultBlock"></div>
+
+<div class="history" id="historySection" style="display:none">
+  <div class="history-header">
+    <h3>История сканирований</h3>
+    <button onclick="clearHistory()">Очистить</button>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<div class="reset-wrap">
+  <button class="btn-reset" onclick="resetAll()">🔄 Сбросить все отметки</button>
 </div>
 
 <script>
+const TABLE = [
+  ["jt5477931681682","Алеся"],["777402207338908","Алеся"],["465272676494292","Алеся"],
+  ["jt5478135009814","Алеся"],["yt7616131202044","Алеся"],["jt5477963231610","Алеся"],
+  ["jt5477935024252","Алеся"],["465271644003060","Алеся"],["yt8861584109539","Алеся"],
+  ["78597744480556","Алеся"],["777402097872823","Алеся"],["78597966778655","Алеся"],
+  ["jt5478060640176","Алеся"],["465274211431034","Алеся"],["9815823638730","Алеся"],
+  ["9815835068783","Алеся"],["777402169996391","Алеся"],["465274559158615","Алеся"],
+  ["9815786303992","Алеся"],["465274888655886","Алеся"],["yt7616165073436","Алеся"],
+  ["465272625288019","Алеся"],["78597852072012","Алеся"],["465274817451842","Алеся"],
+  ["777402092486659","Алеся"],["78598008192044","Аня"],["yt8861595892185","Аня"],
+  ["465273744229398","Аня"],["9815836668350","Аня"],["yt8861688052889","Аня"],
+  ["yt8861037116594","Аня"],["777402637961880","Аня"],["777402010749290","Аня"],
+  ["777402010749290","Я"],["yt8859968576606","Аня Ковалева"],["yt7615686670410","Аня Ковалева"],
+  ["78996898515057","Аня Ковалева"],["yt8861266160230","Егор"],["777403163568387","Егор"],
+  ["78597398315684","Егор"],["78597723913831","Егор"],["435143037689374","Ксюша"],
+  ["78597789040807","Ксюша"],["465274766506951","Ксюша"],["777402070442650","Ксюша"],
+  ["jt5477945750882","Ксюша"],["777402300082200","Ксюша"],["78597875050543","Ксюша"],
+  ["jt5477933165595","Ксюша"],["yt8861564459317","Ксюша"],["jt5478068116707","Ксюша"],
+  ["9815819223543","Ксюша"],["777402144578283","Ксюша"],["777403177161272","Ксюша"],
+  ["465273741054832","Ксюша"],["jt5478076338251","Ксюша"],["jt5479017910404","Ксюша"],
+  ["78597845679094","Ксюша"],["78598070784183","Ксюша"],["777401271451568","Лиза Гайдук"],
+  ["yt8859964936109","Лиза Гайдук"],["yt8859867293109","Лиза Гайдук"],["78596981857268","Лиза Гайдук"],
+  ["yt8859804823295","Лиза Гайдук"],["777401729387049","Лиза Гайдук"],["777401656032819","Лиза Л"],
+  ["465264111220563","Лиза Л"],["jt5477786345031","Лиза Л"],["777401654261967","Лиза Л"],
+  ["yt8860533066381","Лиза Л"],["465270689383869","Лиза Л"],["777401880955372","Лиза Л"],
+  ["777401443385065","Лиза Л"],["jt5477710693061","Лиза Л"],["jt5477538152977","Лиза Л"],
+  ["jt5477492770045","Лиза Л"],["jt5477460554846","Лиза Л"],["465264684410674","Лиза Л"],
+  ["9815743512007","Лиза Л"],["777401866286292","Лиза Л"],["yt8860567356102","Лиза Л"],
+  ["yt8860428784853","Лиза Л"],["465269943825489","Лиза Л"],["777401865391698","Лиза Л"],
+  ["465270528589417","Лиза Л"],["777401654295289","Лиза Л"],["78597394644416","Лиза Л"],
+  ["78597212518711","Лиза Л"],["yt8860447920276","Лиза Л"],["78597390040554","Лиза Л"],
+  ["78597378872709","Лиза Л"],["465270350787799","Лиза Л"],["465263610550025","Лиза Л"],
+  ["78597431475202","Лиза Л"],["777401876024798","Лиза Л"],["78597424101025","Лиза Л"],
+  ["465263385644935","Лиза Л"],["465273519167894","Лиза Л"],["jt5477677025621","Лиза Л"],
+  ["465270653980863","Лиза Л"],["9815814102717","Мама"],["9815814514211","Мама"],
+  ["jt5478221091012","Мама"],["465270263088009","Наташа"],["9815835773763","Наташа"],
+  ["yt8859969219063","Наташа"],["435134022682765","Наташа"],["yt8859790821251","Наташа"],
+  ["78597619702792","Наташа"],["78597486635030","Наташа"],["78597368272697","Наташа"],
+  ["78596915821440","Наташа"],["jt5477527024953","Наташа"],["jt5477527024953","Мама"],
+  ["465274513523487","Наташа"],["465274513523487","Мама"],["9815827451249","Наташа"],
+  ["9815827451249","Мама"],["9815836402543","Папа"],["78597529804189","Папа"],
+  ["465269015312632","Папа"],["yt8859976484249","Паша"],["465269399240245","Паша"],
+  ["78597027233178","Паша"],["9815845705841","Паша"],["78597399381276","Паша"],
+  ["jt5477884970995","Я"],["777401283839825","Я"],["yt8861677435565","Я"],
+  ["777401674979531","Я"],["9815738667514","Я"],["jt5478111662851","Я"],
+  ["9815774813598","Я"],["78597017170502","Я"],["yt8860558826573","Я"],
+  ["78997058330985","Я"],["777401874922622","Я"],["777401961439405","Я"],
+  ["9815742211295","Я"],["jt5478122001067","Я"],["78597054691706","Я (продажа)"],
+  ["jt5476510077417","Я (продажа)"],["777401210985621","Я (продажа)"],["773416786181037","Я (продажа)"],
+  ["jt5476742847381","Я (продажа)"],["jt5476558827633","Я (продажа)"],["9815727544345","Я (продажа)"],
+  ["78597056449406","Я (продажа)"],["78597342746710","Я (продажа)"],["777402312837455","Алеся"],
+  ["777402312837455","Я"],["465266790816082","Лиза Гайдук"],["465266790816082","Я"],
+  ["78597171183056","Я"],["78597171183056","Наташа"],["jt5477640111894","Наташа"],
+  ["jt5477640111894","Я"],["78597152482984","Я + продажа"],["777401159662286","Я + продажа"],
+  ["jt5478029257525","Аня"],["jt5478029257525","Я"],["78597946256329","Я"]
+];
 
+let scanned = JSON.parse(localStorage.getItem('scannedItems') || '{}');
+let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
 let scanner = null;
 let scanning = false;
-let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
 
-const today = new Date().toDateString();
+updateStats();
+renderHistory();
 
-showMain();
+function lookup(trackCode) {
+  const code = trackCode.trim();
+  const allRows = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
+    .filter(r => r.track === code);
 
-function showMain() {
-  document.getElementById('setupSection').style.display = 'none';
-  document.getElementById('instructionSection').style.display = 'none';
-  document.getElementById('settingsSection').style.display = 'none';
-  document.getElementById('mainSection').style.display = 'block';
-  document.getElementById('statusDot').classList.add('active');
-  updateStats();
-  renderHistory();
-}
-
-function saveUrl(fromSettings) {
-  const inputId = fromSettings ? 'scriptUrlEdit' : 'scriptUrl';
-  const url = document.getElementById(inputId).value.trim();
-  if (!url.startsWith('https://script.google.com')) {
-    alert('Введи корректный URL Google Apps Script');
+  if (allRows.length === 0) {
+    showResult('error', code, null, 'Трек-код не найден в списке');
     return;
   }
-  localStorage.setItem('scannerScriptUrl', url);
-  scriptUrl = url;
-  showMain();
-}
 
-function openSettings() {
-  document.getElementById('mainSection').style.display = 'none';
-  document.getElementById('scriptUrlEdit').value = scriptUrl;
-  document.getElementById('settingsSection').style.display = 'block';
-}
+  const free = allRows.find(r => !scanned[r.idx]);
 
-function closeSettings() {
-  document.getElementById('settingsSection').style.display = 'none';
-  document.getElementById('mainSection').style.display = 'block';
-}
-
-function showInstructions() {
-  document.getElementById('setupSection').style.display = 'none';
-  document.getElementById('instructionSection').style.display = 'block';
-}
-
-function hideInstructions() {
-  document.getElementById('instructionSection').style.display = 'none';
-  document.getElementById('setupSection').style.display = 'block';
-}
-
-function toggleScanner() {
-  scanning ? stopScanner() : startScanner();
-}
-
-function startScanner() {
-  document.getElementById('reader').style.display = 'block';
-  document.getElementById('scanBtn').textContent = '⏹ Остановить сканер';
-  document.getElementById('scanBtn').classList.add('stop');
-  scanning = true;
-
-  scanner = new Html5Qrcode("reader");
-  scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 300, height: 120 }, formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.ITF, Html5QrcodeSupportedFormats.QR_CODE ] },
-    (code) => {
-      stopScanner();
-      lookup(code.trim());
-    },
-    () => {}
-  ).catch(err => {
-    showResult('error', '', 'Нет доступа к камере. Разреши доступ в настройках браузера.');
-    stopScanner();
-  });
-}
-
-function stopScanner() {
-  if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
-  document.getElementById('reader').style.display = 'none';
-  document.getElementById('scanBtn').textContent = '📷 Сканировать QR-код';
-  document.getElementById('scanBtn').classList.remove('stop');
-  scanning = false;
-}
-
-function manualSearch() {
-  const val = document.getElementById('manualInput').value.trim();
-  if (!val) return;
-  lookup(val);
-  document.getElementById('manualInput').value = '';
-}
-
-document.getElementById('manualInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') manualSearch();
-});
-
-async function lookup(trackCode) {
-  document.getElementById('loadingBlock').style.display = 'block';
-  document.getElementById('resultBlock').innerHTML = '';
-
-  try {
-    const url = '/api/proxy?track=' + encodeURIComponent(trackCode);
-    const res = await fetch(url);
-    const data = await res.json();
-    document.getElementById('loadingBlock').style.display = 'none';
-
-    if (data.status === 'ok') {
-      showResult('success', trackCode, null, data.warehouse);
-      addHistory(trackCode, data.warehouse);
-      vibrate();
-    } else if (data.status === 'already') {
-      showResult('already', trackCode, 'Уже отмечено ранее → склад: ' + data.warehouse);
-    } else {
-      showResult('error', trackCode, 'Трек-код не найден в таблице');
-    }
-  } catch(e) {
-    document.getElementById('loadingBlock').style.display = 'none';
-    showResult('error', trackCode, 'Ошибка соединения. Проверь интернет и URL скрипта.');
+  if (!free) {
+    const warehouses = [...new Set(allRows.map(r => r.warehouse))].join(', ');
+    showResult('already', code, warehouses, null);
+    return;
   }
+
+  scanned[free.idx] = true;
+  localStorage.setItem('scannedItems', JSON.stringify(scanned));
+
+  const allWarehouses = [...new Set(allRows.map(r => r.warehouse))].join(' + ');
+  showResult('success', code, allWarehouses, null);
+  addHistory(code, free.warehouse);
+  updateStats();
+  vibrate();
 }
 
-function showResult(type, track, message, warehouse) {
+function showResult(type, track, warehouses, message) {
   const block = document.getElementById('resultBlock');
   if (type === 'success') {
     block.innerHTML = `<div class="result-card success">
       <div class="result-label">✅ Найдено и отмечено</div>
       <div class="result-track">${track}</div>
-      <div class="result-warehouse">📦 ${warehouse}</div>
+      <div class="result-warehouse">📦 ${warehouses}</div>
     </div>`;
   } else if (type === 'already') {
     block.innerHTML = `<div class="result-card already">
-      <div class="result-label">⚠️ Уже было отмечено</div>
+      <div class="result-label">⚠️ Уже отмечено</div>
       <div class="result-track">${track}</div>
-      <div class="result-message">${message}</div>
+      <div class="result-message">Склад: ${warehouses}</div>
     </div>`;
   } else {
     block.innerHTML = `<div class="result-card error">
-      <div class="result-label">❌ Ошибка</div>
-      ${track ? `<div class="result-track">${track}</div>` : ''}
+      <div class="result-label">❌ Не найдено</div>
+      <div class="result-track">${track}</div>
       <div class="result-message">${message}</div>
     </div>`;
   }
   block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+function updateStats() {
+  const total = TABLE.length;
+  const done = Object.keys(scanned).length;
+  document.getElementById('statScanned').textContent = done;
+  document.getElementById('statTotal').textContent = total;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
 function addHistory(track, warehouse) {
   const now = new Date();
   const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-  scanHistory.unshift({ track, warehouse, time, date: now.toDateString() });
-  if (scanHistory.length > 50) scanHistory = scanHistory.slice(0, 50);
+  scanHistory.unshift({ track, warehouse, time });
+  if (scanHistory.length > 30) scanHistory = scanHistory.slice(0, 30);
   localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
-  updateStats();
   renderHistory();
-}
-
-function updateStats() {
-  if (!scriptUrl) return;
-  fetch('/api/proxy?action=stats')
-    .then(r => r.json())
-    .then(data => {
-      document.getElementById('statScanned').textContent = data.scanned;
-      document.getElementById('statTotal').textContent = data.total;
-      const pct = data.total > 0 ? Math.round(data.scanned / data.total * 100) : 0;
-      document.getElementById('progressBar').style.width = pct + '%';
-    })
-    .catch(() => {});
 }
 
 function renderHistory() {
@@ -337,11 +257,86 @@ function renderHistory() {
 }
 
 function clearHistory() {
-  if (!confirm('Очистить историю сканирований?')) return;
+  if (!confirm('Очистить историю?')) return;
   scanHistory = [];
   localStorage.removeItem('scanHistory');
   document.getElementById('historySection').style.display = 'none';
+}
+
+function resetAll() {
+  if (!confirm('Сбросить все отметки? Это действие нельзя отменить.')) return;
+  scanned = {};
+  scanHistory = [];
+  localStorage.removeItem('scannedItems');
+  localStorage.removeItem('scanHistory');
+  document.getElementById('historySection').style.display = 'none';
+  document.getElementById('resultBlock').innerHTML = '';
   updateStats();
+}
+
+function exportScanned() {
+  const rows = TABLE
+    .map((row, idx) => ({ track: row[0], warehouse: row[1], done: !!scanned[idx] }))
+    .filter(r => r.done)
+    .map(r => r.track + ',' + r.warehouse)
+    .join('\n');
+  const text = 'Трек код,Склад\n' + (rows || '');
+  const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'отсканированные.csv';
+  a.click();
+}
+
+function manualSearch() {
+  const val = document.getElementById('manualInput').value.trim();
+  if (!val) return;
+  lookup(val);
+  document.getElementById('manualInput').value = '';
+}
+
+document.getElementById('manualInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') manualSearch();
+});
+
+function toggleScanner() {
+  scanning ? stopScanner() : startScanner();
+}
+
+function startScanner() {
+  document.getElementById('reader').style.display = 'block';
+  document.getElementById('scanBtn').textContent = '⏹ Остановить сканер';
+  document.getElementById('scanBtn').classList.add('stop');
+  scanning = true;
+  scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: { width: 300, height: 120 },
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.QR_CODE
+      ]
+    },
+    (code) => { stopScanner(); lookup(code.trim()); },
+    () => {}
+  ).catch(() => {
+    showResult('error', '', null, 'Нет доступа к камере. Разреши доступ в настройках браузера.');
+    stopScanner();
+  });
+}
+
+function stopScanner() {
+  if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
+  document.getElementById('reader').style.display = 'none';
+  document.getElementById('scanBtn').textContent = '📷 Сканировать штрих-код';
+  document.getElementById('scanBtn').classList.remove('stop');
+  scanning = false;
 }
 
 function vibrate() {
