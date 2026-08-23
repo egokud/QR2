@@ -23,7 +23,7 @@
 
   .scanner-section { margin: 16px; }
   #reader { border-radius: 12px; overflow: hidden; background: #000; }
-  #reader video { width: 100% !important; border-radius: 12px; }
+  #reader video { width: 100% !important; border-radius: 12px; filter: contrast(1.5) brightness(1.1); }
 
   .btn-scan { display: block; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 0; }
   .btn-scan:active { transform: scale(0.98); }
@@ -620,7 +620,7 @@ async function startScanner() {
     cameraConstraint,
     {
       fps: 15,
-      qrbox: { width: 280, height: 180 },
+      qrbox: { width: 320, height: 100 },
       aspectRatio: 1.5,
       formatsToSupport: [
         Html5QrcodeSupportedFormats.CODE_128,
