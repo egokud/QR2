@@ -380,18 +380,60 @@ let scanning = false;
 updateStats();
 renderHistory();
 
+// Расстояние Левенштейна
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
 function lookup(trackCode) {
   const code = trackCode.trim();
   const isPartial = code.length <= 6;
   const codeLower = code.toLowerCase();
 
-  const allRows = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
+  // Шаг 1: точный поиск
+  let allRows = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
     .filter(r => isPartial ? r.track.toLowerCase().endsWith(codeLower) : r.track.toLowerCase() === codeLower);
 
+  if (allRows.length === 0 && !isPartial) {
+    // Шаг 2: поиск по последним 4 цифрам считанного кода
+    const last4 = codeLower.slice(-4);
+    const byLast4 = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
+      .filter(r => r.track.toLowerCase().endsWith(last4));
+
+    if (byLast4.length === 1) {
+      // Нашли ровно один — предлагаем как вариант
+      const uniqueTracks = [...new Set(byLast4.map(r => r.track))];
+      showResult('fuzzy', code, null, null, uniqueTracks, '🔍 Точный код не найден. Найден по последним 4 цифрам:');
+      return;
+    } else if (byLast4.length > 1) {
+      const uniqueTracks = [...new Set(byLast4.map(r => r.track))];
+      showResult('fuzzy', code, null, null, uniqueTracks, '🔍 Точный код не найден. Варианты по последним 4 цифрам:');
+      return;
+    }
+
+    // Шаг 3: нечёткий поиск (Левенштейн, допуск до 3 символов)
+    const fuzzy = TABLE.map((row, idx) => ({
+      idx, track: row[0], warehouse: row[1],
+      dist: levenshtein(codeLower, row[0].toLowerCase())
+    })).filter(r => r.dist <= 3).sort((a, b) => a.dist - b.dist);
+
+    if (fuzzy.length > 0) {
+      const uniqueTracks = [...new Set(fuzzy.slice(0, 4).map(r => r.track))];
+      showResult('fuzzy', code, null, null, uniqueTracks, '🔍 Точный код не найден. Похожие варианты:');
+      return;
+    }
+
+    showResult('error', code, null, 'Трек-код не найден в списке');
+    return;
+  }
+
   if (allRows.length === 0) {
-    showResult('error', code, null, isPartial
-      ? `Трек с окончанием «${code}» не найден`
-      : 'Трек-код не найден в списке');
+    showResult('error', code, null, `Трек с окончанием «${code}» не найден`);
     return;
   }
 
@@ -448,6 +490,17 @@ function showResult(type, track, warehouses, message, tracks) {
       <div class="result-message" style="margin-bottom:10px;">Выбери нужный:</div>
       ${buttons}
     </div>`;
+  } else if (type === 'fuzzy') {
+    const buttons = tracks.map(t =>
+      `<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #7c6ff7;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;cursor:pointer;color:#1a1a1a;">${t}</button>`
+    ).join('');
+    block.innerHTML = `<div class="result-card already" style="border-color:#a5b4fc;background:#f5f3ff;">
+      <div class="result-label" style="color:#6d28d9;">${message}</div>
+      <div class="result-track" style="margin-bottom:10px;">Считано: ${track}</div>
+      ${buttons}
+    </div>`;
+    block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
   } else {
     block.innerHTML = `<div class="result-card error">
       <div class="result-label">❌ Не найдено</div>
