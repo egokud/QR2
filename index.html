@@ -587,7 +587,7 @@ function toggleScanner() {
   scanning ? stopScanner() : startScanner();
 }
 
-function startScanner() {
+async function startScanner() {
   document.getElementById('reader').style.display = 'block';
   document.getElementById('zoomSection').style.display = 'block';
   document.getElementById('scanBtn').textContent = '⏹ Остановить сканер';
@@ -596,8 +596,28 @@ function startScanner() {
   document.getElementById('zoomSlider').value = 2.5;
   document.getElementById('zoomVal').textContent = '2.5x';
   scanner = new Html5Qrcode("reader");
+
+  // Получаем список камер и выбираем основную заднюю (не ultra-wide и не telephoto)
+  let cameraId = null;
+  try {
+    const devices = await Html5Qrcode.getCameras();
+    // На iPhone ищем камеру с "back" в label но без "ultra" и "telephoto"
+    // Обычно основная камера идёт первой среди задних
+    const backCameras = devices.filter(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear') || d.label === '');
+    const mainCamera = backCameras.find(d =>
+      !d.label.toLowerCase().includes('ultra') &&
+      !d.label.toLowerCase().includes('telephoto') &&
+      !d.label.toLowerCase().includes('wide')
+    ) || backCameras[0];
+    if (mainCamera) cameraId = mainCamera.id;
+  } catch(e) {}
+
+  const cameraConstraint = cameraId
+    ? { deviceId: { exact: cameraId } }
+    : { facingMode: "environment" };
+
   scanner.start(
-    { facingMode: "environment" },
+    cameraConstraint,
     {
       fps: 15,
       qrbox: { width: 280, height: 180 },
