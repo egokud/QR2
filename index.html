@@ -558,19 +558,31 @@ async function startScanner() {
   document.getElementById('zoomVal').textContent = '2.5x';
   scanner = new Html5Qrcode("reader");
 
-  // Получаем список камер и выбираем основную заднюю (не ultra-wide и не telephoto)
+  // Выбираем основную заднюю камеру iPhone (Wide, не Ultra Wide и не Telephoto)
   let cameraId = null;
   try {
     const devices = await Html5Qrcode.getCameras();
-    // На iPhone ищем камеру с "back" в label но без "ultra" и "telephoto"
-    // Обычно основная камера идёт первой среди задних
-    const backCameras = devices.filter(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear') || d.label === '');
-    const mainCamera = backCameras.find(d =>
-      !d.label.toLowerCase().includes('ultra') &&
-      !d.label.toLowerCase().includes('telephoto') &&
-      !d.label.toLowerCase().includes('wide')
-    ) || backCameras[0];
-    if (mainCamera) cameraId = mainCamera.id;
+    const labels = devices.map(d => d.label.toLowerCase());
+
+    // Приоритет 1: ищем "back camera" без "ultra" и без "telephoto" (основной широкоугольный)
+    const mainWide = devices.find(d => {
+      const l = d.label.toLowerCase();
+      return (l.includes('back') || l.includes('rear'))
+        && !l.includes('ultra')
+        && !l.includes('telephoto')
+        && !l.includes('tele');
+    });
+
+    // Приоритет 2: любая задняя камера
+    const anyBack = devices.find(d => {
+      const l = d.label.toLowerCase();
+      return l.includes('back') || l.includes('rear');
+    });
+
+    // Приоритет 3: последняя камера в списке (на iPhone задние обычно в конце)
+    const fallback = devices[devices.length - 1];
+
+    cameraId = (mainWide || anyBack || fallback)?.id || null;
   } catch(e) {}
 
   const cameraConstraint = cameraId
@@ -580,9 +592,8 @@ async function startScanner() {
   scanner.start(
     cameraConstraint,
     {
-      fps: 15,
-      qrbox: { width: 320, height: 100 },
-      aspectRatio: 1.5,
+      fps: 20,
+      disableFlip: true,
       formatsToSupport: [
         Html5QrcodeSupportedFormats.CODE_128,
         Html5QrcodeSupportedFormats.CODE_39,
