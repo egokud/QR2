@@ -23,7 +23,7 @@
 
   .scanner-section { margin: 16px; }
   #reader { border-radius: 12px; overflow: hidden; background: #000; max-height: 220px; }
-  #reader video { width: 100% !important; border-radius: 12px; filter: contrast(1.5) brightness(1.1); object-fit: cover; height: 220px; }
+  #reader video { width: 100% !important; border-radius: 12px; object-fit: cover; height: 220px; }
 
   .btn-scan { display: block; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 0; }
   .btn-scan:active { transform: scale(0.98); }
@@ -573,21 +573,42 @@ async function startScanner() {
   const btnContainer = document.getElementById('cameraButtons');
   btnContainer.innerHTML = '';
 
-  if (allCameras.length > 1) {
-    // Определяем короткие имена для кнопок
-    allCameras.forEach((cam, i) => {
-      const l = cam.label.toLowerCase();
-      let name = 'Камера ' + (i + 1);
-      if (l.includes('ultra') && l.includes('wide')) name = '0.5x Ultra';
-      else if (l.includes('telephoto') || l.includes('tele')) name = '3x Теле';
-      else if (l.includes('wide') && !l.includes('ultra')) name = '1x Осн';
-      else if (l.includes('back') || l.includes('rear')) name = '📷 ' + (i + 1);
-      else if (l.includes('front') || l.includes('face')) name = '🤳 Фронт';
+  // Фильтруем: только задние камеры, убираем дубли
+  const backCams = allCameras.filter(d => {
+    const l = d.label.toLowerCase();
+    return l.includes('back') || l.includes('rear') || l === '';
+  });
 
+  // Определяем физические камеры по ключевым словам
+  const physicalCams = [];
+  const findCam = (keyword, antiKeyword, name) => {
+    const cam = backCams.find(d => {
+      const l = d.label.toLowerCase();
+      return l.includes(keyword) && (!antiKeyword || !l.includes(antiKeyword));
+    });
+    if (cam) physicalCams.push({ ...cam, displayName: name });
+  };
+
+  findCam('ultra', null, '0.5x Ultra');
+  findCam('wide', 'ultra', '1x Осн');
+  findCam('telephoto', null, '3x Теле');
+
+  // Если не нашли по именам — добавим все задние
+  if (physicalCams.length === 0) {
+    backCams.forEach((cam, i) => {
+      physicalCams.push({ ...cam, displayName: 'Камера ' + (i + 1) });
+    });
+  }
+
+  // Перезаписываем allCameras только физическими
+  allCameras = physicalCams;
+
+  if (allCameras.length > 1) {
+    allCameras.forEach((cam, i) => {
       const btn = document.createElement('button');
       btn.id = 'camBtn' + i;
-      btn.textContent = name;
-      btn.style.cssText = 'flex:1;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:8px 4px;font-size:12px;font-weight:600;cursor:pointer;color:#555;';
+      btn.textContent = cam.displayName;
+      btn.style.cssText = 'flex:1;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:10px 4px;font-size:13px;font-weight:600;cursor:pointer;color:#555;';
       btn.onclick = () => switchCamera(cam.id, i);
       btnContainer.appendChild(btn);
     });
@@ -595,19 +616,9 @@ async function startScanner() {
     btnContainer.style.display = 'none';
   }
 
-  // Выбираем основную заднюю по умолчанию
-  const mainWide = allCameras.find(d => {
-    const l = d.label.toLowerCase();
-    return (l.includes('back') || l.includes('rear'))
-      && !l.includes('ultra')
-      && !l.includes('telephoto')
-      && !l.includes('tele');
-  });
-  const anyBack = allCameras.find(d => {
-    const l = d.label.toLowerCase();
-    return l.includes('back') || l.includes('rear');
-  });
-  const defaultCam = mainWide || anyBack || allCameras[0];
+  // Выбираем 1x Осн по умолчанию, или первую доступную
+  const mainWide = allCameras.find(d => d.displayName === '1x Осн');
+  const defaultCam = mainWide || allCameras[0];
   const defaultId = defaultCam?.id || null;
 
   await startWithCamera(defaultId);
@@ -660,15 +671,7 @@ async function startWithCamera(camId) {
         disableFlip: true,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODE_93,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.RSS_14,
-          Html5QrcodeSupportedFormats.RSS_EXPANDED,
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.DATA_MATRIX
+          Html5QrcodeSupportedFormats.CODE_39
         ]
       },
       (code) => { lookup(code.trim()); },
