@@ -714,7 +714,9 @@ async function startWithCamera(camId) {
         disableFlip: true,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.ITF
         ]
       },
       (code) => { lookup(code.trim()); },
