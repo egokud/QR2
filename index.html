@@ -102,13 +102,17 @@
 <div class="scanner-section">
   <button class="btn-scan" id="scanBtn" onclick="toggleScanner()">📷 Сканировать штрих-код</button>
   <div id="reader" style="display:none; margin-top:12px;"></div>
-  <div id="zoomSection" style="display:none; margin-top:10px; background:#fff; border-radius:10px; padding:10px 14px; border:1px solid #e0e0e0;">
-    <div style="display:flex; align-items:center; gap:10px;">
-      <span style="font-size:13px; color:#999; white-space:nowrap;">🔍 Zoom</span>
-      <input id="zoomSlider" type="range" min="1" max="5" step="0.5" value="1.5"
-        oninput="setZoom(this.value)"
-        style="flex:1; accent-color:#7c6ff7;">
-      <span id="zoomVal" style="font-size:13px; font-weight:600; color:#7c6ff7; width:28px;">1.5x</span>
+  <div id="zoomSection" style="display:none; margin-top:10px;">
+    <div id="cameraButtons" style="background:#fff; border-radius:10px; padding:8px; border:1px solid #e0e0e0; display:flex; gap:6px; margin-bottom:8px;">
+    </div>
+    <div style="background:#fff; border-radius:10px; padding:10px 14px; border:1px solid #e0e0e0;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:13px; color:#999; white-space:nowrap;">🔍 Zoom</span>
+        <input id="zoomSlider" type="range" min="1" max="5" step="0.5" value="1.5"
+          oninput="setZoom(this.value)"
+          style="flex:1; accent-color:#7c6ff7;">
+        <span id="zoomVal" style="font-size:13px; font-weight:600; color:#7c6ff7; width:28px;">1.5x</span>
+      </div>
     </div>
   </div>
 </div>
@@ -548,6 +552,9 @@ function toggleScanner() {
   scanning ? stopScanner() : startScanner();
 }
 
+let allCameras = [];
+let activeCameraId = null;
+
 async function startScanner() {
   document.getElementById('reader').style.display = 'block';
   document.getElementById('zoomSection').style.display = 'block';
@@ -556,65 +563,122 @@ async function startScanner() {
   scanning = true;
   document.getElementById('zoomSlider').value = 1.5;
   document.getElementById('zoomVal').textContent = '1.5x';
+
+  // Получаем список камер
+  try {
+    allCameras = await Html5Qrcode.getCameras();
+  } catch(e) { allCameras = []; }
+
+  // Строим кнопки камер
+  const btnContainer = document.getElementById('cameraButtons');
+  btnContainer.innerHTML = '';
+
+  if (allCameras.length > 1) {
+    // Определяем короткие имена для кнопок
+    allCameras.forEach((cam, i) => {
+      const l = cam.label.toLowerCase();
+      let name = 'Камера ' + (i + 1);
+      if (l.includes('ultra') && l.includes('wide')) name = '0.5x Ultra';
+      else if (l.includes('telephoto') || l.includes('tele')) name = '3x Теле';
+      else if (l.includes('wide') && !l.includes('ultra')) name = '1x Осн';
+      else if (l.includes('back') || l.includes('rear')) name = '📷 ' + (i + 1);
+      else if (l.includes('front') || l.includes('face')) name = '🤳 Фронт';
+
+      const btn = document.createElement('button');
+      btn.id = 'camBtn' + i;
+      btn.textContent = name;
+      btn.style.cssText = 'flex:1;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:8px 4px;font-size:12px;font-weight:600;cursor:pointer;color:#555;';
+      btn.onclick = () => switchCamera(cam.id, i);
+      btnContainer.appendChild(btn);
+    });
+  } else {
+    btnContainer.style.display = 'none';
+  }
+
+  // Выбираем основную заднюю по умолчанию
+  const mainWide = allCameras.find(d => {
+    const l = d.label.toLowerCase();
+    return (l.includes('back') || l.includes('rear'))
+      && !l.includes('ultra')
+      && !l.includes('telephoto')
+      && !l.includes('tele');
+  });
+  const anyBack = allCameras.find(d => {
+    const l = d.label.toLowerCase();
+    return l.includes('back') || l.includes('rear');
+  });
+  const defaultCam = mainWide || anyBack || allCameras[0];
+  const defaultId = defaultCam?.id || null;
+
+  await startWithCamera(defaultId);
+
+  // Подсветим активную кнопку
+  const idx = allCameras.findIndex(c => c.id === defaultId);
+  highlightCamBtn(idx);
+}
+
+async function switchCamera(camId, btnIdx) {
+  if (activeCameraId === camId) return;
+  // Остановим текущий сканер
+  if (scanner) {
+    try { await scanner.stop(); } catch(e) {}
+    scanner = null;
+  }
+  await startWithCamera(camId);
+  highlightCamBtn(btnIdx);
+}
+
+function highlightCamBtn(activeIdx) {
+  allCameras.forEach((_, i) => {
+    const btn = document.getElementById('camBtn' + i);
+    if (!btn) return;
+    if (i === activeIdx) {
+      btn.style.background = '#7c6ff7';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#7c6ff7';
+    } else {
+      btn.style.background = '#f5f5f5';
+      btn.style.color = '#555';
+      btn.style.borderColor = '#e0e0e0';
+    }
+  });
+}
+
+async function startWithCamera(camId) {
+  activeCameraId = camId;
   scanner = new Html5Qrcode("reader");
 
-  // Выбираем основную заднюю камеру iPhone (Wide, не Ultra Wide и не Telephoto)
-  let cameraId = null;
-  try {
-    const devices = await Html5Qrcode.getCameras();
-    const labels = devices.map(d => d.label.toLowerCase());
-
-    // Приоритет 1: ищем "back camera" без "ultra" и без "telephoto" (основной широкоугольный)
-    const mainWide = devices.find(d => {
-      const l = d.label.toLowerCase();
-      return (l.includes('back') || l.includes('rear'))
-        && !l.includes('ultra')
-        && !l.includes('telephoto')
-        && !l.includes('tele');
-    });
-
-    // Приоритет 2: любая задняя камера
-    const anyBack = devices.find(d => {
-      const l = d.label.toLowerCase();
-      return l.includes('back') || l.includes('rear');
-    });
-
-    // Приоритет 3: последняя камера в списке (на iPhone задние обычно в конце)
-    const fallback = devices[devices.length - 1];
-
-    cameraId = (mainWide || anyBack || fallback)?.id || null;
-  } catch(e) {}
-
-  const cameraConstraint = cameraId
-    ? { deviceId: { exact: cameraId } }
+  const constraint = camId
+    ? { deviceId: { exact: camId } }
     : { facingMode: "environment" };
 
-  scanner.start(
-    cameraConstraint,
-    {
-      fps: 20,
-      disableFlip: true,
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.RSS_14,
-        Html5QrcodeSupportedFormats.RSS_EXPANDED,
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.DATA_MATRIX
-      ]
-    },
-    (code) => { lookup(code.trim()); },
-    () => {}
-  ).then(() => {
-    setTimeout(() => setZoom(1.5), 500);
-  }).catch(() => {
+  try {
+    await scanner.start(
+      constraint,
+      {
+        fps: 30,
+        disableFlip: true,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.RSS_14,
+          Html5QrcodeSupportedFormats.RSS_EXPANDED,
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.DATA_MATRIX
+        ]
+      },
+      (code) => { lookup(code.trim()); },
+      () => {}
+    );
+    setTimeout(() => setZoom(parseFloat(document.getElementById('zoomSlider').value)), 500);
+  } catch(e) {
     showResult('error', '', null, 'Нет доступа к камере. Разреши доступ в настройках браузера.');
     stopScanner();
-  });
+  }
 }
 
 function setZoom(val) {
