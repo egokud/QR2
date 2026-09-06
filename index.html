@@ -60,6 +60,15 @@
   .reset-wrap { margin: 0 16px 40px; }
   .btn-reset { width: 100%; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
 
+  .unscanned-wrap { margin: 0 16px 16px; }
+  .btn-unscanned { width: 100%; background: #fff; color: #7c6ff7; border: 1px solid #c4b5fd; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-unscanned:active { opacity: 0.85; }
+  .unscanned-list { margin-top: 10px; background: #fff; border-radius: 10px; border: 1px solid #e0e0e0; max-height: 400px; overflow-y: auto; }
+  .unscanned-item { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+  .unscanned-item:last-child { border-bottom: none; }
+  .unscanned-track { font-size: 13px; color: #1a1a1a; font-family: monospace; }
+  .unscanned-wh { font-size: 13px; color: #7c6ff7; font-weight: 600; }
+
   .scan-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:24px; }
   .scan-overlay.show { display:flex; }
   .overlay-card { background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:360px; text-align:center; animation: popIn 0.2s ease; }
@@ -143,6 +152,11 @@
     <div class="overlay-track" id="overlayTrack"></div>
     <button class="overlay-ok" onclick="overlayOk()">OK — продолжить сканирование</button>
   </div>
+</div>
+
+<div class="unscanned-wrap">
+  <button class="btn-unscanned" id="unscannedBtn" onclick="toggleUnscanned()">📋 Не отсканированные (<span id="unscannedCount">0</span>)</button>
+  <div class="unscanned-list" id="unscannedList" style="display:none;"></div>
 </div>
 
 <div class="reset-wrap">
@@ -483,6 +497,7 @@ function updateStats() {
   document.getElementById('statTotal').textContent = total;
   const pct = total > 0 ? Math.round(done / total * 100) : 0;
   document.getElementById('progressBar').style.width = pct + '%';
+  updateUnscannedCount();
 }
 
 function addHistory(track, warehouse) {
@@ -510,6 +525,39 @@ function clearHistory() {
   scanHistory = [];
   localStorage.removeItem('scanHistory');
   document.getElementById('historySection').style.display = 'none';
+}
+
+function toggleUnscanned() {
+  const list = document.getElementById('unscannedList');
+  if (list.style.display === 'none') {
+    showUnscanned();
+    list.style.display = 'block';
+  } else {
+    list.style.display = 'none';
+  }
+}
+
+function showUnscanned() {
+  const remaining = TABLE
+    .map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
+    .filter(r => !scanned[r.idx]);
+
+  const list = document.getElementById('unscannedList');
+  if (remaining.length === 0) {
+    list.innerHTML = '<div style="padding:16px;text-align:center;color:#999;font-size:13px;">Все отсканировано! 🎉</div>';
+  } else {
+    list.innerHTML = remaining.map(r =>
+      `<div class="unscanned-item">
+        <span class="unscanned-track">${r.track}</span>
+        <span class="unscanned-wh">${r.warehouse}</span>
+      </div>`
+    ).join('');
+  }
+}
+
+function updateUnscannedCount() {
+  const remaining = TABLE.length - Object.keys(scanned).length;
+  document.getElementById('unscannedCount').textContent = remaining;
 }
 
 function resetAll() {
@@ -573,42 +621,37 @@ async function startScanner() {
   const btnContainer = document.getElementById('cameraButtons');
   btnContainer.innerHTML = '';
 
-  // Фильтруем: только задние камеры, убираем дубли
+  // Показываем ВСЕ камеры — пользователь сам выберет лучшую
+  // Исключаем только фронтальную
   const backCams = allCameras.filter(d => {
     const l = d.label.toLowerCase();
-    return l.includes('back') || l.includes('rear') || l === '';
+    return !l.includes('front') && !l.includes('face');
   });
 
-  // Определяем физические камеры по ключевым словам
-  const physicalCams = [];
-  const findCam = (keyword, antiKeyword, name) => {
-    const cam = backCams.find(d => {
-      const l = d.label.toLowerCase();
-      return l.includes(keyword) && (!antiKeyword || !l.includes(antiKeyword));
-    });
-    if (cam) physicalCams.push({ ...cam, displayName: name });
-  };
+  // Если фильтр убрал всё — показываем все
+  const camsToShow = backCams.length > 0 ? backCams : allCameras;
 
-  findCam('ultra', null, '0.5x Ultra');
-  findCam('wide', 'ultra', '1x Осн');
-  findCam('telephoto', null, '3x Теле');
+  // Даём короткие имена
+  const namedCams = camsToShow.map((cam, i) => {
+    const l = cam.label.toLowerCase();
+    let name = '' + (i + 1);
+    if (l.includes('ultra') && l.includes('wide')) name = '0.5x';
+    else if (l.includes('telephoto') || l.includes('tele')) name = '3x';
+    else if (l.includes('wide') && !l.includes('ultra')) name = '1x';
+    return { ...cam, displayName: name };
+  });
 
-  // Если не нашли по именам — добавим все задние
-  if (physicalCams.length === 0) {
-    backCams.forEach((cam, i) => {
-      physicalCams.push({ ...cam, displayName: 'Камера ' + (i + 1) });
-    });
-  }
-
-  // Перезаписываем allCameras только физическими
-  allCameras = physicalCams;
+  allCameras = namedCams;
 
   if (allCameras.length > 1) {
+    // Прокручиваемый контейнер
+    btnContainer.style.overflowX = 'auto';
+    btnContainer.style.flexWrap = 'nowrap';
     allCameras.forEach((cam, i) => {
       const btn = document.createElement('button');
       btn.id = 'camBtn' + i;
       btn.textContent = cam.displayName;
-      btn.style.cssText = 'flex:1;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:10px 4px;font-size:13px;font-weight:600;cursor:pointer;color:#555;';
+      btn.style.cssText = 'min-width:50px;flex-shrink:0;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:700;cursor:pointer;color:#555;';
       btn.onclick = () => switchCamera(cam.id, i);
       btnContainer.appendChild(btn);
     });
@@ -616,8 +659,8 @@ async function startScanner() {
     btnContainer.style.display = 'none';
   }
 
-  // Выбираем 1x Осн по умолчанию, или первую доступную
-  const mainWide = allCameras.find(d => d.displayName === '1x Осн');
+  // Выбираем камеру "1x" по умолчанию, или первую
+  const mainWide = allCameras.find(d => d.displayName === '1x');
   const defaultCam = mainWide || allCameras[0];
   const defaultId = defaultCam?.id || null;
 
