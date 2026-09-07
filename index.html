@@ -108,8 +108,22 @@
   <div class="progress-bar" id="progressBar" style="width:0%"></div>
 </div>
 
-<div class="scanner-section">
-  <button class="btn-scan" id="scanBtn" onclick="toggleScanner()">📷 Сканировать штрих-код</button>
+<!-- Основной ввод: пистолет + ручной -->
+<div class="gun-section" style="background:#fff; margin:16px; border-radius:12px; padding:16px; border:2px solid #7c6ff7;">
+  <h3 style="font-size:12px; color:#7c6ff7; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; font-weight:700;">🔫 Сканер / Ввести вручную</h3>
+  <div class="manual-row">
+    <input type="text" id="manualInput" placeholder="Наведи пистолет или введи код" autocomplete="off"
+      style="flex:1; border:1px solid #e0e0e0; border-radius:8px; padding:12px; font-size:16px; color:#1a1a1a; outline:none; min-width:0;" />
+    <button onclick="manualSearch()" style="background:#7c6ff7; color:#fff; border:none; border-radius:8px; padding:12px 16px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap;">Найти</button>
+  </div>
+  <div style="margin-top:8px; font-size:11px; color:#aaa; text-align:center;" id="gunHint">Готов к приёму от Bluetooth сканера</div>
+</div>
+
+<div id="resultBlock"></div>
+
+<!-- Камера как запасной вариант -->
+<div class="scanner-section" style="margin:16px;">
+  <button class="btn-scan" id="scanBtn" onclick="toggleScanner()" style="background:#f0f0f0; color:#555; border:none; border-radius:12px; padding:14px; font-size:14px; font-weight:600; cursor:pointer; width:100%;">📷 Камера (запасной вариант)</button>
   <div id="reader" style="display:none; margin-top:12px;"></div>
   <div id="zoomSection" style="display:none; margin-top:10px;">
     <div id="cameraButtons" style="background:#fff; border-radius:10px; padding:8px; border:1px solid #e0e0e0; display:flex; gap:6px; margin-bottom:8px;">
@@ -125,16 +139,6 @@
     </div>
   </div>
 </div>
-
-<div class="manual-section">
-  <h3>Ввести вручную</h3>
-  <div class="manual-row">
-    <input type="tel" id="manualInput" placeholder="jt5477931681682" autocomplete="off" />
-    <button onclick="manualSearch()">Найти</button>
-  </div>
-</div>
-
-<div id="resultBlock"></div>
 
 <div class="history" id="historySection" style="display:none">
   <div class="history-header">
@@ -590,10 +594,30 @@ function manualSearch() {
   if (!val) return;
   lookup(val);
   document.getElementById('manualInput').value = '';
+  // Refocus input after short delay so gun is ready for next scan
+  setTimeout(() => {
+    document.getElementById('manualInput').focus();
+    document.getElementById('gunHint').textContent = 'Готов к следующему сканированию';
+  }, 300);
 }
 
 document.getElementById('manualInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') manualSearch();
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    manualSearch();
+  }
+});
+
+// Auto-focus input on page load — ready for gun
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('manualInput').focus();
+});
+
+// Refocus on input when tapping anywhere outside buttons
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('button') && !e.target.closest('input') && !e.target.closest('.overlay-card')) {
+    document.getElementById('manualInput').focus();
+  }
 });
 
 function toggleScanner() {
