@@ -748,46 +748,55 @@ async function renderAdminPanel() {
   try {
     const snap=await db.collection('users').get();
     let html='';
+    let userCount = 0;
     for (const doc of snap.docs) {
       const u=doc.data();
       const uid=doc.id;
       const isAdmin=u.role==='admin';
+      if (isAdmin) continue; // Админа не показываем
+      userCount++;
       const blocked=u.blocked||false;
       const created=u.created?.toDate?u.created.toDate():new Date(u.created||Date.now());
       const trialEnd=new Date(created.getTime()+90*24*60*60*1000);
       const daysLeft=Math.max(0,Math.ceil((trialEnd-new Date())/(24*60*60*1000)));
-      const trialText=isAdmin?'∞':'тест '+daysLeft+' дн.';
 
-      // Get shipment info from user profile
-      let shipInfo='';
-      const stats = u.shipmentStats || [];
-      if (stats.length > 0) {
-        const totalTracks = stats.reduce((s,x) => s + (x.count||0), 0);
-        shipInfo = stats.map(s => s.name + ' (' + s.count + ')').join(', ');
-      } else { shipInfo = 'нет партий'; }
+      // Read shipments directly
+      let shipLines = 'нет партий';
+      try {
+        const shSnap=await db.collection('users').doc(uid).collection('shipments').get();
+        if(shSnap.size>0) {
+          const items=[];
+          shSnap.forEach(s=>{const d=s.data();items.push('• '+(d.name||'Без названия')+' — '+(d.data||[]).length+' треков');});
+          shipLines=items.join('<br>');
+        }
+      } catch(e) {
+        // Fallback to profile stats
+        const stats=u.shipmentStats||[];
+        if(stats.length>0) shipLines=stats.map(s=>'• '+s.name+' — '+s.count+' треков').join('<br>');
+      }
 
       html+=`<div>
         <div class="admin-user-header" onclick="toggleAdminUser('${uid}')">
           <div>
             <b>${u.name||u.email}</b> ${blocked?'<span style="color:#dc2626;font-size:10px">🔒 БЛОК</span>':''}
-            <div style="font-size:11px;color:#aaa">${u.email} · ${trialText}</div>
+            <div style="font-size:11px;color:#aaa">${u.email} · тест ${daysLeft} дн.</div>
           </div>
           <span class="admin-user-toggle" id="toggle_${uid}">▼</span>
         </div>
         <div class="admin-user-details" id="details_${uid}">
-          <div style="margin-bottom:8px"><b>Партии:</b><br>${stats.length>0?stats.map(s=>'• '+s.name+' — '+s.count+' треков').join('<br>'):'нет партий'}</div>
+          <div style="margin-bottom:8px"><b>Партии:</b><br>${shipLines}</div>
           <div style="margin-bottom:8px"><b>Регистрация:</b> ${created.toLocaleDateString('ru')}</div>
-          ${!isAdmin?`<div style="margin-bottom:8px"><b>Завершение тестового периода:</b> ${trialEnd.toLocaleDateString('ru')}</div>`:''}
-          ${!isAdmin?`<div style="display:flex;gap:6px;margin-top:6px">
+          <div style="margin-bottom:8px"><b>Завершение тестового периода:</b> ${trialEnd.toLocaleDateString('ru')}</div>
+          <div style="display:flex;gap:6px;margin-top:6px">
             ${blocked
               ?`<button class="admin-btn admin-btn-unblock" onclick="adminToggleBlock('${uid}',false)">Разблокировать</button>`
               :`<button class="admin-btn admin-btn-block" onclick="adminToggleBlock('${uid}',true)">Заблокировать</button>`}
-          </div>`:''}
+          </div>
         </div>
       </div>`;
     }
     document.getElementById('adminUserList').innerHTML=html;
-    document.getElementById('adminStats').textContent='Всего: '+snap.size+' пользователей';
+    document.getElementById('adminStats').textContent='Пользователей: '+userCount;
   } catch(e) { document.getElementById('adminUserList').innerHTML='<p style="font-size:12px;color:#999">Нет доступа</p>'; }
 }
 
