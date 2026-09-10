@@ -331,6 +331,8 @@ let scanner = null;
 let scanning = false;
 let allCameras = [];
 let activeCameraId = null;
+let lastWarehouse = '';
+let warehouseStreak = 0;
 
 // ============ AUTH LISTENER ============
 auth.onAuthStateChanged(async (user) => {
@@ -624,8 +626,11 @@ function lookup(code) {
   if (!free) { showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
   scanned[free.i] = true;
   saveScanned();
-  const wh = [...new Set(rows.map(r=>r.w))].join(' + ');
-  showResult('success',rows[0].t,wh);
+  const allWh = [...new Set(rows.map(r=>r.w))].join(' + ');
+  // Track consecutive same warehouse
+  if (allWh === lastWarehouse) { warehouseStreak++; } else { lastWarehouse = allWh; warehouseStreak = 1; }
+  const displayWh = warehouseStreak > 1 ? allWh + ' (' + warehouseStreak + ')' : allWh;
+  showResult('success',rows[0].t,displayWh);
   addHistory(rows[0].t,free.w);
   updateStats(); beep(); vibrate();
 }
