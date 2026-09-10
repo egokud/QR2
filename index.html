@@ -288,6 +288,13 @@ body.dark .admin-stats{color:#8b80b8}
 body.dark .fulllist-track{color:#e0d8ff}
 body.dark .fulllist-idx{color:#8b80b8}
 body.dark .fulllist-status{color:#e0d8ff}
+.profile-title{color:#1a1a1a}
+body.dark .profile-title{color:#fff}
+.auth-title{color:#1a1a1a}
+.auth-subtitle{color:#999}
+body.dark .auth-title{color:#fff}
+body.dark .auth-subtitle{color:#a78bfa}
+body.dark .auth-card input::placeholder{color:#6b5fa0}
 </style>
 </head>
 <body>
@@ -300,8 +307,8 @@ body.dark .fulllist-status{color:#e0d8ff}
   <div id="loginForm" class="auth-card">
     <div style="text-align:center;margin-bottom:20px;">
       <img src="/icons/icon-192x192.png" width="80" height="80" alt="Piksta" style="border-radius:18px;margin-bottom:12px;">
-      <div style="font-size:26px;font-weight:700;color:#1a1a1a;letter-spacing:-0.5px;">Piksta</div>
-      <div style="font-size:13px;color:#999;margin-top:2px;">Сканер посылок</div>
+      <div class="auth-title" style="font-size:26px;font-weight:700;letter-spacing:-0.5px;">Piksta</div>
+      <div class="auth-subtitle" style="font-size:13px;margin-top:2px;">Сканер посылок</div>
     </div>
     <div id="loginError" class="auth-error hide"></div>
     <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
@@ -316,8 +323,8 @@ body.dark .fulllist-status{color:#e0d8ff}
 
   <div id="registerForm" class="auth-card hide">
     <div style="text-align:center;margin-bottom:16px;">
-      <div style="font-size:22px;font-weight:700;color:#1a1a1a;">Piksta</div>
-      <div style="font-size:13px;color:#999;margin-top:2px;">Регистрация</div>
+      <div class="auth-title" style="font-size:22px;font-weight:700;">Piksta</div>
+      <div class="auth-subtitle" style="font-size:13px;margin-top:2px;">Регистрация</div>
     </div>
     <div id="regError" class="auth-error hide"></div>
     <input type="text" id="regName" placeholder="Имя (отображается в системе)" autocomplete="off">
@@ -330,8 +337,8 @@ body.dark .fulllist-status{color:#e0d8ff}
 
   <div id="recoveryForm" class="auth-card hide">
     <div style="text-align:center;margin-bottom:16px;">
-      <div style="font-size:22px;font-weight:700;color:#1a1a1a;">Piksta</div>
-      <div style="font-size:13px;color:#999;margin-top:2px;">Восстановление пароля</div>
+      <div class="auth-title" style="font-size:22px;font-weight:700;">Piksta</div>
+      <div class="auth-subtitle" style="font-size:13px;margin-top:2px;">Восстановление пароля</div>
     </div>
     <div id="recError" class="auth-error hide"></div>
     <div id="recSuccess" class="auth-success hide"></div>
@@ -437,7 +444,7 @@ body.dark .fulllist-status{color:#e0d8ff}
 <div class="profile-overlay" id="profileOverlay">
   <div style="max-width:640px;margin:0 auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;">
-      <h2 style="font-size:18px;font-weight:500;color:#1a1a1a;"><i class="ti ti-user-circle" style="font-size:22px;margin-right:6px;vertical-align:-3px;color:#7c6ff7;"></i> Личный кабинет</h2>
+      <h2 style="font-size:18px;font-weight:500;" class="profile-title"><i class="ti ti-user-circle" style="font-size:22px;margin-right:6px;vertical-align:-3px;color:#7c6ff7;"></i> Личный кабинет</h2>
       <button class="btn-sm" onclick="closeProfile()"><i class="ti ti-x" style="font-size:16px;"></i> Закрыть</button>
     </div>
 
