@@ -267,6 +267,27 @@ body.dark .blocked-banner{background:rgba(239,68,68,0.1);border-color:rgba(239,6
 .theme-slider:before{content:'';position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
 .theme-switch input:checked+.theme-slider{background:#7c6ff7}
 .theme-switch input:checked+.theme-slider:before{transform:translateX(22px)}
+
+/* Dark theme fixes - contrast */
+body.dark .scan-overlay{background:rgba(0,0,0,0.85)}
+body.dark .overlay-card{background:#2d2556;border:1.5px solid rgba(255,255,255,0.15)}
+body.dark .overlay-card.success-card{background:#1a3a2a;border:2px solid rgba(34,197,94,0.4)}
+body.dark .btn-grid-item{color:#e0d8ff}
+body.dark .profile-overlay h2{color:#fff}
+body.dark .profile-overlay .btn-sm{color:#c4b8f0}
+body.dark .profile-card label{color:#a78bfa}
+body.dark .profile-field input::placeholder{color:#6b5fa0}
+body.dark .profile-field input:disabled{color:#8b80b8}
+body.dark .theme-toggle span{color:#c4b8f0}
+body.dark .profile-msg-ok{background:rgba(34,197,94,0.15);color:#4ade80}
+body.dark .profile-msg-err{background:rgba(239,68,68,0.15);color:#f87171}
+body.dark b{color:#e0d8ff}
+body.dark .admin-user-header b{color:#fff}
+body.dark .admin-user-header div{color:#8b80b8}
+body.dark .admin-stats{color:#8b80b8}
+body.dark .fulllist-track{color:#e0d8ff}
+body.dark .fulllist-idx{color:#8b80b8}
+body.dark .fulllist-status{color:#e0d8ff}
 </style>
 </head>
 <body>
@@ -388,7 +409,7 @@ body.dark .blocked-banner{background:rgba(239,68,68,0.1);border-color:rgba(239,6
 <div class="bottom-section">
   <div class="btn-grid">
     <button class="btn-grid-item" id="scanBtn" onclick="toggleScanner()"><i class="ti ti-camera" aria-hidden="true" style="font-size:22px"></i> Камера</button>
-    <button class="btn-grid-item" onclick="toggleFullList()" style="color:#1a1a1a;font-weight:600"><i class="ti ti-list-search" aria-hidden="true" style="font-size:22px"></i> Список <span id="fullListCount" style="color:#999">0</span></button>
+    <button class="btn-grid-item" onclick="toggleFullList()" style="font-weight:600"><i class="ti ti-list-search" aria-hidden="true" style="font-size:22px"></i> Список <span id="fullListCount" style="color:#999">0</span></button>
   </div>
   <div id="fullListWrap" style="display:none;margin-bottom:8px">
     <input type="text" class="fulllist-search" id="fullListSearch" placeholder="Поиск по треку или складу..." oninput="renderFullList()">
@@ -1169,7 +1190,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.
 function toggleScanner(){scanning?stopScanner():startScanner()}
 async function startScanner(){
   document.getElementById('cameraSection').style.display='block';document.getElementById('zoomSection').style.display='block';
-  document.getElementById('scanBtn').textContent='⏹ Стоп';document.getElementById('scanBtn').style.background='#7c6ff7';document.getElementById('scanBtn').style.color='#fff';scanning=true;
+  document.getElementById('scanBtn').innerHTML='<i class="ti ti-player-stop" aria-hidden="true" style="font-size:22px"></i> Стоп';document.getElementById('scanBtn').style.background='#7c6ff7';document.getElementById('scanBtn').style.color='#fff';scanning=true;
   try{allCameras=await Html5Qrcode.getCameras()}catch(e){allCameras=[]}
   const bc=document.getElementById('cameraButtons');bc.innerHTML='';
   const backs=allCameras.filter(d=>{const l=d.label.toLowerCase();return!l.includes('front')&&!l.includes('face')});
@@ -1194,7 +1215,7 @@ function setZoom(v){document.getElementById('zoomVal').textContent=v+'x';if(!sca
   try{const t=scanner.getRunningTrackCameraCapabilities();if(t&&t.zoomFeature().isSupported())t.zoomFeature().apply(parseFloat(v))}catch(e){}}
 function stopScanner(){if(scanner){scanner.stop().catch(()=>{});scanner=null}
   document.getElementById('cameraSection').style.display='none';document.getElementById('zoomSection').style.display='none';
-  document.getElementById('scanBtn').textContent='<i class="ti ti-camera" style="font-size:18px"></i> Камера';scanning=false}
+  document.getElementById('scanBtn').innerHTML='<i class="ti ti-camera" aria-hidden="true" style="font-size:22px"></i> Камера';document.getElementById('scanBtn').style.background='';document.getElementById('scanBtn').style.color='';scanning=false}
 
 // ============ BEEP & VIBRATE ============
 function beep(){try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
