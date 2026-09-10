@@ -539,24 +539,39 @@ async function showApp() {
     return;
   }
 
-  // Trial banner for non-admin
+  // Trial/Subscription banner for non-admin
   if (userProfile.role !== 'admin') {
-    const created = userProfile.created?.toDate ? userProfile.created.toDate() : new Date(userProfile.created || Date.now());
-    const trialEnd = new Date(created.getTime() + 90*24*60*60*1000);
-    const daysLeft = Math.ceil((trialEnd - new Date()) / (24*60*60*1000));
     const banner = document.getElementById('trialBanner');
-    if (daysLeft <= 0) {
-      banner.className = 'trial-banner expired';
-      banner.textContent = '⛔ Тестовый период завершён. Обратитесь в техподдержку.';
-      banner.style.display = 'block';
-      document.querySelectorAll('.shipment-section,.gun-section,.scanner-section,.bottom-section').forEach(e=>e.style.display='none');
-      return;
-    } else if (daysLeft <= 14) {
-      banner.textContent = '⏳ Тестовый период: осталось ' + daysLeft + ' дней';
-      banner.style.display = 'block';
+    const sub = userProfile.subscription;
+
+    // Check paid subscription first
+    if (sub && sub.endDate) {
+      const subEnd = sub.endDate.toDate ? sub.endDate.toDate() : new Date(sub.endDate);
+      const subDaysLeft = Math.ceil((subEnd - new Date()) / (24*60*60*1000));
+      if (subDaysLeft > 0) {
+        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#16a34a;font-weight:500';
+        banner.innerHTML = '<i class="ti ti-license" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Лицензия действует до ' + subEnd.toLocaleDateString('ru');
+      } else {
+        userProfile._demo = true;
+        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#dc2626;font-weight:500';
+        banner.innerHTML = '<i class="ti ti-alert-triangle" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Подписка истекла. Демо-версия: 5 треков<br><span style="font-size:12px;font-weight:400;color:#999">Для продления обратитесь в техподдержку</span>';
+      }
     } else {
-      banner.textContent = '📅 Тестовый период: ' + daysLeft + ' дней';
-      banner.style.display = 'block';
+      // No subscription — check trial
+      const created = userProfile.created?.toDate ? userProfile.created.toDate() : new Date(userProfile.created || Date.now());
+      const trialEnd = new Date(created.getTime() + 90*24*60*60*1000);
+      const daysLeft = Math.ceil((trialEnd - new Date()) / (24*60*60*1000));
+      if (daysLeft <= 0) {
+        userProfile._demo = true;
+        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#f5f5f5;border:1.5px solid #d4d4d4;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#555;font-weight:500';
+        banner.innerHTML = '<i class="ti ti-lock" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Демо-версия: отображаются 5 треков<br><span style="font-size:12px;font-weight:400;color:#999">Для приобретения подписки обратитесь в техподдержку</span>';
+      } else if (daysLeft <= 14) {
+        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#ea580c;font-weight:500';
+        banner.innerHTML = '<i class="ti ti-clock" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Тестовый период: осталось ' + daysLeft + ' дней';
+      } else {
+        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#ea580c;font-weight:500';
+        banner.innerHTML = '<i class="ti ti-hourglass" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Тестовый период: ' + daysLeft + ' дней';
+      }
     }
   }
 
@@ -593,6 +608,8 @@ async function loadShipmentData(id) {
   activeShipmentId = id;
   const doc = await shipmentsRef().doc(id).get();
   const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w]);
+  // Demo mode: limit to 5 tracks
+  if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
   const scDoc = await scannedRef(id).get();
   scanned = scDoc.exists ? scDoc.data().items || {} : {};
   updateStats();
@@ -899,10 +916,12 @@ async function renderAdminPanel() {
           <div style="margin-bottom:8px"><b>Партии:</b><br>${shipLines}</div>
           <div style="margin-bottom:8px"><b>Регистрация:</b> ${created.toLocaleDateString('ru')}</div>
           <div style="margin-bottom:8px"><b>Завершение тестового периода:</b> ${trialEnd.toLocaleDateString('ru')}</div>
+          <div style="margin-bottom:8px"><b>Подписка:</b> ${u.subscription&&u.subscription.endDate?'✅ до '+(u.subscription.endDate.toDate?u.subscription.endDate.toDate():new Date(u.subscription.endDate)).toLocaleDateString('ru'):'❌ нет'}</div>
           <div style="display:flex;gap:6px;margin-top:6px">
             ${blocked
               ?`<button class="admin-btn admin-btn-unblock" onclick="adminToggleBlock('${uid}',false)">Разблокировать</button>`
               :`<button class="admin-btn admin-btn-block" onclick="adminToggleBlock('${uid}',true)">Заблокировать</button>`}
+            <button class="admin-btn" style="background:#f0fdf4;color:#16a34a;border:1px solid #86efac" onclick="adminSetSubscription('${uid}','${(u.name||u.email).replace(/'/g,'')}')">Подписка</button>
           </div>
         </div>
       </div>`;
@@ -910,6 +929,38 @@ async function renderAdminPanel() {
     document.getElementById('adminUserList').innerHTML=html;
     document.getElementById('adminStats').textContent='Пользователей: '+userCount;
   } catch(e) { document.getElementById('adminUserList').innerHTML='<p style="font-size:12px;color:#999">Нет доступа</p>'; }
+}
+
+async function adminSetSubscription(uid, name) {
+  const months = prompt('Подписка для ' + name + '\nВведите количество месяцев (1, 3, 6, 12):');
+  if (!months || isNaN(months) || parseInt(months) <= 0) return;
+  const m = parseInt(months);
+  const endDate = new Date();
+  endDate.setMonth(endDate.getMonth() + m);
+  if (!confirm('Активировать подписку до ' + endDate.toLocaleDateString('ru') + '?')) return;
+  try {
+    await db.collection('users').doc(uid).update({
+      subscription: { endDate: firebase.firestore.Timestamp.fromDate(endDate), months: m, activatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+    });
+    alert('Подписка активирована до ' + endDate.toLocaleDateString('ru'));
+    renderAdminPanel();
+  } catch(e) { alert('Ошибка: ' + e.message); }
+}
+
+async function adminSetSubscription(uid, name) {
+  const months = prompt('Подписка для ' + name + '\nВведите количество месяцев (1, 3, 6, 12):');
+  if (!months || isNaN(months) || parseInt(months) <= 0) return;
+  const m = parseInt(months);
+  const endDate = new Date();
+  endDate.setMonth(endDate.getMonth() + m);
+  if (!confirm('Активировать подписку до ' + endDate.toLocaleDateString('ru') + '?')) return;
+  try {
+    await db.collection('users').doc(uid).update({
+      subscription: { endDate: firebase.firestore.Timestamp.fromDate(endDate), months: m, activatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+    });
+    alert('Подписка активирована до ' + endDate.toLocaleDateString('ru'));
+    renderAdminPanel();
+  } catch(e) { alert('Ошибка: ' + e.message); }
 }
 
 function toggleAdminUser(uid) {
