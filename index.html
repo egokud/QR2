@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Piksta — сканер посылок</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.6.0/tabler-icons.min.css">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -225,7 +226,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="header">
   <h1 style="letter-spacing:-0.5px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(135deg,#7c6ff7,#a78bfa);border-radius:7px;margin-right:8px;"><span style="font-size:15px;filter:brightness(0) invert(1);">📦</span></span>Piksta</h1>
   <div class="header-right">
-    <span class="user-badge" id="userBadge"></span>
+    <button class="btn-sm" onclick="openProfile()" style="border:none;color:#7c6ff7;font-weight:500;font-size:13px;display:flex;align-items:center;gap:4px;" id="userBadge"><i class="ti ti-user-circle" style="font-size:18px"></i> <span id="userBadgeName"></span></button>
     <button class="btn-sm" onclick="doLogout()">Выйти</button>
   </div>
 </div>
@@ -241,7 +242,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="shipment-row">
     <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()"></select>
     <button class="btn-icon" onclick="openUploadModal()" title="Загрузить CSV">+</button>
-    <button class="btn-icon-del" onclick="deleteShipment()" title="Удалить партию">🗑</button>
+    <button class="btn-icon-del" onclick="deleteShipment()" title="Удалить партию"><i class="ti ti-trash" aria-hidden="true"></i></button>
   </div>
 </div>
 
@@ -281,22 +282,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <div class="bottom-section">
   <div class="btn-grid">
-    <button class="btn-grid-item" id="scanBtn" onclick="toggleScanner()">📷 Камера</button>
-    <button class="btn-grid-item" onclick="toggleFullList()" style="color:#1a1a1a;font-weight:600">📋 Список <span id="fullListCount" style="color:#999">0</span></button>
+    <button class="btn-grid-item" id="scanBtn" onclick="toggleScanner()"><i class="ti ti-camera" aria-hidden="true" style="font-size:18px"></i> Камера</button>
+    <button class="btn-grid-item" onclick="toggleFullList()" style="color:#1a1a1a;font-weight:600"><i class="ti ti-list-search" aria-hidden="true" style="font-size:18px"></i> Список <span id="fullListCount" style="color:#999">0</span></button>
   </div>
   <div id="fullListWrap" style="display:none;margin-bottom:8px">
     <input type="text" class="fulllist-search" id="fullListSearch" placeholder="Поиск по треку или складу..." oninput="renderFullList()">
     <div class="fulllist" id="fullListContainer"></div>
   </div>
   <div class="btn-grid">
-    <button class="btn-grid-item btn-grid-success" onclick="toggleScannedList()">✅ Отсканировано <span id="statScannedBtn">0</span></button>
-    <button class="btn-grid-item btn-grid-accent" onclick="toggleUnscanned()">📋 Осталось <span id="unscannedCount">0</span></button>
+    <button class="btn-grid-item btn-grid-success" onclick="toggleScannedList()"><i class="ti ti-checks" aria-hidden="true" style="font-size:18px"></i> Отсканировано <span id="statScannedBtn">0</span></button>
+    <button class="btn-grid-item btn-grid-accent" onclick="toggleUnscanned()"><i class="ti ti-clipboard-list" aria-hidden="true" style="font-size:18px"></i> Осталось <span id="unscannedCount">0</span></button>
   </div>
   <div class="unscanned-list" id="scannedListWrap" style="display:none"></div>
   <div class="unscanned-list" id="unscannedList" style="display:none"></div>
   <div class="btn-grid">
-    <button class="btn-grid-item" onclick="exportScanned()">📥 Экспорт</button>
-    <button class="btn-grid-item btn-grid-danger" onclick="resetAll()">🔄 Сбросить</button>
+    <button class="btn-grid-item" onclick="exportScanned()"><i class="ti ti-download" aria-hidden="true" style="font-size:18px"></i> Экспорт</button>
+    <button class="btn-grid-item btn-grid-danger" onclick="resetAll()"><i class="ti ti-refresh" aria-hidden="true" style="font-size:18px"></i> Сбросить</button>
   </div>
   <div class="admin-section" id="adminPanel" style="display:none">
     <h3>⚙️ Админ-панель</h3>
@@ -304,6 +305,59 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div id="adminStats" style="font-size:12px;color:#777;margin-top:10px"></div>
   </div>
 </div>
+</div>
+
+<!-- Profile -->
+<div class="profile-overlay" id="profileOverlay">
+  <div style="max-width:640px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;">
+      <h2 style="font-size:18px;font-weight:500;color:#1a1a1a;"><i class="ti ti-user-circle" style="font-size:22px;margin-right:6px;vertical-align:-3px;color:#7c6ff7;"></i> Личный кабинет</h2>
+      <button class="btn-sm" onclick="closeProfile()"><i class="ti ti-x" style="font-size:16px;"></i> Закрыть</button>
+    </div>
+
+    <div class="profile-card">
+      <h3><i class="ti ti-user" aria-hidden="true" style="font-size:14px;margin-right:4px;"></i> Профиль</h3>
+      <div class="profile-field">
+        <label>Email</label>
+        <input type="email" id="profileEmail" disabled>
+      </div>
+      <div class="profile-field">
+        <label>Имя</label>
+        <input type="text" id="profileName" placeholder="Ваше имя">
+      </div>
+      <button class="profile-btn" onclick="saveName()">Сохранить имя</button>
+      <div id="nameMsg" class="profile-msg" style="display:none"></div>
+    </div>
+
+    <div class="profile-card">
+      <h3><i class="ti ti-lock" aria-hidden="true" style="font-size:14px;margin-right:4px;"></i> Сменить пароль</h3>
+      <div class="profile-field">
+        <label>Новый пароль</label>
+        <input type="password" id="profileNewPass" placeholder="Минимум 6 символов">
+      </div>
+      <div class="profile-field">
+        <label>Подтвердите пароль</label>
+        <input type="password" id="profileNewPass2" placeholder="Повторите пароль">
+      </div>
+      <button class="profile-btn" onclick="changePassword()">Сменить пароль</button>
+      <div id="passMsg" class="profile-msg" style="display:none"></div>
+    </div>
+
+    <div class="profile-card">
+      <h3><i class="ti ti-info-circle" aria-hidden="true" style="font-size:14px;margin-right:4px;"></i> Информация</h3>
+      <div style="font-size:13px;color:#777;">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">
+          <span>Роль</span><span id="profileRole" style="font-weight:500;color:#1a1a1a;"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">
+          <span>Регистрация</span><span id="profileCreated" style="color:#1a1a1a;"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;" id="profileTrialRow">
+          <span>Тестовый период до</span><span id="profileTrial" style="color:#ea580c;font-weight:500;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Overlay -->
@@ -341,6 +395,7 @@ firebase.initializeApp({
   appId: "1:490608225628:web:1087fa2403c7f089d2e599"
 });
 const auth = firebase.auth();
+auth.languageCode = 'ru';
 const db = firebase.firestore();
 const ADMIN_EMAIL = 'egokud@gmail.com';
 
@@ -457,7 +512,7 @@ async function loadUserProfile() {
 async function showApp() {
   document.getElementById('authScreen').classList.add('hide');
   document.getElementById('appScreen').classList.remove('hide');
-  document.getElementById('userBadge').textContent = userProfile.name || currentUser.email;
+  document.getElementById('userBadgeName').textContent = userProfile.name || currentUser.email;
 
   // Check blocked
   if (userProfile.blocked) {
@@ -842,6 +897,68 @@ async function adminToggleBlock(uid,block) {
   if(!confirm('Точно '+action+'?'))return;
   await db.collection('users').doc(uid).update({blocked:block});
   renderAdminPanel();
+}
+
+// ============ PROFILE ============
+function openProfile() {
+  document.getElementById('profileOverlay').classList.add('show');
+  document.getElementById('profileEmail').value = currentUser.email;
+  document.getElementById('profileName').value = userProfile.name || '';
+  document.getElementById('profileRole').textContent = userProfile.role === 'admin' ? 'Администратор' : 'Пользователь';
+  const created = userProfile.created?.toDate ? userProfile.created.toDate() : new Date(userProfile.created || Date.now());
+  document.getElementById('profileCreated').textContent = created.toLocaleDateString('ru');
+  if (userProfile.role === 'admin') {
+    document.getElementById('profileTrialRow').style.display = 'none';
+  } else {
+    const trialEnd = new Date(created.getTime() + 90*24*60*60*1000);
+    document.getElementById('profileTrial').textContent = trialEnd.toLocaleDateString('ru');
+  }
+  document.getElementById('nameMsg').style.display = 'none';
+  document.getElementById('passMsg').style.display = 'none';
+}
+
+function closeProfile() {
+  document.getElementById('profileOverlay').classList.remove('show');
+}
+
+async function saveName() {
+  const name = document.getElementById('profileName').value.trim();
+  if (!name) return;
+  try {
+    await currentUser.updateProfile({ displayName: name });
+    await db.collection('users').doc(currentUser.uid).update({ name });
+    userProfile.name = name;
+    document.getElementById('userBadgeName').textContent = name;
+    const msg = document.getElementById('nameMsg');
+    msg.className = 'profile-msg profile-msg-ok';
+    msg.textContent = 'Имя сохранено';
+    msg.style.display = 'block';
+  } catch(e) {
+    const msg = document.getElementById('nameMsg');
+    msg.className = 'profile-msg profile-msg-err';
+    msg.textContent = 'Ошибка: ' + e.message;
+    msg.style.display = 'block';
+  }
+}
+
+async function changePassword() {
+  const p1 = document.getElementById('profileNewPass').value;
+  const p2 = document.getElementById('profileNewPass2').value;
+  const msg = document.getElementById('passMsg');
+  if (p1.length < 6) { msg.className='profile-msg profile-msg-err'; msg.textContent='Минимум 6 символов'; msg.style.display='block'; return; }
+  if (p1 !== p2) { msg.className='profile-msg profile-msg-err'; msg.textContent='Пароли не совпадают'; msg.style.display='block'; return; }
+  try {
+    await currentUser.updatePassword(p1);
+    msg.className = 'profile-msg profile-msg-ok';
+    msg.textContent = 'Пароль изменён';
+    msg.style.display = 'block';
+    document.getElementById('profileNewPass').value = '';
+    document.getElementById('profileNewPass2').value = '';
+  } catch(e) {
+    msg.className = 'profile-msg profile-msg-err';
+    msg.textContent = e.code === 'auth/requires-recent-login' ? 'Перезайдите в аккаунт для смены пароля' : 'Ошибка: ' + e.message;
+    msg.style.display = 'block';
+  }
 }
 
 // ============ MANUAL INPUT ============
