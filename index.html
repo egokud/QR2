@@ -197,9 +197,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="authScreen" class="auth-wrap hide">
   <div id="loginForm" class="auth-card">
     <div style="text-align:center;margin-bottom:20px;">
-      <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:linear-gradient(135deg,#7c6ff7,#a78bfa);border-radius:14px;margin-bottom:12px;">
-        <span style="font-size:28px;filter:brightness(0) invert(1);">📦</span>
-      </div>
+      <img src="/icons/icon-96x96.png" width="56" height="56" alt="Piksta" style="border-radius:14px;margin-bottom:12px;">
       <div style="font-size:26px;font-weight:700;color:#1a1a1a;letter-spacing:-0.5px;">Piksta</div>
       <div style="font-size:13px;color:#999;margin-top:2px;">Сканер посылок</div>
     </div>
@@ -246,7 +244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="appScreen" class="hide">
 
 <div class="header">
-  <h1 style="letter-spacing:-0.5px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:linear-gradient(135deg,#7c6ff7,#a78bfa);border-radius:7px;margin-right:8px;"><span style="font-size:15px;filter:brightness(0) invert(1);">📦</span></span>Piksta</h1>
+  <h1 style="letter-spacing:-0.5px;display:flex;align-items:center;"><img src="/icons/icon-72x72.png" width="28" height="28" alt="" style="border-radius:7px;margin-right:8px;">Piksta</h1>
   <div class="header-right">
     <button class="btn-sm" onclick="openProfile()" style="border:none;color:#7c6ff7;font-weight:500;font-size:13px;display:flex;align-items:center;gap:4px;" id="userBadge"><i class="ti ti-user-circle" style="font-size:18px"></i> <span id="userBadgeName"></span></button>
     <button class="btn-sm" onclick="doLogout()">Выйти</button>
@@ -279,7 +277,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
 
 <div class="gun-section">
-  <h3>🔫 Сканер / Ввести вручную</h3>
+  <h3><i class="ti ti-scan" style="font-size:14px;margin-right:4px"></i> Сканер / Ввести вручную</h3>
   <div class="manual-row">
     <input type="text" id="manualInput" placeholder="Наведи пистолет или введи код" autocomplete="off">
     <button onclick="manualSearch()">Найти</button>
@@ -326,7 +324,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="btn-grid-item btn-grid-danger" onclick="resetAll()"><i class="ti ti-refresh" aria-hidden="true" style="font-size:22px"></i> Сбросить</button>
   </div>
   <div class="admin-section" id="adminPanel" style="display:none">
-    <h3>⚙️ Админ-панель</h3>
+    <h3><i class="ti ti-settings" style="font-size:14px;margin-right:4px"></i> Админ-панель</h3>
     <div id="adminUserList"></div>
     <div id="adminStats" style="font-size:12px;color:#777;margin-top:10px"></div>
   </div>
@@ -399,7 +397,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- Upload modal -->
 <div class="modal-overlay" id="uploadModal">
   <div class="modal-card">
-    <h3>📥 Загрузить партию</h3>
+    <h3><i class="ti ti-upload" style="font-size:16px;margin-right:4px"></i> Загрузить партию</h3>
     <input type="text" id="shipmentName" placeholder="Название (напр: Партия 15 сентября)">
     <p style="font-size:12px;color:#888;margin-bottom:8px">CSV: первая колонка — трек, вторая — склад</p>
     <input type="file" id="csvFile" accept=".csv,.txt">
@@ -720,9 +718,9 @@ function lookup(code) {
   if (!rows.length && !isP) {
     const l4 = cl.slice(-4);
     const by4 = TABLE.map((r,i)=>({i,t:r[0],w:r[1]})).filter(r=>r.t.toLowerCase().endsWith(l4));
-    if (by4.length) { const ut=[...new Set(by4.map(r=>r.t))]; showResult('fuzzy',code,null,null,ut,'🔍 По последним 4 цифрам:'); return; }
+    if (by4.length) { const ut=[...new Set(by4.map(r=>r.t))]; showResult('fuzzy',code,null,null,ut,'По последним 4 цифрам:'); return; }
     const fz = TABLE.map((r,i)=>({i,t:r[0],w:r[1],d:levenshtein(cl,r[0].toLowerCase())})).filter(r=>r.d<=3).sort((a,b)=>a.d-b.d);
-    if (fz.length) { showResult('fuzzy',code,null,null,[...new Set(fz.slice(0,4).map(r=>r.t))],'🔍 Похожие:'); return; }
+    if (fz.length) { showResult('fuzzy',code,null,null,[...new Set(fz.slice(0,4).map(r=>r.t))],'Похожие варианты:'); return; }
     showResult('error',code,null,'Не найден'); return;
   }
   if (!rows.length) { showResult('error',code,null,'«'+code+'» не найден'); return; }
@@ -742,12 +740,12 @@ function lookup(code) {
 function showResult(type, track, wh, msg, tracks, fMsg) {
   if (type==='success'||type==='multi'||type==='fuzzy') showOverlay(type,track,wh,tracks,fMsg);
   const b = document.getElementById('resultBlock');
-  if (type==='success') b.innerHTML=`<div class="result-card success"><div class="result-label">✅ Отмечено</div><div class="result-track">${track}</div><div class="result-warehouse">📦 ${wh}</div></div>`;
+  if (type==='success') b.innerHTML=`<div class="result-card success"><div class="result-label">✅ Отмечено</div><div class="result-track">${track}</div><div class="result-warehouse"><i class="ti ti-package" style="font-size:24px;vertical-align:-3px;margin-right:4px;color:#7c6ff7"></i> ${wh}</div></div>`;
   else if (type==='already') b.innerHTML=`<div class="result-card already"><div class="result-label">⚠️ Уже отмечено</div><div class="result-track">${track}</div><div class="result-message">Склад: ${wh}</div></div>`;
   else if (type==='fuzzy') { const btns=tracks.map(t=>`<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #7c6ff7;border-radius:8px;padding:9px;margin-bottom:4px;font-size:13px;cursor:pointer">${t}</button>`).join('');
     b.innerHTML=`<div class="result-card already" style="border-color:#a5b4fc;background:#f5f3ff"><div class="result-label" style="color:#6d28d9">${fMsg||''}</div><div class="result-track">Считано: ${track}</div>${btns}</div>`; }
   else if (type==='multi') { const btns=tracks.map(t=>`<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:9px;margin-bottom:4px;font-size:13px;cursor:pointer">${t}</button>`).join('');
-    b.innerHTML=`<div class="result-card already"><div class="result-label">🔍 Несколько</div>${btns}</div>`; }
+    b.innerHTML=`<div class="result-card already"><div class="result-label">Несколько вариантов</div>${btns}</div>`; }
   else b.innerHTML=`<div class="result-card error"><div class="result-label">❌ Не найдено</div><div class="result-track">${track}</div><div class="result-message">${msg}</div></div>`;
 }
 
@@ -760,18 +758,18 @@ function showOverlay(type,track,wh,tracks,fMsg) {
   let mw=card.querySelector('.multi-warn'); if(mw) mw.remove();
   let mb=card.querySelector('.multi-btns'); if(mb) mb.remove();
   if (type==='success') {
-    card.className='overlay-card success-card'; ic.textContent='✅'; tr.textContent=track;
+    card.className='overlay-card success-card'; ic.innerHTML='<i class="ti ti-circle-check" style="font-size:44px;color:#16a34a"></i>'; tr.textContent=track;
     if (wh && wh.includes(' и ')) {
-      w.innerHTML = wh.split(' и ').map(x=>'📦 '+x.trim()).join('<br>'); w.style.fontSize='22px';
+      w.innerHTML = wh.split(' и ').map(x=>'<i class="ti ti-package" style="font-size:22px;vertical-align:-3px;margin-right:4px;color:#7c6ff7"></i> '+x.trim()).join('<br>'); w.style.fontSize='22px';
       const d=document.createElement('div'); d.className='multi-warn';
       d.textContent='⚠️ Товаров может быть несколько!';
       d.style.cssText='background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:#ea580c;margin:6px 0 12px';
       card.insertBefore(d,card.querySelector('.overlay-ok'));
-    } else { w.textContent='📦 '+(wh||''); }
+    } else { w.innerHTML='<i class="ti ti-package" style="font-size:24px;vertical-align:-3px;margin-right:4px;color:#7c6ff7"></i> '+(wh||''); }
   } else if (type==='fuzzy'||type==='multi') {
     card.style.border='2px solid '+(type==='fuzzy'?'#a5b4fc':'#e0e0e0');
     if(type==='fuzzy') card.style.background='#f5f3ff';
-    ic.textContent='🔍'; w.innerHTML=fMsg||'Несколько'; w.style.color=type==='fuzzy'?'#6d28d9':'#7c6ff7'; w.style.fontSize='15px';
+    ic.innerHTML='<i class="ti ti-search" style="font-size:44px;color:#7c6ff7"></i>'; w.innerHTML=fMsg||'Несколько'; w.style.color=type==='fuzzy'?'#6d28d9':'#7c6ff7'; w.style.fontSize='15px';
     tr.textContent=(type==='fuzzy'?'Считано: ':'')+track;
     const div=document.createElement('div'); div.className='multi-btns'; div.style.marginBottom='10px';
     (tracks||[]).forEach(t=>{ const b=document.createElement('button'); b.textContent=t;
@@ -864,7 +862,7 @@ function toggleScannedList() {
 function toggleUnscanned() { const l=document.getElementById('unscannedList'); l.style.display=l.style.display==='none'?'block':'none'; if(l.style.display==='block') showUnscanned(); }
 function showUnscanned() {
   const rem=TABLE.map((r,i)=>({t:r[0],w:r[1],i})).filter(r=>!scanned[r.i]);
-  document.getElementById('unscannedList').innerHTML=rem.length===0?'<div style="padding:14px;text-align:center;color:#999">Всё отсканировано! 🎉</div>'
+  document.getElementById('unscannedList').innerHTML=rem.length===0?'<div style="padding:14px;text-align:center;color:#999">Всё отсканировано!</div>'
     :rem.map(r=>`<div class="unscanned-item"><span class="unscanned-track">${r.t}</span><span class="unscanned-wh">${r.w}</span></div>`).join('');
 }
 
@@ -916,7 +914,7 @@ async function renderAdminPanel() {
       html+=`<div>
         <div class="admin-user-header" onclick="toggleAdminUser('${uid}')">
           <div>
-            <b>${u.name||u.email}</b> ${blocked?'<span style="color:#dc2626;font-size:10px">🔒 БЛОК</span>':''}
+            <b>${u.name||u.email}</b> ${blocked?'<span style="color:#dc2626;font-size:10px"><i class="ti ti-lock" style="font-size:12px"></i> БЛОК</span>':''}
             <div style="font-size:12px;color:#aaa">${u.email} · тест ${daysLeft} дн.</div>
           </div>
           <span class="admin-user-toggle" id="toggle_${uid}">▼</span>
@@ -1089,7 +1087,7 @@ function setZoom(v){document.getElementById('zoomVal').textContent=v+'x';if(!sca
   try{const t=scanner.getRunningTrackCameraCapabilities();if(t&&t.zoomFeature().isSupported())t.zoomFeature().apply(parseFloat(v))}catch(e){}}
 function stopScanner(){if(scanner){scanner.stop().catch(()=>{});scanner=null}
   document.getElementById('cameraSection').style.display='none';document.getElementById('zoomSection').style.display='none';
-  document.getElementById('scanBtn').textContent='📷 Камера';scanning=false}
+  document.getElementById('scanBtn').textContent='<i class="ti ti-camera" style="font-size:18px"></i> Камера';scanning=false}
 
 // ============ BEEP & VIBRATE ============
 function beep(){try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
