@@ -623,7 +623,7 @@ function lookup(code) {
   const ut=[...new Set(rows.map(r=>r.t))];
   if (isP && ut.length>1) { showResult('multi',code,null,null,ut); return; }
   const free = rows.find(r => !scanned[r.i]);
-  if (!free) { showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
+  if (!free) { lastWarehouse=''; warehouseStreak=0; showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
   scanned[free.i] = true;
   saveScanned();
   const allWh = [...new Set(rows.map(r=>r.w))].join(' + ');
@@ -637,7 +637,7 @@ function lookup(code) {
 
 // ============ SHOW RESULT ============
 function showResult(type, track, wh, msg, tracks, fMsg) {
-  if (type==='success'||type==='multi'||type==='fuzzy') showOverlay(type,track,wh,tracks,fMsg);
+  if (type==='success'||type==='multi'||type==='fuzzy'||type==='already') showOverlay(type,track,wh,tracks,fMsg);
   const b = document.getElementById('resultBlock');
   if (type==='success') b.innerHTML=`<div class="result-card success"><div class="result-label">✅ Отмечено</div><div class="result-track">${track}</div><div class="result-warehouse">📦 ${wh}</div></div>`;
   else if (type==='already') b.innerHTML=`<div class="result-card already"><div class="result-label">⚠️ Уже отмечено</div><div class="result-track">${track}</div><div class="result-message">Склад: ${wh}</div></div>`;
@@ -665,6 +665,10 @@ function showOverlay(type,track,wh,tracks,fMsg) {
       d.style.cssText='background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:#ea580c;margin:6px 0 12px';
       card.insertBefore(d,card.querySelector('.overlay-ok'));
     } else { w.textContent='📦 '+(wh||''); }
+  } else if (type==='already') {
+    card.style.border='2px solid #fcd34d'; card.style.background='#fffbeb';
+    ic.textContent='⚠️'; w.textContent='Уже отмечено!'; w.style.color='#d97706'; w.style.fontSize='20px';
+    tr.textContent=track + (wh ? ' → ' + wh : '');
   } else if (type==='fuzzy'||type==='multi') {
     card.style.border='2px solid '+(type==='fuzzy'?'#a5b4fc':'#e0e0e0');
     if(type==='fuzzy') card.style.background='#f5f3ff';
