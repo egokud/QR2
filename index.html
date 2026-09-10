@@ -486,7 +486,8 @@ async function loadShipments() {
     ? '<option value="">— Загрузите CSV —</option>'
     : shipments.map(s => `<option value="${s.id}">${s.name} (${s.data.length})</option>`).join('');
   if (shipments.length > 0) {
-    const id = activeShipmentId && shipments.find(s => s.id === activeShipmentId) ? activeShipmentId : shipments[0].id;
+    const savedId = userProfile.activeShipment || null;
+    const id = savedId && shipments.find(s => s.id === savedId) ? savedId : (activeShipmentId && shipments.find(s => s.id === activeShipmentId) ? activeShipmentId : shipments[0].id);
     sel.value = id;
     await loadShipmentData(id);
   } else {
@@ -496,6 +497,7 @@ async function loadShipments() {
 
 async function loadShipmentData(id) {
   activeShipmentId = id;
+  db.collection('users').doc(currentUser.uid).update({ activeShipment: id }).catch(()=>{});
   const doc = await shipmentsRef().doc(id).get();
   const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w]);
   const scDoc = await scannedRef(id).get();
