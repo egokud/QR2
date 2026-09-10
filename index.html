@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#7c6ff7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Piksta">
+<meta name="description" content="Piksta — сканирование и сортировка посылок по трек-кодам">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 <title>Piksta — сканер посылок</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
@@ -976,6 +984,9 @@ async function adminToggleBlock(uid,block) {
   await db.collection('users').doc(uid).update({blocked:block});
   renderAdminPanel();
 }
+
+// ============ PWA ============
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 
 // ============ PROFILE ============
 function openProfile() {
