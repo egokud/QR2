@@ -667,8 +667,9 @@ function showOverlay(type,track,wh,tracks,fMsg) {
     } else { w.textContent='📦 '+(wh||''); }
   } else if (type==='already') {
     card.style.border='2px solid #fcd34d'; card.style.background='#fffbeb';
-    ic.textContent='⚠️'; w.textContent='Уже отмечено!'; w.style.color='#d97706'; w.style.fontSize='20px';
-    tr.textContent=track + (wh ? ' → ' + wh : '');
+    ic.textContent='⚠️'; 
+    w.textContent='📦 ' + (wh||''); w.style.color='#1a1a1a'; w.style.fontSize='28px';
+    tr.innerHTML='<div style="color:#d97706;font-size:14px;font-weight:500;margin-bottom:4px">Уже отмечено!</div>' + track;
   } else if (type==='fuzzy'||type==='multi') {
     card.style.border='2px solid '+(type==='fuzzy'?'#a5b4fc':'#e0e0e0');
     if(type==='fuzzy') card.style.background='#f5f3ff';
