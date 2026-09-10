@@ -143,6 +143,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .admin-section h3{font-size:12px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
 .admin-user-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
 .admin-user-row:last-child{border-bottom:none}
+.admin-user-header{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.admin-user-header:last-child{border-bottom:none}
+.admin-user-toggle{font-size:12px;color:#aaa;transition:transform .2s}
+.admin-user-toggle.open{transform:rotate(180deg)}
+.admin-user-details{display:none;padding:8px 0 12px 0;font-size:12px;color:#777;border-bottom:1px solid #f0f0f0}
+.admin-user-details.show{display:block}
+.admin-shipment-item{padding:4px 0;display:flex;justify-content:space-between}
+.admin-btn{border:none;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:600}
+.admin-btn-block{background:#fff7ed;color:#ea580c;border:1px solid #fed7aa}
+.admin-btn-unblock{background:#f0fdf4;color:#16a34a;border:1px solid #86efac}
+.trial-banner{margin:0 16px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#ea580c;font-weight:600}
+.trial-banner.expired{background:#fef2f2;border-color:#fca5a5;color:#dc2626}
+.blocked-banner{margin:0 16px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:20px;text-align:center;font-size:14px;color:#dc2626}
 </style>
 </head>
 <body>
@@ -198,6 +211,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<div id="trialBanner" class="trial-banner" style="display:none"></div>
+<div id="blockedBanner" class="blocked-banner" style="display:none">
+  <p style="font-size:24px;margin-bottom:10px">🚫</p>
+  <p style="font-weight:700;margin-bottom:6px">Аккаунт заблокирован</p>
+  <p style="font-size:12px;color:#999">Обратитесь к администратору</p>
+</div>
 <div class="shipment-section">
   <div class="shipment-row">
     <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()"></select>
@@ -411,6 +430,35 @@ async function showApp() {
   document.getElementById('authScreen').classList.add('hide');
   document.getElementById('appScreen').classList.remove('hide');
   document.getElementById('userBadge').textContent = userProfile.name || currentUser.email;
+
+  // Check blocked
+  if (userProfile.blocked) {
+    document.getElementById('blockedBanner').style.display='block';
+    document.querySelectorAll('.shipment-section,.gun-section,.scanner-section,.stats,.progress-wrap,.bottom-section,.history').forEach(e=>e.style.display='none');
+    return;
+  }
+
+  // Trial banner for non-admin
+  if (userProfile.role !== 'admin') {
+    const created = userProfile.created?.toDate ? userProfile.created.toDate() : new Date(userProfile.created || Date.now());
+    const trialEnd = new Date(created.getTime() + 90*24*60*60*1000);
+    const daysLeft = Math.ceil((trialEnd - new Date()) / (24*60*60*1000));
+    const banner = document.getElementById('trialBanner');
+    if (daysLeft <= 0) {
+      banner.className = 'trial-banner expired';
+      banner.textContent = '⛔ Тестовый период истёк. Обратитесь к администратору.';
+      banner.style.display = 'block';
+      document.querySelectorAll('.shipment-section,.gun-section,.scanner-section,.bottom-section').forEach(e=>e.style.display='none');
+      return;
+    } else if (daysLeft <= 14) {
+      banner.textContent = '⏳ Тестовый период: осталось ' + daysLeft + ' дней';
+      banner.style.display = 'block';
+    } else {
+      banner.textContent = '📅 Тестовый период: ' + daysLeft + ' дней';
+      banner.style.display = 'block';
+    }
+  }
+
   await loadShipments();
   await loadHistory();
   renderHistory();
@@ -690,18 +738,62 @@ async function renderAdminPanel() {
   try {
     const snap=await db.collection('users').get();
     let html='';
-    snap.forEach(doc=>{
+    for (const doc of snap.docs) {
       const u=doc.data();
-      html+=`<div class="admin-user-row"><div><b>${u.name||u.email}</b><div style="font-size:11px;color:#aaa">${u.email} · ${u.role}</div></div>
-        ${u.role!=='admin'?`<button onclick="adminDeleteUser('${doc.id}','${u.email}')" style="background:none;border:1px solid #fca5a5;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:#dc2626">×</button>`:''}</div>`;
-    });
+      const uid=doc.id;
+      const isAdmin=u.role==='admin';
+      const blocked=u.blocked||false;
+      const created=u.created?.toDate?u.created.toDate():new Date(u.created||Date.now());
+      const trialEnd=new Date(created.getTime()+90*24*60*60*1000);
+      const daysLeft=Math.max(0,Math.ceil((trialEnd-new Date())/(24*60*60*1000)));
+      const trialText=isAdmin?'∞':'тест '+daysLeft+' дн.';
+
+      // Get shipment count
+      let shipInfo='';
+      try {
+        const shSnap=await db.collection('users').doc(uid).collection('shipments').get();
+        if(shSnap.size>0) {
+          let totalTracks=0;
+          shSnap.forEach(s=>{const d=s.data();totalTracks+=(d.data||[]).length;});
+          shipInfo=shSnap.size+' партий, '+totalTracks+' треков';
+        } else { shipInfo='нет партий'; }
+      } catch(e) { shipInfo='—'; }
+
+      html+=`<div>
+        <div class="admin-user-header" onclick="toggleAdminUser('${uid}')">
+          <div>
+            <b>${u.name||u.email}</b> ${blocked?'<span style="color:#dc2626;font-size:10px">🔒 БЛОК</span>':''}
+            <div style="font-size:11px;color:#aaa">${u.email} · ${trialText}</div>
+          </div>
+          <span class="admin-user-toggle" id="toggle_${uid}">▼</span>
+        </div>
+        <div class="admin-user-details" id="details_${uid}">
+          <div style="margin-bottom:8px"><b>Партии:</b> ${shipInfo}</div>
+          <div style="margin-bottom:8px"><b>Регистрация:</b> ${created.toLocaleDateString('ru')}</div>
+          ${!isAdmin?`<div style="display:flex;gap:6px;margin-top:6px">
+            ${blocked
+              ?`<button class="admin-btn admin-btn-unblock" onclick="adminToggleBlock('${uid}',false)">Разблокировать</button>`
+              :`<button class="admin-btn admin-btn-block" onclick="adminToggleBlock('${uid}',true)">Заблокировать</button>`}
+          </div>`:''}
+        </div>
+      </div>`;
+    }
     document.getElementById('adminUserList').innerHTML=html;
     document.getElementById('adminStats').textContent='Всего: '+snap.size+' пользователей';
   } catch(e) { document.getElementById('adminUserList').innerHTML='<p style="font-size:12px;color:#999">Нет доступа</p>'; }
 }
-async function adminDeleteUser(uid,email) {
-  if(!confirm('Удалить '+email+'?'))return;
-  await db.collection('users').doc(uid).delete();
+
+function toggleAdminUser(uid) {
+  const det=document.getElementById('details_'+uid);
+  const tog=document.getElementById('toggle_'+uid);
+  det.classList.toggle('show');
+  tog.classList.toggle('open');
+}
+
+async function adminToggleBlock(uid,block) {
+  const action=block?'заблокировать':'разблокировать';
+  if(!confirm('Точно '+action+'?'))return;
+  await db.collection('users').doc(uid).update({blocked:block});
   renderAdminPanel();
 }
 
