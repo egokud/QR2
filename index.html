@@ -514,6 +514,7 @@ async function deleteShipment() {
   await scannedRef(activeShipmentId).delete().catch(() => {});
   activeShipmentId = null;
   await loadShipments();
+  await updateShipmentStats();
 }
 
 function openUploadModal() { document.getElementById('uploadModal').classList.add('show'); document.getElementById('shipmentName').value = ''; document.getElementById('csvFile').value = ''; }
@@ -543,12 +544,21 @@ async function uploadCSV() {
       closeUploadModal();
       activeShipmentId = ref.id;
       await loadShipments();
+      await updateShipmentStats();
       alert('Загружено ' + data.length + ' треков!');
     } catch(err) {
       alert('Ошибка: ' + err.message);
     }
   };
   reader.readAsText(file);
+}
+
+// ============ SHIPMENT STATS ============
+async function updateShipmentStats() {
+  const snap = await shipmentsRef().get();
+  const shipments = [];
+  snap.forEach(doc => { const d = doc.data(); shipments.push({ name: d.name, count: (d.data||[]).length }); });
+  await db.collection('users').doc(currentUser.uid).update({ shipmentStats: shipments });
 }
 
 // ============ SAVE SCANNED ============
@@ -748,16 +758,13 @@ async function renderAdminPanel() {
       const daysLeft=Math.max(0,Math.ceil((trialEnd-new Date())/(24*60*60*1000)));
       const trialText=isAdmin?'∞':'тест '+daysLeft+' дн.';
 
-      // Get shipment count
+      // Get shipment info from user profile
       let shipInfo='';
-      try {
-        const shSnap=await db.collection('users').doc(uid).collection('shipments').get();
-        if(shSnap.size>0) {
-          let totalTracks=0;
-          shSnap.forEach(s=>{const d=s.data();totalTracks+=(d.data||[]).length;});
-          shipInfo=shSnap.size+' партий, '+totalTracks+' треков';
-        } else { shipInfo='нет партий'; }
-      } catch(e) { shipInfo='—'; }
+      const stats = u.shipmentStats || [];
+      if (stats.length > 0) {
+        const totalTracks = stats.reduce((s,x) => s + (x.count||0), 0);
+        shipInfo = stats.map(s => s.name + ' (' + s.count + ')').join(', ');
+      } else { shipInfo = 'нет партий'; }
 
       html+=`<div>
         <div class="admin-user-header" onclick="toggleAdminUser('${uid}')">
@@ -768,8 +775,9 @@ async function renderAdminPanel() {
           <span class="admin-user-toggle" id="toggle_${uid}">▼</span>
         </div>
         <div class="admin-user-details" id="details_${uid}">
-          <div style="margin-bottom:8px"><b>Партии:</b> ${shipInfo}</div>
+          <div style="margin-bottom:8px"><b>Партии:</b><br>${stats.length>0?stats.map(s=>'• '+s.name+' — '+s.count+' треков').join('<br>'):'нет партий'}</div>
           <div style="margin-bottom:8px"><b>Регистрация:</b> ${created.toLocaleDateString('ru')}</div>
+          ${!isAdmin?`<div style="margin-bottom:8px"><b>Завершение тестового периода:</b> ${trialEnd.toLocaleDateString('ru')}</div>`:''}
           ${!isAdmin?`<div style="display:flex;gap:6px;margin-top:6px">
             ${blocked
               ?`<button class="admin-btn admin-btn-unblock" onclick="adminToggleBlock('${uid}',false)">Разблокировать</button>`
