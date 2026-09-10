@@ -456,23 +456,32 @@ async function uploadCSV() {
   const name = document.getElementById('shipmentName').value.trim() || 'Партия ' + new Date().toLocaleDateString('ru');
   const file = document.getElementById('csvFile').files[0];
   if (!file) { alert('Выбери CSV файл'); return; }
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  const data = [];
-  for (const line of lines) {
-    const parts = line.split(',');
-    if (parts.length >= 2) {
-      const track = parts[0].trim();
-      const wh = parts.slice(1).join(',').trim();
-      if (track && wh && !track.toLowerCase().startsWith('тр') && !track.toLowerCase().startsWith('track')) data.push([track, wh]);
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const data = [];
+      for (const line of lines) {
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+          const track = parts[0].trim();
+          const wh = parts.slice(1).join(',').trim();
+          if (track && wh && !track.toLowerCase().startsWith('тр') && !track.toLowerCase().startsWith('track')) data.push([track, wh]);
+        }
+      }
+      if (data.length === 0) { alert('Данные не найдены в CSV'); return; }
+      const ref = await shipmentsRef().add({ name, data, created: firebase.firestore.FieldValue.serverTimestamp() });
+      closeUploadModal();
+      activeShipmentId = ref.id;
+      await loadShipments();
+      alert('Загружено ' + data.length + ' треков!');
+    } catch(err) {
+      alert('Ошибка: ' + err.message);
     }
-  }
-  if (data.length === 0) { alert('Данные не найдены'); return; }
-  const ref = await shipmentsRef().add({ name, data, created: firebase.firestore.FieldValue.serverTimestamp() });
-  closeUploadModal();
-  activeShipmentId = ref.id;
-  await loadShipments();
-  alert('Загружено ' + data.length + ' треков!');
+  };
+  reader.readAsText(file);
 }
 
 // ============ SAVE SCANNED ============
