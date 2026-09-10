@@ -426,7 +426,7 @@ async function loadShipments() {
 async function loadShipmentData(id) {
   activeShipmentId = id;
   const doc = await shipmentsRef().doc(id).get();
-  TABLE = doc.exists ? doc.data().data : [];
+  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w]);
   const scDoc = await scannedRef(id).get();
   scanned = scDoc.exists ? scDoc.data().items || {} : {};
   updateStats();
@@ -468,7 +468,7 @@ async function uploadCSV() {
         if (parts.length >= 2) {
           const track = parts[0].trim();
           const wh = parts.slice(1).join(',').trim();
-          if (track && wh && !track.toLowerCase().startsWith('тр') && !track.toLowerCase().startsWith('track')) data.push([track, wh]);
+          if (track && wh && !track.toLowerCase().startsWith('тр') && !track.toLowerCase().startsWith('track')) data.push({t: track, w: wh});
         }
       }
       if (data.length === 0) { alert('Данные не найдены в CSV'); return; }
