@@ -103,6 +103,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .unscanned-track{font-size:12px;color:#1a1a1a;font-family:monospace}
 .unscanned-wh{font-size:12px;color:#7c6ff7;font-weight:600}
 
+.fulllist{margin-top:8px;background:#fff;border-radius:10px;border:1px solid #e0e0e0;max-height:450px;overflow-y:auto}
+.fulllist-item{padding:8px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;font-size:12px}
+.fulllist-item:last-child{border-bottom:none}
+.fulllist-idx{color:#ccc;width:24px;text-align:right;flex-shrink:0;font-size:11px}
+.fulllist-track{color:#1a1a1a;font-family:monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fulllist-wh{flex-shrink:0}
+.fulllist-wh input{border:1px solid #e0e0e0;border-radius:6px;padding:5px 8px;font-size:12px;width:100px;outline:none;color:#7c6ff7;font-weight:600}
+.fulllist-wh input:focus{border-color:#7c6ff7}
+.fulllist-status{width:20px;flex-shrink:0;text-align:center;font-size:14px}
+.fulllist-search{width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:9px;font-size:13px;outline:none;margin-bottom:8px}
+.fulllist-search:focus{border-color:#7c6ff7}
+
 /* Overlay */
 .scan-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:24px}
 .scan-overlay.show{display:flex}
@@ -230,6 +242,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <div class="bottom-section">
+  <button class="btn-bottom" onclick="toggleFullList()" style="color:#1a1a1a;font-weight:600">📦 Просмотр списка (<span id="fullListCount">0</span>)</button>
+  <div id="fullListWrap" style="display:none">
+    <input type="text" class="fulllist-search" id="fullListSearch" placeholder="Поиск по треку или складу..." oninput="renderFullList()">
+    <div class="fulllist" id="fullListContainer"></div>
+  </div>
   <button class="btn-bottom btn-unscanned" onclick="toggleUnscanned()">📋 Не отсканированные (<span id="unscannedCount">0</span>)</button>
   <div class="unscanned-list" id="unscannedList" style="display:none"></div>
   <button class="btn-bottom" onclick="exportScanned()">📋 Экспорт</button>
@@ -404,7 +421,7 @@ async function showApp() {
 // ============ SHIPMENTS (FIRESTORE) ============
 function shipmentsRef() { return db.collection('users').doc(currentUser.uid).collection('shipments'); }
 function scannedRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('scanned').doc(shipId); }
-function historyRef() { return db.collection('users').doc(currentUser.uid).collection('meta').doc('history'); }
+function historyRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('history').doc(shipId || activeShipmentId); }
 
 async function loadShipments() {
   const snap = await shipmentsRef().orderBy('created', 'desc').get();
@@ -431,6 +448,8 @@ async function loadShipmentData(id) {
   scanned = scDoc.exists ? scDoc.data().items || {} : {};
   updateStats();
   document.getElementById('resultBlock').innerHTML = '';
+  await loadHistory();
+  renderHistory();
 }
 
 async function switchShipment() {
@@ -592,6 +611,7 @@ function updateStats() {
   document.getElementById('statTotal').textContent=t;
   document.getElementById('progressBar').style.width=(t>0?Math.round(d/t*100):0)+'%';
   document.getElementById('unscannedCount').textContent=t-d;
+  document.getElementById('fullListCount').textContent=t;
 }
 
 // ============ HISTORY ============
@@ -609,6 +629,42 @@ function renderHistory() {
 async function clearHistory() { if(!confirm('Очистить?'))return; scanHistory=[]; await saveHistory(); document.getElementById('historySection').style.display='none'; }
 
 // ============ UNSCANNED ============
+function toggleFullList() {
+  const w = document.getElementById('fullListWrap');
+  w.style.display = w.style.display === 'none' ? 'block' : 'none';
+  if (w.style.display === 'block') renderFullList();
+}
+
+function renderFullList() {
+  const query = (document.getElementById('fullListSearch').value || '').toLowerCase().trim();
+  const container = document.getElementById('fullListContainer');
+  let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], done: !!scanned[i] }));
+  if (query) items = items.filter(r => r.track.toLowerCase().includes(query) || r.wh.toLowerCase().includes(query));
+  container.innerHTML = items.length === 0
+    ? '<div style="padding:14px;text-align:center;color:#999">Ничего не найдено</div>'
+    : items.map(r => `<div class="fulllist-item">
+        <span class="fulllist-idx">${r.idx + 1}</span>
+        <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
+        <span class="fulllist-track">${r.track}</span>
+        <span class="fulllist-wh"><input value="${r.wh}" onchange="editWarehouse(${r.idx}, this.value)" /></span>
+      </div>`).join('');
+}
+
+async function editWarehouse(idx, newWh) {
+  if (!activeShipmentId || idx < 0 || idx >= TABLE.length) return;
+  TABLE[idx][1] = newWh.trim();
+  // Update in Firestore
+  const doc = await shipmentsRef().doc(activeShipmentId).get();
+  if (doc.exists) {
+    const data = doc.data().data;
+    if (data[idx]) {
+      if (Array.isArray(data[idx])) data[idx][1] = newWh.trim();
+      else data[idx].w = newWh.trim();
+      await shipmentsRef().doc(activeShipmentId).update({ data });
+    }
+  }
+}
+
 function toggleUnscanned() { const l=document.getElementById('unscannedList'); l.style.display=l.style.display==='none'?'block':'none'; if(l.style.display==='block') showUnscanned(); }
 function showUnscanned() {
   const rem=TABLE.map((r,i)=>({t:r[0],w:r[1],i})).filter(r=>!scanned[r.i]);
