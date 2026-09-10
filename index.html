@@ -423,6 +423,7 @@ firebase.initializeApp({
 const auth = firebase.auth();
 auth.languageCode = 'ru';
 const db = firebase.firestore();
+db.enablePersistence({synchronizeTabs: true}).catch(()=>{});
 const ADMIN_EMAIL = 'egokud@gmail.com';
 
 // ============ STATE ============
