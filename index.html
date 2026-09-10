@@ -580,6 +580,21 @@ async function saveHistory() {
   await historyRef().set({ items: scanHistory.slice(0, 30) });
 }
 
+// ============ KEYBOARD LAYOUT FIX ============
+const RU_TO_EN = {'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ъ':']','ф':'a','ы':'s','в':'d','а':'f','п':'g','р':'h','о':'j','л':'k','д':'l','ж':';','э':"'",'я':'z','ч':'x','с':'c','м':'v','и':'b','т':'n','ь':'m','б':',','ю':'.'};
+function fixLayout(str) {
+  let result = '';
+  for (const ch of str) {
+    const lower = ch.toLowerCase();
+    if (RU_TO_EN[lower]) {
+      result += ch === lower ? RU_TO_EN[lower] : RU_TO_EN[lower].toUpperCase();
+    } else {
+      result += ch;
+    }
+  }
+  return result;
+}
+
 // ============ LEVENSHTEIN ============
 function levenshtein(a, b) {
   const m = a.length, n = b.length;
@@ -591,7 +606,7 @@ function levenshtein(a, b) {
 
 // ============ LOOKUP ============
 function lookup(code) {
-  code = code.trim(); if (!code || !TABLE.length) return;
+  code = fixLayout(code.trim()); if (!code || !TABLE.length) return;
   const isP = code.length <= 6, cl = code.toLowerCase();
   let rows = TABLE.map((r,i) => ({i,t:r[0],w:r[1]})).filter(r => isP ? r.t.toLowerCase().endsWith(cl) : r.t.toLowerCase()===cl);
   if (!rows.length && !isP) {
