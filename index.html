@@ -5,890 +5,687 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Сканер посылок</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;min-height:100vh}
+.hide{display:none!important}
 
-  .header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
-  .header h1 { font-size: 18px; font-weight: 600; color: #1a1a1a; }
-  .btn-export { background: none; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; cursor: pointer; padding: 6px 12px; color: #555; }
+.header{background:#fff;border-bottom:1px solid #e0e0e0;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:17px;font-weight:600;color:#1a1a1a}
+.header-right{display:flex;gap:8px;align-items:center}
+.btn-sm{background:none;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;cursor:pointer;padding:6px 10px;color:#555}
+.user-badge{font-size:12px;color:#7c6ff7;font-weight:600}
 
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px; }
-  .stat-card { background: #fff; border-radius: 10px; padding: 14px; border: 1px solid #e0e0e0; text-align: center; }
-  .stat-num { font-size: 26px; font-weight: 700; color: #7c6ff7; }
-  .stat-label { font-size: 12px; color: #999; margin-top: 2px; }
+/* Auth screens */
+.auth-wrap{display:flex;align-items:center;justify-content:center;min-height:85vh;padding:24px}
+.auth-card{background:#fff;border-radius:16px;padding:28px 22px;width:100%;max-width:340px;border:1px solid #e0e0e0}
+.auth-card h2{font-size:18px;text-align:center;margin-bottom:18px;color:#1a1a1a}
+.auth-card input{width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:11px;font-size:14px;margin-bottom:10px;outline:none}
+.auth-card input:focus{border-color:#7c6ff7}
+.btn-primary{width:100%;background:#7c6ff7;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer}
+.btn-primary:active{opacity:.85}
+.btn-primary:disabled{opacity:.5}
+.auth-error{color:#dc2626;font-size:12px;text-align:center;margin-bottom:8px}
+.auth-success{color:#16a34a;font-size:12px;text-align:center;margin-bottom:8px}
+.auth-links{margin-top:14px;text-align:center;font-size:13px}
+.auth-links a{color:#7c6ff7;text-decoration:none;margin:0 6px}
+.auth-links span{color:#ddd}
 
-  .progress-wrap { margin: 0 16px 16px; background: #e0e0e0; border-radius: 10px; overflow: hidden; height: 8px; }
-  .progress-bar { height: 100%; background: #7c6ff7; transition: width 0.4s; }
+/* Loading */
+.loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.spinner-lg{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#7c6ff7;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-  .scanner-section { margin: 16px; }
-  #reader { border-radius: 12px; overflow: hidden; background: #000; max-height: 220px; }
-  #reader video { width: 100% !important; border-radius: 12px; object-fit: cover; height: 220px; }
+/* Stats */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 16px}
+.stat-card{background:#fff;border-radius:10px;padding:12px;border:1px solid #e0e0e0;text-align:center}
+.stat-num{font-size:24px;font-weight:700;color:#7c6ff7}
+.stat-label{font-size:11px;color:#999;margin-top:2px}
+.progress-wrap{margin:0 16px 14px;background:#e0e0e0;border-radius:10px;overflow:hidden;height:7px}
+.progress-bar{height:100%;background:#7c6ff7;transition:width .4s}
 
-  .btn-scan { display: block; width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 0; }
-  .btn-scan:active { transform: scale(0.98); }
-  .btn-scan.stop { background: #f0f0f0; color: #555; }
+/* Shipment */
+.shipment-section{margin:0 16px 14px;background:#fff;border-radius:10px;padding:10px;border:1px solid #e0e0e0}
+.shipment-row{display:flex;gap:6px;align-items:center}
+.shipment-select{flex:1;border:1px solid #e0e0e0;border-radius:8px;padding:9px;font-size:13px;outline:none;background:#fff}
+.btn-icon{background:none;border:1px solid #e0e0e0;border-radius:8px;width:36px;height:36px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 
-  .manual-section { background: #fff; margin: 16px; border-radius: 12px; padding: 16px; border: 1px solid #e0e0e0; }
-  .manual-section h3 { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
-  .manual-row { display: flex; gap: 8px; }
-  .manual-row input { flex: 1; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #1a1a1a; outline: none; min-width: 0; }
-  .manual-row input:focus { border-color: #7c6ff7; }
-  .manual-row button { background: #7c6ff7; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+/* Gun */
+.gun-section{background:#fff;margin:0 16px 14px;border-radius:12px;padding:14px;border:2px solid #7c6ff7}
+.gun-section h3{font-size:11px;color:#7c6ff7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700}
+.manual-row{display:flex;gap:8px}
+.manual-row input{flex:1;border:1px solid #e0e0e0;border-radius:8px;padding:11px;font-size:15px;outline:none;min-width:0}
+.manual-row input:focus{border-color:#7c6ff7}
+.manual-row button{background:#7c6ff7;color:#fff;border:none;border-radius:8px;padding:11px 14px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.gun-hint{margin-top:6px;font-size:11px;color:#aaa;text-align:center}
 
-  .result-card { margin: 0 16px 16px; border-radius: 12px; padding: 20px; border: 1.5px solid; }
-  .result-card.success { background: #f0fdf4; border-color: #86efac; }
-  .result-card.error { background: #fef2f2; border-color: #fca5a5; }
-  .result-card.already { background: #fffbeb; border-color: #fcd34d; }
-  .result-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-  .result-card.success .result-label { color: #16a34a; }
-  .result-card.error .result-label { color: #dc2626; }
-  .result-card.already .result-label { color: #d97706; }
-  .result-track { font-size: 13px; color: #888; margin-bottom: 10px; word-break: break-all; }
-  .result-warehouse { font-size: 32px; font-weight: 700; color: #1a1a1a; }
-  .result-message { font-size: 14px; color: #555; line-height: 1.5; }
+/* Scanner */
+.scanner-section{margin:0 16px 14px}
+.btn-scan{display:block;width:100%;background:#f0f0f0;color:#555;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-scan.stop{background:#7c6ff7;color:#fff}
+#reader{border-radius:12px;overflow:hidden;background:#000;max-height:220px}
+#reader video{width:100%!important;border-radius:12px;object-fit:cover;height:220px}
 
-  .history { margin: 0 16px 16px; }
-  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .history-header h3 { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
-  .history-header button { font-size: 12px; color: #dc2626; background: none; border: none; cursor: pointer; }
-  .history-item { background: #fff; border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; border: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .history-track { font-size: 12px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-  .history-wh { font-size: 14px; font-weight: 600; color: #7c6ff7; white-space: nowrap; }
-  .history-time { font-size: 11px; color: #bbb; white-space: nowrap; }
+/* Results */
+.result-card{margin:0 16px 14px;border-radius:12px;padding:16px;border:1.5px solid}
+.result-card.success{background:#f0fdf4;border-color:#86efac}
+.result-card.error{background:#fef2f2;border-color:#fca5a5}
+.result-card.already{background:#fffbeb;border-color:#fcd34d}
+.result-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.result-card.success .result-label{color:#16a34a}
+.result-card.error .result-label{color:#dc2626}
+.result-card.already .result-label{color:#d97706}
+.result-track{font-size:12px;color:#888;margin-bottom:8px;word-break:break-all}
+.result-warehouse{font-size:28px;font-weight:700;color:#1a1a1a}
+.result-message{font-size:13px;color:#555}
 
-  .reset-wrap { margin: 0 16px 40px; }
-  .btn-reset { width: 100%; background: #fff; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
+/* History */
+.history{margin:0 16px 14px}
+.history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.history-header h3{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px}
+.history-header button{font-size:11px;color:#dc2626;background:none;border:none;cursor:pointer}
+.history-item{background:#fff;border-radius:8px;padding:8px 12px;margin-bottom:4px;border:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.history-track{font-size:11px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.history-wh{font-size:12px;font-weight:600;color:#7c6ff7;white-space:nowrap}
+.history-time{font-size:10px;color:#bbb;white-space:nowrap}
 
-  .unscanned-wrap { margin: 0 16px 16px; }
-  .btn-unscanned { width: 100%; background: #fff; color: #7c6ff7; border: 1px solid #c4b5fd; border-radius: 8px; padding: 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .btn-unscanned:active { opacity: 0.85; }
-  .unscanned-list { margin-top: 10px; background: #fff; border-radius: 10px; border: 1px solid #e0e0e0; max-height: 400px; overflow-y: auto; }
-  .unscanned-item { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
-  .unscanned-item:last-child { border-bottom: none; }
-  .unscanned-track { font-size: 13px; color: #1a1a1a; font-family: monospace; }
-  .unscanned-wh { font-size: 13px; color: #7c6ff7; font-weight: 600; }
+/* Bottom */
+.bottom-section{margin:0 16px 14px}
+.btn-bottom{width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;margin-bottom:8px;color:#555}
+.btn-danger{color:#dc2626;border-color:#fca5a5}
+.btn-unscanned{color:#7c6ff7;border-color:#c4b5fd;font-weight:600}
+.unscanned-list{margin-top:8px;background:#fff;border-radius:10px;border:1px solid #e0e0e0;max-height:350px;overflow-y:auto}
+.unscanned-item{padding:8px 12px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between}
+.unscanned-item:last-child{border-bottom:none}
+.unscanned-track{font-size:12px;color:#1a1a1a;font-family:monospace}
+.unscanned-wh{font-size:12px;color:#7c6ff7;font-weight:600}
 
-  .scan-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; padding:24px; }
-  .scan-overlay.show { display:flex; }
-  .overlay-card { background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:360px; text-align:center; animation: popIn 0.2s ease; }
-  @keyframes popIn { from { transform:scale(0.85); opacity:0; } to { transform:scale(1); opacity:1; } }
-  .overlay-card.success-card { background:#f0fdf4; border: 2px solid #86efac; }
-  .overlay-card.already-card { background:#fffbeb; border: 2px solid #fcd34d; }
-  .overlay-card.error-card { background:#fef2f2; border: 2px solid #fca5a5; }
-  .overlay-icon { font-size:48px; margin-bottom:12px; }
-  .overlay-warehouse { font-size:36px; font-weight:800; color:#1a1a1a; margin-bottom:4px; }
-  .overlay-track { font-size:12px; color:#aaa; margin-bottom:20px; word-break:break-all; }
-  .overlay-ok { width:100%; background:#7c6ff7; color:#fff; border:none; border-radius:12px; padding:14px; font-size:16px; font-weight:700; cursor:pointer; }
-  .overlay-ok:active { opacity:0.85; }
-  .overlay-card.already-card .overlay-warehouse { color:#d97706; font-size:22px; }
-  .overlay-card.already-card .overlay-ok { background:#f59e0b; }
-  .overlay-card.error-card .overlay-warehouse { color:#dc2626; font-size:22px; }
-  .overlay-card.error-card .overlay-ok { background:#ef4444; }
+/* Overlay */
+.scan-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:24px}
+.scan-overlay.show{display:flex}
+.overlay-card{background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:340px;text-align:center;animation:popIn .2s ease}
+@keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.overlay-card.success-card{background:#f0fdf4;border:2px solid #86efac}
+.overlay-icon{font-size:44px;margin-bottom:10px}
+.overlay-warehouse{font-size:30px;font-weight:800;color:#1a1a1a;margin-bottom:4px}
+.overlay-track{font-size:11px;color:#aaa;margin-bottom:14px;word-break:break-all}
+.overlay-ok{width:100%;background:#7c6ff7;color:#fff;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:700;cursor:pointer}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-card{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:360px}
+.modal-card h3{font-size:16px;margin-bottom:12px}
+.modal-card input[type=text]{width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px;outline:none}
+.modal-card input[type=file]{margin-bottom:12px;font-size:13px}
+.modal-buttons{display:flex;gap:8px}
+.modal-buttons button{flex:1;padding:10px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none}
+.modal-btn-cancel{background:#f0f0f0;color:#555}
+.modal-btn-ok{background:#7c6ff7;color:#fff}
+
+/* Admin */
+.admin-section{background:#fff;border-radius:10px;padding:14px;border:1px solid #e0e0e0;margin-top:8px}
+.admin-section h3{font-size:12px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.admin-user-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.admin-user-row:last-child{border-bottom:none}
 </style>
 </head>
 <body>
 
+<!-- LOADING -->
+<div id="loadingScreen" class="loading-screen"><div class="spinner-lg"></div></div>
+
+<!-- AUTH SCREENS -->
+<div id="authScreen" class="auth-wrap hide">
+  <div id="loginForm" class="auth-card">
+    <h2>📦 Сканер посылок</h2>
+    <div id="loginError" class="auth-error hide"></div>
+    <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+    <input type="password" id="loginPass" placeholder="Пароль" autocomplete="current-password">
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Войти</button>
+    <div class="auth-links">
+      <a href="#" onclick="showScreen('register');return false">Регистрация</a>
+      <span>|</span>
+      <a href="#" onclick="showScreen('recovery');return false">Забыли пароль?</a>
+    </div>
+  </div>
+
+  <div id="registerForm" class="auth-card hide">
+    <h2>📝 Регистрация</h2>
+    <div id="regError" class="auth-error hide"></div>
+    <input type="text" id="regName" placeholder="Имя (отображается в системе)" autocomplete="off">
+    <input type="email" id="regEmail" placeholder="Email">
+    <input type="password" id="regPass" placeholder="Пароль (мин. 6 символов)">
+    <input type="password" id="regPass2" placeholder="Повторите пароль">
+    <button class="btn-primary" id="regBtn" onclick="doRegister()">Зарегистрироваться</button>
+    <div class="auth-links"><a href="#" onclick="showScreen('login');return false">← Вход</a></div>
+  </div>
+
+  <div id="recoveryForm" class="auth-card hide">
+    <h2>🔑 Восстановление пароля</h2>
+    <div id="recError" class="auth-error hide"></div>
+    <div id="recSuccess" class="auth-success hide"></div>
+    <p style="font-size:13px;color:#666;margin-bottom:14px">Введите email, указанный при регистрации. На него придёт ссылка для сброса пароля.</p>
+    <input type="email" id="recEmail" placeholder="Email">
+    <button class="btn-primary" onclick="doRecovery()">Отправить</button>
+    <div class="auth-links"><a href="#" onclick="showScreen('login');return false">← Вход</a></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="appScreen" class="hide">
+
 <div class="header">
-  <h1>📦 Сканер посылок</h1>
-  <button class="btn-export" onclick="exportScanned()">📋 Экспорт</button>
+  <h1>📦 Сканер</h1>
+  <div class="header-right">
+    <span class="user-badge" id="userBadge"></span>
+    <button class="btn-sm" onclick="doLogout()">Выйти</button>
+  </div>
+</div>
+
+<div class="shipment-section">
+  <div class="shipment-row">
+    <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()"></select>
+    <button class="btn-icon" onclick="openUploadModal()" title="Загрузить CSV">➕</button>
+    <button class="btn-icon" onclick="deleteShipment()" title="Удалить партию">🗑</button>
+  </div>
 </div>
 
 <div class="stats">
-  <div class="stat-card">
-    <div class="stat-num" id="statScanned">0</div>
-    <div class="stat-label">отсканировано</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num" id="statTotal">0</div>
-    <div class="stat-label">всего в списке</div>
-  </div>
+  <div class="stat-card"><div class="stat-num" id="statScanned">0</div><div class="stat-label">отсканировано</div></div>
+  <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">всего в списке</div></div>
 </div>
-<div class="progress-wrap">
-  <div class="progress-bar" id="progressBar" style="width:0%"></div>
-</div>
+<div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
 
-<!-- Основной ввод: пистолет + ручной -->
-<div class="gun-section" style="background:#fff; margin:16px; border-radius:12px; padding:16px; border:2px solid #7c6ff7;">
-  <h3 style="font-size:12px; color:#7c6ff7; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; font-weight:700;">🔫 Сканер / Ввести вручную</h3>
+<div class="gun-section">
+  <h3>🔫 Сканер / Ввести вручную</h3>
   <div class="manual-row">
-    <input type="text" id="manualInput" placeholder="Наведи пистолет или введи код" autocomplete="off"
-      style="flex:1; border:1px solid #e0e0e0; border-radius:8px; padding:12px; font-size:16px; color:#1a1a1a; outline:none; min-width:0;" />
-    <button onclick="manualSearch()" style="background:#7c6ff7; color:#fff; border:none; border-radius:8px; padding:12px 16px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap;">Найти</button>
+    <input type="text" id="manualInput" placeholder="Наведи пистолет или введи код" autocomplete="off">
+    <button onclick="manualSearch()">Найти</button>
   </div>
-  <div style="margin-top:8px; font-size:11px; color:#aaa; text-align:center;" id="gunHint">Готов к приёму от Bluetooth сканера</div>
+  <div class="gun-hint" id="gunHint">Готов к приёму</div>
 </div>
 
 <div id="resultBlock"></div>
 
-<!-- Камера как запасной вариант -->
-<div class="scanner-section" style="margin:16px;">
-  <button class="btn-scan" id="scanBtn" onclick="toggleScanner()" style="background:#f0f0f0; color:#555; border:none; border-radius:12px; padding:14px; font-size:14px; font-weight:600; cursor:pointer; width:100%;">📷 Камера (запасной вариант)</button>
-  <div id="reader" style="display:none; margin-top:12px;"></div>
-  <div id="zoomSection" style="display:none; margin-top:10px;">
-    <div id="cameraButtons" style="background:#fff; border-radius:10px; padding:8px; border:1px solid #e0e0e0; display:flex; gap:6px; margin-bottom:8px;">
-    </div>
-    <div style="background:#fff; border-radius:10px; padding:10px 14px; border:1px solid #e0e0e0;">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-size:13px; color:#999; white-space:nowrap;">🔍 Zoom</span>
-        <input id="zoomSlider" type="range" min="1" max="2" step="0.1" value="1.5"
-          oninput="setZoom(this.value)"
-          style="flex:1; accent-color:#7c6ff7;">
-        <span id="zoomVal" style="font-size:13px; font-weight:600; color:#7c6ff7; width:28px;">1.5x</span>
-      </div>
+<div class="scanner-section">
+  <button class="btn-scan" id="scanBtn" onclick="toggleScanner()">📷 Камера</button>
+  <div id="reader" style="display:none;margin-top:10px"></div>
+  <div id="zoomSection" style="display:none;margin-top:8px">
+    <div id="cameraButtons" style="display:flex;gap:6px;margin-bottom:6px"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:#999">Zoom</span>
+      <input id="zoomSlider" type="range" min="1" max="2" step="0.1" value="1.5" oninput="setZoom(this.value)" style="flex:1;accent-color:#7c6ff7">
+      <span id="zoomVal" style="font-size:12px;font-weight:600;color:#7c6ff7">1.5x</span>
     </div>
   </div>
 </div>
 
 <div class="history" id="historySection" style="display:none">
-  <div class="history-header">
-    <h3>История сканирований</h3>
-    <button onclick="clearHistory()">Очистить</button>
-  </div>
+  <div class="history-header"><h3>История</h3><button onclick="clearHistory()">Очистить</button></div>
   <div id="historyList"></div>
 </div>
 
-<!-- Scan result overlay -->
+<div class="bottom-section">
+  <button class="btn-bottom btn-unscanned" onclick="toggleUnscanned()">📋 Не отсканированные (<span id="unscannedCount">0</span>)</button>
+  <div class="unscanned-list" id="unscannedList" style="display:none"></div>
+  <button class="btn-bottom" onclick="exportScanned()">📋 Экспорт</button>
+  <button class="btn-bottom btn-danger" onclick="resetAll()">🔄 Сбросить отметки</button>
+  <div class="admin-section" id="adminPanel" style="display:none">
+    <h3>⚙️ Админ-панель</h3>
+    <div id="adminUserList"></div>
+    <div id="adminStats" style="font-size:12px;color:#777;margin-top:10px"></div>
+  </div>
+</div>
+</div>
+
+<!-- Overlay -->
 <div class="scan-overlay" id="scanOverlay" onclick="overlayOk()">
   <div class="overlay-card" id="overlayCard" onclick="event.stopPropagation()">
     <div class="overlay-icon" id="overlayIcon"></div>
     <div class="overlay-warehouse" id="overlayWarehouse"></div>
     <div class="overlay-track" id="overlayTrack"></div>
-    <button class="overlay-ok" onclick="overlayOk()">OK — продолжить сканирование</button>
+    <button class="overlay-ok" onclick="overlayOk()">OK</button>
   </div>
 </div>
 
-<div class="unscanned-wrap">
-  <button class="btn-unscanned" id="unscannedBtn" onclick="toggleUnscanned()">📋 Не отсканированные (<span id="unscannedCount">0</span>)</button>
-  <div class="unscanned-list" id="unscannedList" style="display:none;"></div>
-</div>
-
-<div class="reset-wrap">
-  <button class="btn-reset" onclick="resetAll()">🔄 Сбросить все отметки</button>
+<!-- Upload modal -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal-card">
+    <h3>📥 Загрузить партию</h3>
+    <input type="text" id="shipmentName" placeholder="Название (напр: Партия 15 сентября)">
+    <p style="font-size:12px;color:#888;margin-bottom:8px">CSV: первая колонка — трек, вторая — склад</p>
+    <input type="file" id="csvFile" accept=".csv,.txt">
+    <div class="modal-buttons">
+      <button class="modal-btn-cancel" onclick="closeUploadModal()">Отмена</button>
+      <button class="modal-btn-ok" onclick="uploadCSV()">Загрузить</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const TABLE = [
-  ["465489219870869","ТА"],
-  ["jt5503138637370","ТА"],
-  ["79017140521876","Алеся"],
-  ["465478611676716","Паша"],
-  ["465482452513742","Алина"],
-  ["777424201133128","Нина"],
-  ["465481262642462","Елена"],
-  ["yt8884016964524","Алина"],
-  ["465481527994464","Алина"],
-  ["SF5111527053438","Паша"],
-  ["777425022943761","Алеся"],
-  ["yt8883506885572","Алина"],
-  ["79120047624155","ТА"],
-  ["yt8884188081768","Алина"],
-  ["79119648322826","Наташа"],
-  ["777424515500852","Алина"],
-  ["465481896104688","ТА"],
-  ["465481793757385","Нина"],
-  ["465480667446412","Елена"],
-  ["465476673968033","Алина"],
-  ["jt5502161934789","Нина"],
-  ["jt5502291203015","Алина"],
-  ["465481497353510","Нина"],
-  ["465481734558537","Алина"],
-  ["9817807663414","Алина"],
-  ["9817713370007","ТА"],
-  ["73715975059813","Аня Ковалева"],
-  ["777423142232009","???"],
-  ["jt5502174366638","Виктория"],
-  ["777424631086658","Алина"],
-  ["465477060071976","Алина"],
-  ["465476367169020","Нина"],
-  ["465480439281525","Алина"],
-  ["yt8884078517753","Нина"],
-  ["jt5502031186432","ТА"],
-  ["yt8884129736090","Нина"],
-  ["777423240244195","ТА"],
-  ["yt7630833346376","ТА"],
-  ["jt5502013126412","ТА"],
-  ["777424650193955","Алина"],
-  ["777424515333434","Нина"],
-  ["9817711024381","Карина"],
-  ["9817696183232","ГП"],
-  ["777422642764740","Карина"],
-  ["jt5500177460551","Карина"],
-  ["9817716368642","ГП"],
-  ["yt8882109450682","ТА"],
-  ["465470691998975","Карина"],
-  ["777424764514904","Алина"],
-  ["9817765068948","Виктория"],
-  ["jt5501328187782","Я"],
-  ["79118200361287","ТА"],
-  ["777423129286095","ТА"],
-  ["777423407645876","Паша"],
-  ["777422953052083","Карина"],
-  ["777423864111440","Наташа"],
-  ["jt5500922233676","Алеся"],
-  ["79118238078993","Карина"],
-  ["465464026647808","ТА"],
-  ["79118344495345","Карина"],
-  ["79117992400586","Карина"],
-  ["465476746021151","Маша Л"],
-  ["79119787112517","Нина"],
-  ["79118157066559","ТА"],
-  ["79016247326389","Егор"],
-  ["777423451633722","ТА"],
-  ["jt5500786674733","Карина"],
-  ["yt8882704272171","Алеся"],
-  ["777422686809548","Карина"],
-  ["777423167768891","ТА"],
-  ["777423404034758","ТА"],
-  ["9817740637766","Карина"],
-  ["YT8883464495754","Алина"],
-  ["465464958326246","ГП"],
-  ["yt8883450183966","Алина"],
-  ["777423362071835","Любава"],
-  ["79118765559393","Карина"],
-  ["jt5501163829992","Алеся"],
-  ["777424002802137","Карина"],
-  ["465473186420341","ТА"],
-  ["jt5500768357625","ТА"],
-  ["yt8881915139107","ТА"],
-  ["9817714370199","ГП"],
-  ["777422930474553","Карина"],
-  ["465468079748424","Алеся"],
-  ["79118163228507","ТА"],
-  ["79118490762763","Я"],
-  ["777423316499225","Алеся"],
-  ["79118119959973","ТА"],
-  ["777423385001316","Карина"],
-  ["yt8882299716443","Любава"],
-  ["9817762918038","Карина"],
-  ["777423705461814","Карина"],
-  ["777423412096756","Я"],
-  ["777423447897255","Карина"],
-  ["9817767437332","ТА"],
-  ["79016171696357","Ольга"],
-  ["jt3169000176324","Дарья"],
-  ["465475296262739","Карина"],
-  ["yt8881924348062","Карина"],
-  ["777423130887373","ТА"],
-  ["jt9001966014727","ГП"],
-  ["465475878980051","Я"],
-  ["9817698064853","Карина"],
-  ["9817690158262","ТА"],
-  ["jt5500898799383","Алеся"],
-  ["777422772115844","Любава"],
-  ["9817688228579","Карина"],
-  ["sf5117009158232","Даша Багель"],
-  ["yt8883004282107","ТА"],
-  ["yt8882824384961","Карина"],
-  ["777423422511723","ТА"],
-  ["79016175025034","Я"],
-  ["9817753339026","Карина"],
-  ["79119075357069","Виктория"],
-  ["9817634134394","Любава"],
-  ["73623214918773","Я"],
-  ["jt5500972949626","Я"],
-  ["9817656023014","Карина"],
-  ["777423625725202","Карина"],
-  ["777423704213764","Карина"],
-  ["S71828782539001","Алеся"],
-  ["9817730868667","Виктория"],
-  ["9817784496741","Виктория"],
-  ["YT8883086181406","Карина"],
-  ["465471405137998","Виктория"],
-  ["777424582736917","Наташа"],
-  ["777423861629179","Дарья"],
-  ["9817689032618","ТА"],
-  ["465473218675967","Дарья"],
-  ["9817764504281","ТА"],
-  ["9817775073371","Виктория"],
-  ["465471653421565","Дарья"],
-  ["jt5501753264725","Карина"],
-  ["jt5502511935625","Мама"],
-  ["jt5502229416299","ГП"],
-  ["777423844292041","Наташа"],
-  ["465482654401689","Нина"],
-  ["79119217366596","Виктория"],
-  ["yt8883005755842","Карина"],
-  ["jt5502569432790","Карина"],
-  ["79119236423570","Дарья+я"],
-  ["465472940233853","Карина"],
-  ["jt9001408708431","ТА"],
-  ["777423483705945","Виктория"],
-  ["jt5502338621753","Мама"],
-  ["yt8883450199626","Алина"],
-  ["79119004650631","ТА"],
-  ["777424613878016","Виктория"],
-  ["465473181168743","ТА"],
-  ["jt5501806940233","Ксюха"],
-  ["777424092801076","Я + Елизавета"],
-  ["yt8883450199431","Алина"],
-  ["777424510043880","Елена"],
-  ["465471976296402","ТА"],
-  ["777423858029715","Мама"],
-  ["465472623257992","Дарья"],
-  ["yt8883727736576","Карина"],
-  ["777423827589479","Виктория"],
-  ["79119317562703","Егор"],
-  ["777423953851430","Виктория"],
-  ["79119317563092","Егор"],
-  ["79119142130403","Дарья"],
-  ["9817732232953","Виктория"],
-  ["79119317563049","Егор"],
-  ["9817723456925","Карина"],
-  ["777423573610346","Виктория"],
-  ["yt8882938461084","Виктория"],
-  ["777424774424118","Нина"],
-  ["9817778849809","Паша"],
-  ["465470260296954","Егор"],
-  ["79119689368950","Мама"],
-  ["777424597760508","Я"],
-  ["9817740948141","Карина"],
-  ["jt5502519517901","Виктория"],
-  ["9817719722394","Дарья"],
-  ["777424465689585","Алина"],
-  ["yt8883787086611","Алина"],
-  ["yt8883450199619","Алина"],
-  ["yt8883705438638","Карина"],
-  ["jt5501802205518","Виктория"],
-  ["jt5501650436541","Елизавета"],
-  ["79119381300799","Егор"],
-  ["yt8883297701956","Карина"],
-  ["yt8883371607967","Карина"]
-];
+// ============ FIREBASE INIT ============
+firebase.initializeApp({
+  apiKey: "AIzaSyASHE3yqM0wOC3QHVbL4UVSHVq2rEzA5ss",
+  authDomain: "parcel-scanner-90427.firebaseapp.com",
+  projectId: "parcel-scanner-90427",
+  storageBucket: "parcel-scanner-90427.firebasestorage.app",
+  messagingSenderId: "490608225628",
+  appId: "1:490608225628:web:1087fa2403c7f089d2e599"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+const ADMIN_EMAIL = 'egokud@gmail.com';
 
-let scanned = JSON.parse(localStorage.getItem('scannedItems') || '{}');
-let scanHistory = JSON.parse(localStorage.getItem('scanHistory') || '[]');
+// ============ STATE ============
+let currentUser = null;
+let userProfile = null;
+let TABLE = [];
+let scanned = {};
+let scanHistory = [];
+let activeShipmentId = null;
 let scanner = null;
 let scanning = false;
-
-updateStats();
-renderHistory();
-
-// Расстояние Левенштейна
-function levenshtein(a, b) {
-  const m = a.length, n = b.length;
-  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
-  return dp[m][n];
-}
-
-function lookup(trackCode) {
-  const code = trackCode.trim();
-  const isPartial = code.length <= 6;
-  const codeLower = code.toLowerCase();
-
-  // Шаг 1: точный поиск
-  let allRows = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
-    .filter(r => isPartial ? r.track.toLowerCase().endsWith(codeLower) : r.track.toLowerCase() === codeLower);
-
-  if (allRows.length === 0 && !isPartial) {
-    // Шаг 2: поиск по последним 4 цифрам считанного кода
-    const last4 = codeLower.slice(-4);
-    const byLast4 = TABLE.map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
-      .filter(r => r.track.toLowerCase().endsWith(last4));
-
-    if (byLast4.length === 1) {
-      // Нашли ровно один — предлагаем как вариант
-      const uniqueTracks = [...new Set(byLast4.map(r => r.track))];
-      showResult('fuzzy', code, null, null, uniqueTracks, '🔍 Точный код не найден. Найден по последним 4 цифрам:');
-      return;
-    } else if (byLast4.length > 1) {
-      const uniqueTracks = [...new Set(byLast4.map(r => r.track))];
-      showResult('fuzzy', code, null, null, uniqueTracks, '🔍 Точный код не найден. Варианты по последним 4 цифрам:');
-      return;
-    }
-
-    // Шаг 3: нечёткий поиск (Левенштейн, допуск до 3 символов)
-    const fuzzy = TABLE.map((row, idx) => ({
-      idx, track: row[0], warehouse: row[1],
-      dist: levenshtein(codeLower, row[0].toLowerCase())
-    })).filter(r => r.dist <= 3).sort((a, b) => a.dist - b.dist);
-
-    if (fuzzy.length > 0) {
-      const uniqueTracks = [...new Set(fuzzy.slice(0, 4).map(r => r.track))];
-      showResult('fuzzy', code, null, null, uniqueTracks, '🔍 Точный код не найден. Похожие варианты:');
-      return;
-    }
-
-    showResult('error', code, null, 'Трек-код не найден в списке');
-    return;
-  }
-
-  if (allRows.length === 0) {
-    showResult('error', code, null, `Трек с окончанием «${code}» не найден`);
-    return;
-  }
-
-  // Частичный поиск нашёл несколько разных треков — показать выбор
-  const uniqueTracks = [...new Set(allRows.map(r => r.track))];
-  if (isPartial && uniqueTracks.length > 1) {
-    showResult('multi', code, null, null, uniqueTracks);
-    return;
-  }
-
-  const free = allRows.find(r => !scanned[r.idx]);
-
-  if (!free) {
-    const warehouses = [...new Set(allRows.map(r => r.warehouse))].join(', ');
-    showResult('already', allRows[0].track, warehouses, null);
-    return;
-  }
-
-  scanned[free.idx] = true;
-  localStorage.setItem('scannedItems', JSON.stringify(scanned));
-
-  const allWarehouses = [...new Set(allRows.map(r => r.warehouse))].join(' + ');
-  showResult('success', allRows[0].track, allWarehouses, null);
-  addHistory(allRows[0].track, free.warehouse);
-  updateStats();
-  beep();
-  vibrate();
-}
-
-function showResult(type, track, warehouses, message, tracks, fuzzyMessage) {
-  // Overlay for success, multi and fuzzy
-  if (type === 'success' || type === 'multi' || type === 'fuzzy') {
-    showOverlay(type, track, warehouses, tracks, fuzzyMessage);
-  }
-  const block = document.getElementById('resultBlock');
-  if (type === 'success') {
-    block.innerHTML = `<div class="result-card success">
-      <div class="result-label">✅ Найдено и отмечено</div>
-      <div class="result-track">${track}</div>
-      <div class="result-warehouse">📦 ${warehouses}</div>
-    </div>`;
-  } else if (type === 'already') {
-    block.innerHTML = `<div class="result-card already">
-      <div class="result-label">⚠️ Уже отмечено</div>
-      <div class="result-track">${track}</div>
-      <div class="result-message">Склад: ${warehouses}</div>
-    </div>`;
-  } else if (type === 'multi') {
-    const buttons = tracks.map(t =>
-      `<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;cursor:pointer;color:#1a1a1a;">${t}</button>`
-    ).join('');
-    block.innerHTML = `<div class="result-card already">
-      <div class="result-label">🔍 Найдено несколько треков</div>
-      <div class="result-message" style="margin-bottom:10px;">Выбери нужный:</div>
-      ${buttons}
-    </div>`;
-  } else if (type === 'fuzzy') {
-    const buttons = tracks.map(t =>
-      `<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #7c6ff7;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;cursor:pointer;color:#1a1a1a;">${t}</button>`
-    ).join('');
-    block.innerHTML = `<div class="result-card already" style="border-color:#a5b4fc;background:#f5f3ff;">
-      <div class="result-label" style="color:#6d28d9;">${fuzzyMessage || ''}</div>
-      <div class="result-track" style="margin-bottom:10px;">Считано: ${track}</div>
-      ${buttons}
-    </div>`;
-    block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  } else {
-    block.innerHTML = `<div class="result-card error">
-      <div class="result-label">❌ Не найдено</div>
-      <div class="result-track">${track}</div>
-      <div class="result-message">${message}</div>
-    </div>`;
-  }
-  block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function updateStats() {
-  const total = TABLE.length;
-  const done = Object.keys(scanned).length;
-  document.getElementById('statScanned').textContent = done;
-  document.getElementById('statTotal').textContent = total;
-  const pct = total > 0 ? Math.round(done / total * 100) : 0;
-  document.getElementById('progressBar').style.width = pct + '%';
-  updateUnscannedCount();
-}
-
-function addHistory(track, warehouse) {
-  const now = new Date();
-  const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-  scanHistory.unshift({ track, warehouse, time });
-  if (scanHistory.length > 30) scanHistory = scanHistory.slice(0, 30);
-  localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
-  renderHistory();
-}
-
-function renderHistory() {
-  if (scanHistory.length === 0) return;
-  document.getElementById('historySection').style.display = 'block';
-  document.getElementById('historyList').innerHTML = scanHistory.slice(0, 15).map(h => `
-    <div class="history-item">
-      <span class="history-track">${h.track}</span>
-      <span class="history-wh">${h.warehouse}</span>
-      <span class="history-time">${h.time}</span>
-    </div>`).join('');
-}
-
-function clearHistory() {
-  if (!confirm('Очистить историю?')) return;
-  scanHistory = [];
-  localStorage.removeItem('scanHistory');
-  document.getElementById('historySection').style.display = 'none';
-}
-
-function toggleUnscanned() {
-  const list = document.getElementById('unscannedList');
-  if (list.style.display === 'none') {
-    showUnscanned();
-    list.style.display = 'block';
-  } else {
-    list.style.display = 'none';
-  }
-}
-
-function showUnscanned() {
-  const remaining = TABLE
-    .map((row, idx) => ({ idx, track: row[0], warehouse: row[1] }))
-    .filter(r => !scanned[r.idx]);
-
-  const list = document.getElementById('unscannedList');
-  if (remaining.length === 0) {
-    list.innerHTML = '<div style="padding:16px;text-align:center;color:#999;font-size:13px;">Все отсканировано! 🎉</div>';
-  } else {
-    list.innerHTML = remaining.map(r =>
-      `<div class="unscanned-item">
-        <span class="unscanned-track">${r.track}</span>
-        <span class="unscanned-wh">${r.warehouse}</span>
-      </div>`
-    ).join('');
-  }
-}
-
-function updateUnscannedCount() {
-  const remaining = TABLE.length - Object.keys(scanned).length;
-  document.getElementById('unscannedCount').textContent = remaining;
-}
-
-function resetAll() {
-  if (!confirm('Сбросить все отметки? Это действие нельзя отменить.')) return;
-  scanned = {};
-  scanHistory = [];
-  localStorage.removeItem('scannedItems');
-  localStorage.removeItem('scanHistory');
-  document.getElementById('historySection').style.display = 'none';
-  document.getElementById('resultBlock').innerHTML = '';
-  updateStats();
-}
-
-function exportScanned() {
-  const rows = TABLE
-    .map((row, idx) => ({ track: row[0], warehouse: row[1], done: !!scanned[idx] }))
-    .filter(r => r.done)
-    .map(r => r.track + ',' + r.warehouse)
-    .join('\n');
-  const text = 'Трек код,Склад\n' + (rows || '');
-  const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'отсканированные.csv';
-  a.click();
-}
-
-function manualSearch() {
-  const val = document.getElementById('manualInput').value.trim();
-  if (!val) return;
-  lookup(val);
-  document.getElementById('manualInput').value = '';
-  // Refocus input after short delay so gun is ready for next scan
-  setTimeout(() => {
-    document.getElementById('manualInput').focus();
-    document.getElementById('gunHint').textContent = 'Готов к следующему сканированию';
-  }, 300);
-}
-
-document.getElementById('manualInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    manualSearch();
-  }
-});
-
-// Auto-focus input on page load — ready for gun
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('manualInput').focus();
-});
-
-// Refocus on input when tapping anywhere outside buttons
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('button') && !e.target.closest('input') && !e.target.closest('.overlay-card')) {
-    document.getElementById('manualInput').focus();
-  }
-});
-
-function toggleScanner() {
-  scanning ? stopScanner() : startScanner();
-}
-
 let allCameras = [];
 let activeCameraId = null;
 
-async function startScanner() {
-  document.getElementById('reader').style.display = 'block';
-  document.getElementById('zoomSection').style.display = 'block';
-  document.getElementById('scanBtn').textContent = '⏹ Остановить сканер';
-  document.getElementById('scanBtn').classList.add('stop');
-  scanning = true;
-  document.getElementById('zoomSlider').value = 1.5;
-  document.getElementById('zoomVal').textContent = '1.5x';
-
-  // Получаем список камер
-  try {
-    allCameras = await Html5Qrcode.getCameras();
-  } catch(e) { allCameras = []; }
-
-  // Строим кнопки камер
-  const btnContainer = document.getElementById('cameraButtons');
-  btnContainer.innerHTML = '';
-
-  // Показываем ВСЕ камеры — пользователь сам выберет лучшую
-  // Исключаем только фронтальную
-  const backCams = allCameras.filter(d => {
-    const l = d.label.toLowerCase();
-    return !l.includes('front') && !l.includes('face');
-  });
-
-  // Если фильтр убрал всё — показываем все
-  const camsToShow = backCams.length > 0 ? backCams : allCameras;
-
-  // Даём короткие имена
-  const namedCams = camsToShow.map((cam, i) => {
-    const l = cam.label.toLowerCase();
-    let name = '' + (i + 1);
-    if (l.includes('ultra') && l.includes('wide')) name = '0.5x';
-    else if (l.includes('telephoto') || l.includes('tele')) name = '3x';
-    else if (l.includes('wide') && !l.includes('ultra')) name = '1x';
-    return { ...cam, displayName: name };
-  });
-
-  allCameras = namedCams;
-
-  if (allCameras.length > 1) {
-    // Прокручиваемый контейнер
-    btnContainer.style.overflowX = 'auto';
-    btnContainer.style.flexWrap = 'nowrap';
-    allCameras.forEach((cam, i) => {
-      const btn = document.createElement('button');
-      btn.id = 'camBtn' + i;
-      btn.textContent = cam.displayName;
-      btn.style.cssText = 'min-width:50px;flex-shrink:0;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:700;cursor:pointer;color:#555;';
-      btn.onclick = () => switchCamera(cam.id, i);
-      btnContainer.appendChild(btn);
-    });
+// ============ AUTH LISTENER ============
+auth.onAuthStateChanged(async (user) => {
+  document.getElementById('loadingScreen').classList.add('hide');
+  if (user) {
+    currentUser = user;
+    await loadUserProfile();
+    showApp();
   } else {
-    btnContainer.style.display = 'none';
+    currentUser = null;
+    userProfile = null;
+    document.getElementById('appScreen').classList.add('hide');
+    document.getElementById('authScreen').classList.remove('hide');
+    showScreen('login');
   }
+});
 
-  // Выбираем камеру "1x" по умолчанию, или первую
-  const mainWide = allCameras.find(d => d.displayName === '1x');
-  const defaultCam = mainWide || allCameras[0];
-  const defaultId = defaultCam?.id || null;
-
-  await startWithCamera(defaultId);
-
-  // Подсветим активную кнопку
-  const idx = allCameras.findIndex(c => c.id === defaultId);
-  highlightCamBtn(idx);
+// ============ AUTH SCREENS ============
+function showScreen(name) {
+  ['loginForm','registerForm','recoveryForm'].forEach(id => document.getElementById(id).classList.add('hide'));
+  document.getElementById(name + 'Form').classList.remove('hide');
+  // Clear errors
+  document.querySelectorAll('.auth-error,.auth-success').forEach(e => e.classList.add('hide'));
 }
 
-async function switchCamera(camId, btnIdx) {
-  if (activeCameraId === camId) return;
-  // Остановим текущий сканер
-  if (scanner) {
-    try { await scanner.stop(); } catch(e) {}
-    scanner = null;
-  }
-  await startWithCamera(camId);
-  highlightCamBtn(btnIdx);
-}
+function showError(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.classList.remove('hide'); }
 
-function highlightCamBtn(activeIdx) {
-  allCameras.forEach((_, i) => {
-    const btn = document.getElementById('camBtn' + i);
-    if (!btn) return;
-    if (i === activeIdx) {
-      btn.style.background = '#7c6ff7';
-      btn.style.color = '#fff';
-      btn.style.borderColor = '#7c6ff7';
-    } else {
-      btn.style.background = '#f5f5f5';
-      btn.style.color = '#555';
-      btn.style.borderColor = '#e0e0e0';
-    }
-  });
-}
-
-async function startWithCamera(camId) {
-  activeCameraId = camId;
-  scanner = new Html5Qrcode("reader");
-
-  const constraint = camId
-    ? { deviceId: { exact: camId } }
-    : { facingMode: "environment" };
-
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) { showError('loginError', 'Заполните все поля'); return; }
+  document.getElementById('loginBtn').disabled = true;
   try {
-    await scanner.start(
-      constraint,
-      {
-        fps: 30,
-        disableFlip: true,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODE_93,
-          Html5QrcodeSupportedFormats.ITF
-        ]
-      },
-      (code) => { lookup(code.trim()); },
-      () => {}
-    );
-    setTimeout(() => setZoom(parseFloat(document.getElementById('zoomSlider').value)), 500);
+    await auth.signInWithEmailAndPassword(email, pass);
   } catch(e) {
-    showResult('error', '', null, 'Нет доступа к камере. Разреши доступ в настройках браузера.');
-    stopScanner();
+    const msg = e.code === 'auth/user-not-found' ? 'Пользователь не найден' :
+      e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential' ? 'Неверный пароль' :
+      e.code === 'auth/invalid-email' ? 'Некорректный email' : 'Ошибка входа';
+    showError('loginError', msg);
+  }
+  document.getElementById('loginBtn').disabled = false;
+}
+
+async function doRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  if (!name || !email || !pass) { showError('regError', 'Заполните все поля'); return; }
+  if (pass.length < 6) { showError('regError', 'Пароль минимум 6 символов'); return; }
+  if (pass !== pass2) { showError('regError', 'Пароли не совпадают'); return; }
+  document.getElementById('regBtn').disabled = true;
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await cred.user.updateProfile({ displayName: name });
+    const role = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
+    await db.collection('users').doc(cred.user.uid).set({
+      name, email, role, created: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    const msg = e.code === 'auth/email-already-in-use' ? 'Email уже зарегистрирован' :
+      e.code === 'auth/weak-password' ? 'Слишком простой пароль' :
+      e.code === 'auth/invalid-email' ? 'Некорректный email' : e.message;
+    showError('regError', msg);
+  }
+  document.getElementById('regBtn').disabled = false;
+}
+
+async function doRecovery() {
+  const email = document.getElementById('recEmail').value.trim();
+  if (!email) { showError('recError', 'Введите email'); return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    const s = document.getElementById('recSuccess');
+    s.textContent = '✅ Письмо отправлено на ' + email;
+    s.classList.remove('hide');
+    document.getElementById('recError').classList.add('hide');
+  } catch(e) {
+    showError('recError', e.code === 'auth/user-not-found' ? 'Email не найден' : 'Ошибка отправки');
   }
 }
 
-function setZoom(val) {
-  document.getElementById('zoomVal').textContent = val + 'x';
-  if (!scanner) return;
-  try {
-    const track = scanner.getRunningTrackCameraCapabilities();
-    if (track && track.zoomFeature().isSupported()) {
-      track.zoomFeature().apply(parseFloat(val));
-    }
-  } catch(e) {}
-}
+function doLogout() { if (scanning) stopScanner(); auth.signOut(); }
 
-function stopScanner() {
-  if (scanner) { scanner.stop().catch(() => {}); scanner = null; }
-  document.getElementById('reader').style.display = 'none';
-  document.getElementById('zoomSection').style.display = 'none';
-  document.getElementById('zoomSlider').value = 1;
-  document.getElementById('zoomVal').textContent = '1x';
-  document.getElementById('scanBtn').textContent = '📷 Сканировать штрих-код';
-  document.getElementById('scanBtn').classList.remove('stop');
-  scanning = false;
-}
-
-function beep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.frequency.value = 1800;
-    o.type = 'sine';
-    g.gain.setValueAtTime(0.3, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    o.start(ctx.currentTime);
-    o.stop(ctx.currentTime + 0.15);
-  } catch(e) {}
-}
-
-function vibrate() {
-  if (navigator.vibrate) navigator.vibrate(100);
-}
-
-function showOverlay(type, track, warehouses, tracks, fuzzyMessage) {
-  // Pause scanner while overlay is open
-  if (scanner) scanner.pause(true);
-  const overlay = document.getElementById('scanOverlay');
-  const card = document.getElementById('overlayCard');
-  const icon = document.getElementById('overlayIcon');
-  const wh = document.getElementById('overlayWarehouse');
-  const tr = document.getElementById('overlayTrack');
-
-  card.className = 'overlay-card';
-  wh.style.color = '';
-  wh.style.fontSize = '';
-  if (type === 'success') {
-    card.className = 'overlay-card success-card';
-    icon.textContent = '✅';
-    tr.textContent = track;
-    // Multi-recipient: split by " и " and show each on new line
-    const existingWarn = card.querySelector('.multi-warn');
-    if (existingWarn) existingWarn.remove();
-    if (warehouses.includes(' и ')) {
-      const recipients = warehouses.split(' и ').map(r => r.trim());
-      wh.innerHTML = recipients.map(r => '📦 ' + r).join('<br>');
-      wh.style.fontSize = '26px';
-      const warn = document.createElement('div');
-      warn.className = 'multi-warn';
-      warn.textContent = '⚠️ Товаров может быть несколько!';
-      warn.style.cssText = 'background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:600;color:#ea580c;margin:8px 0 16px;';
-      card.insertBefore(warn, card.querySelector('.overlay-ok'));
-    } else {
-      wh.textContent = '📦 ' + warehouses;
-      wh.style.fontSize = '';
-    }
-  } else if (type === 'already') {
-    card.className = 'overlay-card already-card';
-    icon.textContent = '⚠️';
-    wh.textContent = 'Уже отмечено: ' + warehouses;
-    tr.textContent = track;
-  } else if (type === 'fuzzy') {
-    card.className = 'overlay-card';
-    card.style.border = '2px solid #a5b4fc';
-    card.style.background = '#f5f3ff';
-    icon.textContent = '🔍';
-    wh.innerHTML = fuzzyMessage || 'Похожие варианты';
-    wh.style.color = '#6d28d9';
-    wh.style.fontSize = '16px';
-    tr.textContent = 'Считано: ' + track;
-    const existing = card.querySelector('.multi-btns');
-    if (existing) existing.remove();
-    const div = document.createElement('div');
-    div.className = 'multi-btns';
-    div.style.marginBottom = '12px';
-    tracks.forEach(t => {
-      const b = document.createElement('button');
-      b.textContent = t;
-      b.style.cssText = 'display:block;width:100%;text-align:left;background:#fff;border:1px solid #7c6ff7;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:14px;cursor:pointer;font-weight:600;';
-      b.onclick = () => { overlayOk(); lookup(t); };
-      div.appendChild(b);
+// ============ USER PROFILE ============
+async function loadUserProfile() {
+  const doc = await db.collection('users').doc(currentUser.uid).get();
+  if (doc.exists) {
+    userProfile = doc.data();
+  } else {
+    const role = currentUser.email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
+    userProfile = { name: currentUser.displayName || currentUser.email, email: currentUser.email, role };
+    await db.collection('users').doc(currentUser.uid).set({
+      ...userProfile, created: firebase.firestore.FieldValue.serverTimestamp()
     });
-    card.insertBefore(div, card.querySelector('.overlay-ok'));
-  } else if (type === 'multi') {
-    icon.textContent = '🔍';
-    wh.textContent = 'Найдено несколько';
-    wh.style.color = '#7c6ff7';
-    wh.style.fontSize = '22px';
-    tr.textContent = 'Выбери трек:';
-    // inject buttons
-    const existing = card.querySelector('.multi-btns');
-    if (existing) existing.remove();
-    const div = document.createElement('div');
-    div.className = 'multi-btns';
-    div.style.marginBottom = '12px';
-    tracks.forEach(t => {
-      const b = document.createElement('button');
-      b.textContent = t;
-      b.style.cssText = 'display:block;width:100%;text-align:left;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;cursor:pointer;';
-      b.onclick = () => { overlayOk(); lookup(t); };
-      div.appendChild(b);
-    });
-    card.insertBefore(div, card.querySelector('.overlay-ok'));
   }
-  overlay.classList.add('show');
 }
 
+// ============ SHOW APP ============
+async function showApp() {
+  document.getElementById('authScreen').classList.add('hide');
+  document.getElementById('appScreen').classList.remove('hide');
+  document.getElementById('userBadge').textContent = userProfile.name || currentUser.email;
+  await loadShipments();
+  await loadHistory();
+  renderHistory();
+  renderAdminPanel();
+  setTimeout(() => document.getElementById('manualInput').focus(), 300);
+}
+
+// ============ SHIPMENTS (FIRESTORE) ============
+function shipmentsRef() { return db.collection('users').doc(currentUser.uid).collection('shipments'); }
+function scannedRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('scanned').doc(shipId); }
+function historyRef() { return db.collection('users').doc(currentUser.uid).collection('meta').doc('history'); }
+
+async function loadShipments() {
+  const snap = await shipmentsRef().orderBy('created', 'desc').get();
+  const shipments = [];
+  snap.forEach(doc => shipments.push({ id: doc.id, ...doc.data() }));
+  const sel = document.getElementById('shipmentSelect');
+  sel.innerHTML = shipments.length === 0
+    ? '<option value="">— Загрузите CSV —</option>'
+    : shipments.map(s => `<option value="${s.id}">${s.name} (${s.data.length})</option>`).join('');
+  if (shipments.length > 0) {
+    const id = activeShipmentId && shipments.find(s => s.id === activeShipmentId) ? activeShipmentId : shipments[0].id;
+    sel.value = id;
+    await loadShipmentData(id);
+  } else {
+    TABLE = []; scanned = {}; updateStats();
+  }
+}
+
+async function loadShipmentData(id) {
+  activeShipmentId = id;
+  const doc = await shipmentsRef().doc(id).get();
+  TABLE = doc.exists ? doc.data().data : [];
+  const scDoc = await scannedRef(id).get();
+  scanned = scDoc.exists ? scDoc.data().items || {} : {};
+  updateStats();
+  document.getElementById('resultBlock').innerHTML = '';
+}
+
+async function switchShipment() {
+  const id = document.getElementById('shipmentSelect').value;
+  if (id) await loadShipmentData(id);
+}
+
+async function deleteShipment() {
+  if (!activeShipmentId) return;
+  const sel = document.getElementById('shipmentSelect');
+  const text = sel.options[sel.selectedIndex]?.text || '';
+  if (!confirm('Удалить "' + text + '"?')) return;
+  await shipmentsRef().doc(activeShipmentId).delete();
+  await scannedRef(activeShipmentId).delete().catch(() => {});
+  activeShipmentId = null;
+  await loadShipments();
+}
+
+function openUploadModal() { document.getElementById('uploadModal').classList.add('show'); document.getElementById('shipmentName').value = ''; document.getElementById('csvFile').value = ''; }
+function closeUploadModal() { document.getElementById('uploadModal').classList.remove('show'); }
+
+async function uploadCSV() {
+  const name = document.getElementById('shipmentName').value.trim() || 'Партия ' + new Date().toLocaleDateString('ru');
+  const file = document.getElementById('csvFile').files[0];
+  if (!file) { alert('Выбери CSV файл'); return; }
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const data = [];
+  for (const line of lines) {
+    const parts = line.split(',');
+    if (parts.length >= 2) {
+      const track = parts[0].trim();
+      const wh = parts.slice(1).join(',').trim();
+      if (track && wh && !track.toLowerCase().startsWith('тр') && !track.toLowerCase().startsWith('track')) data.push([track, wh]);
+    }
+  }
+  if (data.length === 0) { alert('Данные не найдены'); return; }
+  const ref = await shipmentsRef().add({ name, data, created: firebase.firestore.FieldValue.serverTimestamp() });
+  closeUploadModal();
+  activeShipmentId = ref.id;
+  await loadShipments();
+  alert('Загружено ' + data.length + ' треков!');
+}
+
+// ============ SAVE SCANNED ============
+async function saveScanned() {
+  if (!activeShipmentId) return;
+  await scannedRef(activeShipmentId).set({ items: scanned });
+}
+
+// ============ HISTORY (FIRESTORE) ============
+async function loadHistory() {
+  const doc = await historyRef().get();
+  scanHistory = doc.exists ? doc.data().items || [] : [];
+}
+async function saveHistory() {
+  await historyRef().set({ items: scanHistory.slice(0, 30) });
+}
+
+// ============ LEVENSHTEIN ============
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length:m+1},(_,i) => Array.from({length:n+1},(_,j) => i===0?j:j===0?i:0));
+  for (let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+// ============ LOOKUP ============
+function lookup(code) {
+  code = code.trim(); if (!code || !TABLE.length) return;
+  const isP = code.length <= 6, cl = code.toLowerCase();
+  let rows = TABLE.map((r,i) => ({i,t:r[0],w:r[1]})).filter(r => isP ? r.t.toLowerCase().endsWith(cl) : r.t.toLowerCase()===cl);
+  if (!rows.length && !isP) {
+    const l4 = cl.slice(-4);
+    const by4 = TABLE.map((r,i)=>({i,t:r[0],w:r[1]})).filter(r=>r.t.toLowerCase().endsWith(l4));
+    if (by4.length) { const ut=[...new Set(by4.map(r=>r.t))]; showResult('fuzzy',code,null,null,ut,'🔍 По последним 4 цифрам:'); return; }
+    const fz = TABLE.map((r,i)=>({i,t:r[0],w:r[1],d:levenshtein(cl,r[0].toLowerCase())})).filter(r=>r.d<=3).sort((a,b)=>a.d-b.d);
+    if (fz.length) { showResult('fuzzy',code,null,null,[...new Set(fz.slice(0,4).map(r=>r.t))],'🔍 Похожие:'); return; }
+    showResult('error',code,null,'Не найден'); return;
+  }
+  if (!rows.length) { showResult('error',code,null,'«'+code+'» не найден'); return; }
+  const ut=[...new Set(rows.map(r=>r.t))];
+  if (isP && ut.length>1) { showResult('multi',code,null,null,ut); return; }
+  const free = rows.find(r => !scanned[r.i]);
+  if (!free) { showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
+  scanned[free.i] = true;
+  saveScanned();
+  const wh = [...new Set(rows.map(r=>r.w))].join(' + ');
+  showResult('success',rows[0].t,wh);
+  addHistory(rows[0].t,free.w);
+  updateStats(); beep(); vibrate();
+}
+
+// ============ SHOW RESULT ============
+function showResult(type, track, wh, msg, tracks, fMsg) {
+  if (type==='success'||type==='multi'||type==='fuzzy') showOverlay(type,track,wh,tracks,fMsg);
+  const b = document.getElementById('resultBlock');
+  if (type==='success') b.innerHTML=`<div class="result-card success"><div class="result-label">✅ Отмечено</div><div class="result-track">${track}</div><div class="result-warehouse">📦 ${wh}</div></div>`;
+  else if (type==='already') b.innerHTML=`<div class="result-card already"><div class="result-label">⚠️ Уже отмечено</div><div class="result-track">${track}</div><div class="result-message">Склад: ${wh}</div></div>`;
+  else if (type==='fuzzy') { const btns=tracks.map(t=>`<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #7c6ff7;border-radius:8px;padding:9px;margin-bottom:4px;font-size:13px;cursor:pointer">${t}</button>`).join('');
+    b.innerHTML=`<div class="result-card already" style="border-color:#a5b4fc;background:#f5f3ff"><div class="result-label" style="color:#6d28d9">${fMsg||''}</div><div class="result-track">Считано: ${track}</div>${btns}</div>`; }
+  else if (type==='multi') { const btns=tracks.map(t=>`<button onclick="lookup('${t}')" style="display:block;width:100%;text-align:left;background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:9px;margin-bottom:4px;font-size:13px;cursor:pointer">${t}</button>`).join('');
+    b.innerHTML=`<div class="result-card already"><div class="result-label">🔍 Несколько</div>${btns}</div>`; }
+  else b.innerHTML=`<div class="result-card error"><div class="result-label">❌ Не найдено</div><div class="result-track">${track}</div><div class="result-message">${msg}</div></div>`;
+}
+
+// ============ OVERLAY ============
+function showOverlay(type,track,wh,tracks,fMsg) {
+  if (scanner) try{scanner.pause(true)}catch(e){}
+  const ov=document.getElementById('scanOverlay'), card=document.getElementById('overlayCard'),
+    ic=document.getElementById('overlayIcon'), w=document.getElementById('overlayWarehouse'), tr=document.getElementById('overlayTrack');
+  card.className='overlay-card'; card.style=''; w.style.color=''; w.style.fontSize='';
+  let mw=card.querySelector('.multi-warn'); if(mw) mw.remove();
+  let mb=card.querySelector('.multi-btns'); if(mb) mb.remove();
+  if (type==='success') {
+    card.className='overlay-card success-card'; ic.textContent='✅'; tr.textContent=track;
+    if (wh && wh.includes(' и ')) {
+      w.innerHTML = wh.split(' и ').map(x=>'📦 '+x.trim()).join('<br>'); w.style.fontSize='22px';
+      const d=document.createElement('div'); d.className='multi-warn';
+      d.textContent='⚠️ Товаров может быть несколько!';
+      d.style.cssText='background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:#ea580c;margin:6px 0 12px';
+      card.insertBefore(d,card.querySelector('.overlay-ok'));
+    } else { w.textContent='📦 '+(wh||''); }
+  } else if (type==='fuzzy'||type==='multi') {
+    card.style.border='2px solid '+(type==='fuzzy'?'#a5b4fc':'#e0e0e0');
+    if(type==='fuzzy') card.style.background='#f5f3ff';
+    ic.textContent='🔍'; w.innerHTML=fMsg||'Несколько'; w.style.color=type==='fuzzy'?'#6d28d9':'#7c6ff7'; w.style.fontSize='15px';
+    tr.textContent=(type==='fuzzy'?'Считано: ':'')+track;
+    const div=document.createElement('div'); div.className='multi-btns'; div.style.marginBottom='10px';
+    (tracks||[]).forEach(t=>{ const b=document.createElement('button'); b.textContent=t;
+      b.style.cssText='display:block;width:100%;text-align:left;background:#fff;border:1px solid '+(type==='fuzzy'?'#7c6ff7':'#e0e0e0')+';border-radius:8px;padding:9px;margin-bottom:4px;font-size:13px;cursor:pointer;font-weight:600';
+      b.onclick=()=>{overlayOk();lookup(t)}; div.appendChild(b); });
+    card.insertBefore(div,card.querySelector('.overlay-ok'));
+  }
+  ov.classList.add('show');
+}
 function overlayOk() {
   document.getElementById('scanOverlay').classList.remove('show');
-  const mb = document.querySelector('.multi-btns');
-  if (mb) mb.remove();
-  const mw = document.querySelector('.multi-warn');
-  if (mw) mw.remove();
-  // Resume scanner
-  if (scanner) {
-    try { scanner.resume(); } catch(e) {}
-  }
+  let mb=document.querySelector('.multi-btns'); if(mb)mb.remove();
+  let mw=document.querySelector('.multi-warn'); if(mw)mw.remove();
+  if (scanner) try{scanner.resume()}catch(e){}
+  setTimeout(()=>document.getElementById('manualInput').focus(),200);
 }
+
+// ============ STATS ============
+function updateStats() {
+  const t=TABLE.length, d=Object.keys(scanned).length;
+  document.getElementById('statScanned').textContent=d;
+  document.getElementById('statTotal').textContent=t;
+  document.getElementById('progressBar').style.width=(t>0?Math.round(d/t*100):0)+'%';
+  document.getElementById('unscannedCount').textContent=t-d;
+}
+
+// ============ HISTORY ============
+async function addHistory(track,wh) {
+  const time=new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0');
+  scanHistory.unshift({track,wh,time}); if(scanHistory.length>30) scanHistory=scanHistory.slice(0,30);
+  renderHistory(); saveHistory();
+}
+function renderHistory() {
+  if(!scanHistory.length) return;
+  document.getElementById('historySection').style.display='block';
+  document.getElementById('historyList').innerHTML=scanHistory.slice(0,10).map(h=>
+    `<div class="history-item"><span class="history-track">${h.track}</span><span class="history-wh">${h.wh}</span><span class="history-time">${h.time}</span></div>`).join('');
+}
+async function clearHistory() { if(!confirm('Очистить?'))return; scanHistory=[]; await saveHistory(); document.getElementById('historySection').style.display='none'; }
+
+// ============ UNSCANNED ============
+function toggleUnscanned() { const l=document.getElementById('unscannedList'); l.style.display=l.style.display==='none'?'block':'none'; if(l.style.display==='block') showUnscanned(); }
+function showUnscanned() {
+  const rem=TABLE.map((r,i)=>({t:r[0],w:r[1],i})).filter(r=>!scanned[r.i]);
+  document.getElementById('unscannedList').innerHTML=rem.length===0?'<div style="padding:14px;text-align:center;color:#999">Всё отсканировано! 🎉</div>'
+    :rem.map(r=>`<div class="unscanned-item"><span class="unscanned-track">${r.t}</span><span class="unscanned-wh">${r.w}</span></div>`).join('');
+}
+
+// ============ RESET / EXPORT ============
+async function resetAll() {
+  if(!confirm('Сбросить все отметки?'))return;
+  scanned={}; await saveScanned(); updateStats(); document.getElementById('resultBlock').innerHTML='';
+}
+function exportScanned() {
+  const rows=TABLE.map((r,i)=>({t:r[0],w:r[1],d:!!scanned[i]})).filter(r=>r.d).map(r=>r.t+','+r.w).join('\n');
+  const blob=new Blob(['\uFEFF'+'Трек,Склад\n'+rows],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='отсканированные.csv'; a.click();
+}
+
+// ============ ADMIN ============
+async function renderAdminPanel() {
+  if(!userProfile||userProfile.role!=='admin'){document.getElementById('adminPanel').style.display='none';return;}
+  document.getElementById('adminPanel').style.display='block';
+  try {
+    const snap=await db.collection('users').get();
+    let html='';
+    snap.forEach(doc=>{
+      const u=doc.data();
+      html+=`<div class="admin-user-row"><div><b>${u.name||u.email}</b><div style="font-size:11px;color:#aaa">${u.email} · ${u.role}</div></div>
+        ${u.role!=='admin'?`<button onclick="adminDeleteUser('${doc.id}','${u.email}')" style="background:none;border:1px solid #fca5a5;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:#dc2626">×</button>`:''}</div>`;
+    });
+    document.getElementById('adminUserList').innerHTML=html;
+    document.getElementById('adminStats').textContent='Всего: '+snap.size+' пользователей';
+  } catch(e) { document.getElementById('adminUserList').innerHTML='<p style="font-size:12px;color:#999">Нет доступа</p>'; }
+}
+async function adminDeleteUser(uid,email) {
+  if(!confirm('Удалить '+email+'?'))return;
+  await db.collection('users').doc(uid).delete();
+  renderAdminPanel();
+}
+
+// ============ MANUAL INPUT ============
+function manualSearch() {
+  const v=document.getElementById('manualInput').value.trim(); if(!v)return;
+  lookup(v); document.getElementById('manualInput').value='';
+  setTimeout(()=>{document.getElementById('manualInput').focus();document.getElementById('gunHint').textContent='Готов'},300);
+}
+document.getElementById('manualInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualSearch()}});
+document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&document.getElementById('appScreen').style.display!=='none')document.getElementById('manualInput').focus()});
+
+// ============ CAMERA ============
+function toggleScanner(){scanning?stopScanner():startScanner()}
+async function startScanner(){
+  document.getElementById('reader').style.display='block';document.getElementById('zoomSection').style.display='block';
+  document.getElementById('scanBtn').textContent='⏹ Стоп';document.getElementById('scanBtn').classList.add('stop');scanning=true;
+  try{allCameras=await Html5Qrcode.getCameras()}catch(e){allCameras=[]}
+  const bc=document.getElementById('cameraButtons');bc.innerHTML='';
+  const backs=allCameras.filter(d=>{const l=d.label.toLowerCase();return!l.includes('front')&&!l.includes('face')});
+  const cams=backs.length?backs:allCameras;
+  const named=cams.map((c,i)=>{const l=c.label.toLowerCase();let n=''+(i+1);
+    if(l.includes('ultra')&&l.includes('wide'))n='0.5x';else if(l.includes('telephoto')||l.includes('tele'))n='3x';
+    else if(l.includes('wide')&&!l.includes('ultra'))n='1x';return{...c,dn:n}});
+  allCameras=named;
+  if(named.length>1)named.forEach((c,i)=>{const b=document.createElement('button');b.id='camBtn'+i;b.textContent=c.dn;
+    b.style.cssText='min-width:44px;flex-shrink:0;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:7px;font-size:13px;font-weight:700;cursor:pointer;color:#555';
+    b.onclick=()=>switchCam(c.id,i);bc.appendChild(b)});
+  const def=named.find(d=>d.dn==='1x')||named[0]; await startWithCam(def?.id); highlightCam(named.indexOf(def));
+}
+async function switchCam(id,i){if(activeCameraId===id)return;if(scanner){try{await scanner.stop()}catch(e){}scanner=null}await startWithCam(id);highlightCam(i)}
+function highlightCam(ai){allCameras.forEach((_,i)=>{const b=document.getElementById('camBtn'+i);if(!b)return;
+  b.style.background=i===ai?'#7c6ff7':'#f5f5f5';b.style.color=i===ai?'#fff':'#555';b.style.borderColor=i===ai?'#7c6ff7':'#e0e0e0'})}
+async function startWithCam(id){activeCameraId=id;scanner=new Html5Qrcode("reader");
+  try{await scanner.start(id?{deviceId:{exact:id}}:{facingMode:"environment"},
+    {fps:30,disableFlip:true,formatsToSupport:[Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.CODE_93,Html5QrcodeSupportedFormats.ITF]},
+    c=>lookup(c.trim()),()=>{});setTimeout(()=>setZoom(1.5),500)}catch(e){stopScanner()}}
+function setZoom(v){document.getElementById('zoomVal').textContent=v+'x';if(!scanner)return;
+  try{const t=scanner.getRunningTrackCameraCapabilities();if(t&&t.zoomFeature().isSupported())t.zoomFeature().apply(parseFloat(v))}catch(e){}}
+function stopScanner(){if(scanner){scanner.stop().catch(()=>{});scanner=null}
+  document.getElementById('reader').style.display='none';document.getElementById('zoomSection').style.display='none';
+  document.getElementById('scanBtn').textContent='📷 Камера';document.getElementById('scanBtn').classList.remove('stop');scanning=false}
+
+// ============ BEEP & VIBRATE ============
+function beep(){try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
+  o.connect(g);g.connect(c.destination);o.frequency.value=1800;o.type='sine';
+  g.gain.setValueAtTime(.3,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.15);
+  o.start(c.currentTime);o.stop(c.currentTime+.15)}catch(e){}}
+function vibrate(){if(navigator.vibrate)navigator.vibrate(100)}
 </script>
 </body>
 </html>
