@@ -121,6 +121,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 .fulllist{margin-top:8px;background:#fff;border-radius:10px;border:1px solid #e0e0e0;max-height:450px;overflow-y:auto}
 .fulllist-item{padding:8px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;font-size:12px}
+.fulllist-img{width:44px;height:44px;border-radius:8px;object-fit:cover;cursor:zoom-in;flex-shrink:0;transition:all .2s}
+.fulllist-img.expanded{width:120px;height:120px;cursor:zoom-out;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.fulllist-img-ph{width:44px;height:44px;border-radius:8px;background:#f4f1ff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .fulllist-item:last-child{border-bottom:none}
 .fulllist-idx{color:#ccc;width:24px;text-align:right;flex-shrink:0;font-size:11px}
 .fulllist-track{color:#1a1a1a;font-family:monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -134,13 +137,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* Overlay */
 .scan-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:24px}
 .scan-overlay.show{display:flex}
-.overlay-card{background:#fff;border-radius:20px;padding:32px 24px;width:100%;max-width:340px;text-align:center;animation:popIn .2s ease}
+.overlay-card{background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:380px;text-align:center;animation:popIn .2s ease}
 @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 .overlay-card.success-card{background:#f0fdf4;border:2px solid #86efac}
 .overlay-icon{font-size:56px;margin-bottom:14px}
 .overlay-warehouse{font-size:48px;font-weight:700;color:#1a1a1a;margin-bottom:8px;line-height:1.2;text-align:center;word-wrap:break-word}
 .overlay-track{font-size:16px;color:#888;margin-bottom:16px;word-break:break-all;font-family:monospace}
 .overlay-ok{width:100%;background:#7c6ff7;color:#fff;border:none;border-radius:12px;padding:14px;font-size:17px;font-weight:700;cursor:pointer}
+.overlay-img{width:100%;max-height:240px;object-fit:contain;border-radius:12px;background:#f4f1ff;}
 
 /* Modal */
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
@@ -235,6 +239,7 @@ body.dark .unscanned-item{border-color:rgba(255,255,255,0.06)}
 body.dark .unscanned-track{color:#c4b8f0}
 body.dark .fulllist{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.08)}
 body.dark .fulllist-item{border-color:rgba(255,255,255,0.06)}
+body.dark .fulllist-img-ph{background:rgba(255,255,255,0.07)}
 body.dark .fulllist-track{color:#c4b8f0}
 body.dark .fulllist-wh input{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1);color:#a78bfa}
 body.dark .fulllist-search{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1);color:#e0d8ff}
@@ -510,6 +515,7 @@ body.dark .profile-card div{color:#c4b8f0}
 <!-- Overlay -->
 <div class="scan-overlay" id="scanOverlay" onclick="overlayOk()">
   <div class="overlay-card" id="overlayCard" onclick="event.stopPropagation()">
+    <div id="overlayImg" style="display:none;margin-bottom:12px;"></div>
     <div class="overlay-icon" id="overlayIcon"></div>
     <div class="overlay-warehouse" id="overlayWarehouse"></div>
     <div class="overlay-track" id="overlayTrack"></div>
@@ -738,7 +744,7 @@ async function loadShipments() {
 async function loadShipmentData(id) {
   activeShipmentId = id;
   const doc = await shipmentsRef().doc(id).get();
-  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w]);
+  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'']);
   // Demo mode: limit to 5 tracks
   if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
   const scDoc = await scannedRef(id).get();
@@ -881,6 +887,17 @@ function showOverlay(type,track,wh,tracks,fMsg) {
   card.className='overlay-card'; card.style=''; w.style.color=''; w.style.fontSize='';
   let mw=card.querySelector('.multi-warn'); if(mw) mw.remove();
   let mb=card.querySelector('.multi-btns'); if(mb) mb.remove();
+  // Показываем картинку товара
+  const imgDiv = document.getElementById('overlayImg');
+  const trackRow = TABLE.find(r => r[0] === track);
+  const imgUrl = trackRow && trackRow[2] ? trackRow[2] : '';
+  if (imgUrl && imgDiv) {
+    imgDiv.style.display = 'block';
+    imgDiv.innerHTML = '<img class="overlay-img" src="'+imgUrl+'" onerror="this.parentElement.style.display='none'">';
+  } else if (imgDiv) {
+    imgDiv.style.display = 'none';
+  }
+
   if (type==='success') {
     card.className='overlay-card success-card'; ic.innerHTML='<i class="ti ti-circle-check" style="font-size:56px;color:#16a34a"></i>'; tr.textContent=track;
     if (wh && wh.includes(' и ')) {
@@ -946,13 +963,14 @@ function toggleFullList() {
 function renderFullList() {
   const query = (document.getElementById('fullListSearch').value || '').toLowerCase().trim();
   const container = document.getElementById('fullListContainer');
-  let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], done: !!scanned[i] }));
+  let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', done: !!scanned[i] }));
   if (query) items = items.filter(r => r.track.toLowerCase().includes(query) || r.wh.toLowerCase().includes(query));
   container.innerHTML = items.length === 0
     ? '<div style="padding:14px;text-align:center;color:#999">Ничего не найдено</div>'
     : items.map(r => `<div class="fulllist-item">
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
+        ${r.img ? `<img class="fulllist-img" src="${r.img}" onclick="this.classList.toggle('expanded')" onerror="this.style.display='none'">` : '<span class="fulllist-img-ph">📦</span>'}
         <span class="fulllist-track">${r.track}</span>
         <span class="fulllist-wh"><input value="${r.wh}" onchange="editWarehouse(${r.idx}, this.value)" /></span>
       </div>`).join('');
