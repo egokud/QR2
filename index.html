@@ -423,22 +423,21 @@ body.dark .profile-card div{color:#c4b8f0}
 
 <div class="bottom-section">
   <div class="btn-grid">
-    <button class="btn-grid-item" id="scanBtn" onclick="toggleScanner()" style="display:none"><i class="ti ti-camera" aria-hidden="true" style="font-size:20px"></i> Камера</button>
     <button class="btn-grid-item" onclick="toggleFullList()" style="background:#6C4DB8;color:#fff;border-color:#6C4DB8;font-weight:700"><i class="ti ti-list-search" aria-hidden="true" style="font-size:20px"></i> Список <span id="fullListCount" style="color:rgba(255,255,255,0.8);font-weight:700">0</span></button>
+    <button class="btn-grid-item" onclick="resetAll()" style="background:#dc2626;color:#fff;border-color:#dc2626;font-weight:700"><i class="ti ti-refresh" aria-hidden="true" style="font-size:20px"></i> Сбросить</button>
   </div>
   <div id="fullListWrap" style="display:none;margin-bottom:8px">
     <input type="text" class="fulllist-search" id="fullListSearch" placeholder="Поиск по треку или складу..." oninput="renderFullList()">
     <div class="fulllist" id="fullListContainer"></div>
   </div>
-  <div class="btn-grid">
-    <button class="btn-grid-item btn-grid-success" onclick="toggleScannedList()" style="display:none"><i class="ti ti-checks" aria-hidden="true" style="font-size:22px"></i> Считано <span id="statScannedBtn">0</span></button>
-    <button class="btn-grid-item btn-grid-accent" onclick="toggleUnscanned()" style="display:none"><i class="ti ti-clipboard-list" aria-hidden="true" style="font-size:22px"></i> Осталось <span id="unscannedCount">0</span></button>
-  </div>
   <div class="unscanned-list" id="scannedListWrap" style="display:none"></div>
   <div class="unscanned-list" id="unscannedList" style="display:none"></div>
-  <div class="btn-grid">
-    <button class="btn-grid-item" onclick="exportScanned()" style="display:none"><i class="ti ti-download" aria-hidden="true" style="font-size:20px"></i> Экспорт</button>
-    <button class="btn-grid-item" onclick="resetAll()" style="background:#dc2626;color:#fff;border-color:#dc2626;font-weight:700"><i class="ti ti-refresh" aria-hidden="true" style="font-size:20px"></i> Сбросить</button>
+  <!-- Hidden buttons for JS references -->
+  <div style="display:none">
+    <button id="scanBtn" onclick="toggleScanner()"></button>
+    <button onclick="exportScanned()"></button>
+    <span id="statScannedBtn">0</span>
+    <span id="unscannedCount">0</span>
   </div>
   <div class="admin-section" id="adminPanel" style="display:none">
     <h3><i class="ti ti-settings" style="font-size:14px;margin-right:4px"></i> Админ-панель</h3>
