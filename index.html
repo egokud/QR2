@@ -948,8 +948,7 @@ function overlayOk() {
 // ============ ОФЛАЙН-КЭШ КАРТИНОК ============
 async function cacheShipmentImages() {
   const btn = document.getElementById('btnCacheImages');
-  // Собираем URL картинок из текущего прихода
-  const urls = TABLE.map(r => r[2]).filter(Boolean);
+  const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))]; // уникальные URL
   if (urls.length === 0) {
     showToast('В этом приходе нет картинок');
     return;
@@ -961,39 +960,41 @@ async function cacheShipmentImages() {
   const origClass = icon.className;
   icon.className = 'ti ti-loader-2';
 
-  let loaded = 0, failed = 0;
-  // Загружаем картинки — браузер сам кэширует их (HTTP cache + Cache API)
+  let loaded = 0;
   const cache = ('caches' in window) ? await caches.open('piksta-images-v1') : null;
 
-  for (const url of urls) {
-    try {
-      if (cache) {
-        // Проверяем есть ли уже в кэше
-        const cached = await cache.match(url);
-        if (!cached) {
-          const resp = await fetch(url, { mode: 'no-cors' });
-          await cache.put(url, resp);
-        }
-      } else {
-        // Фолбэк — просто прогреваем HTTP-кэш через Image
-        await new Promise((res) => {
+  // Загружаем параллельно батчами по 10 — быстрее и надёжнее
+  const batchSize = 10;
+  for (let i = 0; i < urls.length; i += batchSize) {
+    const batch = urls.slice(i, i + batchSize);
+    await Promise.all(batch.map(async (url) => {
+      try {
+        // Прогреваем HTTP-кэш браузера через Image (надёжно для картинок)
+        await new Promise((res, rej) => {
           const img = new Image();
-          img.onload = img.onerror = res;
+          img.onload = res;
+          img.onerror = rej;
           img.src = url;
+          // Таймаут 10 сек на картинку
+          setTimeout(rej, 10000);
         });
-      }
-      loaded++;
-      // Обновляем прогресс в title
-      btn.title = `Загружаю картинки: ${loaded}/${urls.length}`;
-    } catch(e) {
-      failed++;
-    }
+        // Дополнительно кладём в Cache API для Service Worker
+        if (cache) {
+          try {
+            const resp = await fetch(url, { mode: 'no-cors' });
+            await cache.put(url, resp);
+          } catch(e) {}
+        }
+        loaded++;
+      } catch(e) {}
+    }));
+    btn.title = `Загружаю картинки: ${loaded}/${urls.length}`;
   }
 
   btn.classList.remove('caching');
   icon.className = origClass;
   btn.classList.add('cached');
-  btn.title = `Картинки загружены (${loaded} шт.) — работают без интернета`;
+  btn.title = `Картинки загружены (${loaded} из ${urls.length}) — работают без интернета`;
   showToast(`✅ Загружено ${loaded} картинок для работы офлайн`);
 }
 
