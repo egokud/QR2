@@ -59,6 +59,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Shipment */
 .shipment-section{margin:12px 0;background:#fff;border-radius:12px;padding:14px;border:0.5px solid #e0e0e0}
+.btn-icon-cache{background:#f4f1ff;border:1px solid #ede8f8;border-radius:8px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#9b8ec9;font-size:18px;flex-shrink:0;transition:all 0.2s}
+.btn-icon-cache:hover{background:#ede8f8;color:#6C4DB8}
+.btn-icon-cache.cached{background:#e8f5e9;border-color:#86efac;color:#16a34a}
+.btn-icon-cache.caching{color:#6C4DB8;pointer-events:none}
+.btn-icon-cache.caching i{animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 .shipment-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:500}
 .shipment-row{display:flex;gap:8px;align-items:center}
 .shipment-select{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px;font-size:15px;font-weight:500;outline:none;background:#fff;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -198,6 +204,7 @@ body.dark .header h1{color:#fff}
 body.dark .user-badge{color:#a78bfa}
 body.dark .btn-sm{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.1);color:#999}
 body.dark .shipment-section{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.08)}
+body.dark .btn-icon-cache{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.1);color:#a78bfa}
 body.dark .shipment-label{color:#8b80b8}
 body.dark .shipment-select{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1);color:#e0d8ff}
 body.dark .btn-icon-del{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.1);color:#8b80b8}
@@ -382,6 +389,7 @@ body.dark .profile-card div{color:#c4b8f0}
   <div class="shipment-label">Текущий приход</div>
   <div class="shipment-row">
     <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()"></select>
+    <button class="btn-icon-cache" id="btnCacheImages" onclick="cacheShipmentImages()" title="Загрузить картинки заранее (для надёжности при плохом интернете)"><i class="ti ti-cloud-download" aria-hidden="true"></i></button>
     <button class="btn-icon" onclick="openUploadModal()" title="Загрузить CSV">+</button>
     <button class="btn-icon-del" onclick="deleteShipment()" title="Удалить партию"><i class="ti ti-trash" aria-hidden="true"></i></button>
   </div>
@@ -743,6 +751,9 @@ async function loadShipments() {
 
 async function loadShipmentData(id) {
   activeShipmentId = id;
+  // Сбрасываем статус кнопки кэша при смене прихода
+  const cacheBtn = document.getElementById('btnCacheImages');
+  if (cacheBtn) { cacheBtn.classList.remove('cached','caching'); cacheBtn.title = 'Загрузить картинки заранее (для надёжности при плохом интернете)'; }
   const doc = await shipmentsRef().doc(id).get();
   const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'']);
   // Demo mode: limit to 5 tracks
@@ -931,6 +942,73 @@ function overlayOk() {
   let mw=document.querySelector('.multi-warn'); if(mw)mw.remove();
   if (scanner) try{scanner.resume()}catch(e){}
   setTimeout(()=>document.getElementById('manualInput').focus(),200);
+}
+
+
+// ============ ОФЛАЙН-КЭШ КАРТИНОК ============
+async function cacheShipmentImages() {
+  const btn = document.getElementById('btnCacheImages');
+  // Собираем URL картинок из текущего прихода
+  const urls = TABLE.map(r => r[2]).filter(Boolean);
+  if (urls.length === 0) {
+    showToast('В этом приходе нет картинок');
+    return;
+  }
+
+  btn.classList.add('caching');
+  btn.classList.remove('cached');
+  const icon = btn.querySelector('i');
+  const origClass = icon.className;
+  icon.className = 'ti ti-loader-2';
+
+  let loaded = 0, failed = 0;
+  // Загружаем картинки — браузер сам кэширует их (HTTP cache + Cache API)
+  const cache = ('caches' in window) ? await caches.open('piksta-images-v1') : null;
+
+  for (const url of urls) {
+    try {
+      if (cache) {
+        // Проверяем есть ли уже в кэше
+        const cached = await cache.match(url);
+        if (!cached) {
+          const resp = await fetch(url, { mode: 'no-cors' });
+          await cache.put(url, resp);
+        }
+      } else {
+        // Фолбэк — просто прогреваем HTTP-кэш через Image
+        await new Promise((res) => {
+          const img = new Image();
+          img.onload = img.onerror = res;
+          img.src = url;
+        });
+      }
+      loaded++;
+      // Обновляем прогресс в title
+      btn.title = `Загружаю картинки: ${loaded}/${urls.length}`;
+    } catch(e) {
+      failed++;
+    }
+  }
+
+  btn.classList.remove('caching');
+  icon.className = origClass;
+  btn.classList.add('cached');
+  btn.title = `Картинки загружены (${loaded} шт.) — работают без интернета`;
+  showToast(`✅ Загружено ${loaded} картинок для работы офлайн`);
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('pikstaToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'pikstaToast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1440;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:90%;text-align:center;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3000);
 }
 
 // ============ STATS ============
