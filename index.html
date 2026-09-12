@@ -54,8 +54,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .stat-card{background:#fff;border-radius:10px;padding:12px;border:1px solid #e0e0e0;text-align:center}
 .stat-num{font-size:24px;font-weight:700;color:#7c6ff7}
 .stat-label{font-size:11px;color:#999;margin-top:2px}
-.progress-wrap{margin:0 16px 14px;background:#e0e0e0;border-radius:10px;overflow:hidden;height:7px}
-.progress-bar{height:100%;background:#7c6ff7;transition:width .4s}
+.progress-wrap{margin:0 16px 10px;background:#ede8f8;border-radius:10px;overflow:hidden;height:6px}
+.progress-bar{height:100%;background:linear-gradient(90deg,#6C4DB8,#a78bfa);border-radius:10px;transition:width .4s}
 
 /* Shipment */
 .shipment-section{margin:14px 16px 12px;background:#fff;border-radius:12px;padding:14px;border:0.5px solid #e0e0e0}
@@ -388,8 +388,8 @@ body.dark .profile-card div{color:#c4b8f0}
 </div>
 
 <div class="stats">
-  <div class="stat-card"><div class="stat-num" id="statScanned">0</div><div class="stat-label">отсканировано</div></div>
-  <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">всего в списке</div></div>
+  <div class="stat-card" style="background:#e8f5e9;cursor:pointer;" onclick="toggleScannedList()"><div class="stat-num" id="statScanned" style="color:#2e7d32;">0</div><div class="stat-label" style="color:#66bb6a;">считано</div></div>
+  <div class="stat-card" style="background:#fff;border:1.5px solid #ede8f8;cursor:pointer;" onclick="toggleRemainingList()"><div class="stat-num" id="statTotal" style="color:#6C4DB8;">0</div><div class="stat-label" style="color:#a78bfa;">осталось</div></div>
 </div>
 <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
 
@@ -432,7 +432,7 @@ body.dark .profile-card div{color:#c4b8f0}
   </div>
   <div class="btn-grid">
     <button class="btn-grid-item btn-grid-success" onclick="toggleScannedList()" style="display:none"><i class="ti ti-checks" aria-hidden="true" style="font-size:22px"></i> Считано <span id="statScannedBtn">0</span></button>
-    <button class="btn-grid-item btn-grid-accent" onclick="toggleUnscanned()"><i class="ti ti-clipboard-list" aria-hidden="true" style="font-size:22px"></i> Осталось <span id="unscannedCount">0</span></button>
+    <button class="btn-grid-item btn-grid-accent" onclick="toggleUnscanned()" style="display:none"><i class="ti ti-clipboard-list" aria-hidden="true" style="font-size:22px"></i> Осталось <span id="unscannedCount">0</span></button>
   </div>
   <div class="unscanned-list" id="scannedListWrap" style="display:none"></div>
   <div class="unscanned-list" id="unscannedList" style="display:none"></div>
@@ -937,7 +937,7 @@ function overlayOk() {
 function updateStats() {
   const t=TABLE.length, d=Object.keys(scanned).length;
   document.getElementById('statScanned').textContent=d;
-  document.getElementById('statTotal').textContent=t;
+  document.getElementById('statTotal').textContent=t-d;
   document.getElementById('progressBar').style.width=(t>0?Math.round(d/t*100):0)+'%';
   document.getElementById('unscannedCount').textContent=t-d;
   if(document.getElementById('statScannedBtn')) document.getElementById('statScannedBtn').textContent=d;
