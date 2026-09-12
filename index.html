@@ -108,11 +108,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* Bottom */
 .bottom-section{margin:0 16px 14px}
 .btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-.btn-grid-item{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px 10px;border-radius:12px;background:#fff;border:1px solid #e0e0e0;font-size:15px;cursor:pointer;color:#555;font-weight:500}
+.btn-grid-item{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px 10px;border-radius:12px;background:#ede8f8;border:1.5px solid #ddd6f3;font-size:15px;cursor:pointer;color:#5a3da0;font-weight:500;transition:background 0.15s}.btn-grid-item:hover{background:#e0d4f5}
 .btn-grid-item:active{opacity:.85}
 .btn-grid-success{background:#f0fdf4;border-color:#86efac;color:#16a34a}
 .btn-grid-accent{background:#eef2ff;border-color:#c4b5fd;color:#7c6ff7}
-.btn-grid-danger{border-color:#fca5a5;color:#dc2626}
+.btn-grid-danger{background:#fff;border-color:#fca5a5;color:#dc2626}
 .unscanned-list{margin-top:8px;background:#fff;border-radius:10px;border:1px solid #e0e0e0;max-height:350px;overflow-y:auto}
 .unscanned-item{padding:8px 12px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between}
 .unscanned-item:last-child{border-bottom:none}
@@ -423,7 +423,7 @@ body.dark .profile-card div{color:#c4b8f0}
 
 <div class="bottom-section">
   <div class="btn-grid">
-    <button class="btn-grid-item" id="scanBtn" onclick="toggleScanner()"><i class="ti ti-camera" aria-hidden="true" style="font-size:22px"></i> Камера</button>
+    <button class="btn-grid-item" id="scanBtn" onclick="toggleScanner()"><i class="ti ti-camera" aria-hidden="true" style="font-size:20px"></i> Камера</button>
     <button class="btn-grid-item" onclick="toggleFullList()" style="font-weight:600"><i class="ti ti-list-search" aria-hidden="true" style="font-size:22px"></i> Список <span id="fullListCount" style="color:#999">0</span></button>
   </div>
   <div id="fullListWrap" style="display:none;margin-bottom:8px">
@@ -437,7 +437,7 @@ body.dark .profile-card div{color:#c4b8f0}
   <div class="unscanned-list" id="scannedListWrap" style="display:none"></div>
   <div class="unscanned-list" id="unscannedList" style="display:none"></div>
   <div class="btn-grid">
-    <button class="btn-grid-item" onclick="exportScanned()"><i class="ti ti-download" aria-hidden="true" style="font-size:22px"></i> Экспорт</button>
+    <button class="btn-grid-item" onclick="exportScanned()"><i class="ti ti-download" aria-hidden="true" style="font-size:20px"></i> Экспорт</button>
     <button class="btn-grid-item btn-grid-danger" onclick="resetAll()"><i class="ti ti-refresh" aria-hidden="true" style="font-size:22px"></i> Сбросить</button>
   </div>
   <div class="admin-section" id="adminPanel" style="display:none">
