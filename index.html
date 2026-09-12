@@ -893,7 +893,12 @@ function showOverlay(type,track,wh,tracks,fMsg) {
   const imgUrl = trackRow && trackRow[2] ? trackRow[2] : '';
   if (imgUrl && imgDiv) {
     imgDiv.style.display = 'block';
-    imgDiv.innerHTML = '<img class="overlay-img" src="'+imgUrl+'" onerror="this.parentElement.style.display='none'">';
+    const oImg = document.createElement('img');
+    oImg.className = 'overlay-img';
+    oImg.src = imgUrl;
+    oImg.addEventListener('error', () => { imgDiv.style.display='none'; });
+    imgDiv.innerHTML = '';
+    imgDiv.appendChild(oImg);
   } else if (imgDiv) {
     imgDiv.style.display = 'none';
   }
@@ -970,10 +975,25 @@ function renderFullList() {
     : items.map(r => `<div class="fulllist-item">
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
-        ${r.img ? `<img class="fulllist-img" src="${r.img}" onclick="this.classList.toggle('expanded')" onerror="this.style.display='none'">` : '<span class="fulllist-img-ph">📦</span>'}
+        <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
         <span class="fulllist-track">${r.track}</span>
         <span class="fulllist-wh"><input value="${r.wh}" onchange="editWarehouse(${r.idx}, this.value)" /></span>
       </div>`).join('');
+  // Инициализируем картинки в списке через JS (избегаем inline handlers)
+  document.querySelectorAll('.fulllist-img-wrap').forEach(wrap => {
+    const img_url = wrap.dataset.img;
+    const idx = wrap.dataset.idx;
+    if (img_url) {
+      const img = document.createElement('img');
+      img.className = 'fulllist-img';
+      img.src = img_url;
+      img.addEventListener('error', () => { wrap.innerHTML = '<span class="fulllist-img-ph">📦</span>'; });
+      img.addEventListener('click', () => img.classList.toggle('expanded'));
+      wrap.appendChild(img);
+    } else {
+      wrap.innerHTML = '<span class="fulllist-img-ph">📦</span>';
+    }
+  });
 }
 
 async function editWarehouse(idx, newWh) {
