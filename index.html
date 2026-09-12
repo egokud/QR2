@@ -23,8 +23,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @media(min-width:641px){body{padding-top:16px}}
 .hide{display:none!important}
 
-.header{background:#fff;border-bottom:1px solid #e0e0e0;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
-.header h1{font-size:17px;font-weight:600;color:#1a1a1a}
+.header{background:#1a1440;border-bottom:none;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:17px;font-weight:600;color:#fff}
 .header-right{display:flex;gap:8px;align-items:center}
 .btn-sm{background:none;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;cursor:pointer;padding:6px 10px;color:#555}
 .user-badge{font-size:12px;color:#7c6ff7;font-weight:600}
@@ -77,7 +77,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Scanner */
 .scanner-section{margin:0 16px 14px}
-.btn-scan{display:block;width:100%;background:#ede8f8;color:#555;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-scan{display:block;width:100%;background:#fff;color:#555;border:1.5px solid #ede8f8;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.15s}.btn-scan:hover{background:#f4f1ff}
 .btn-scan.stop{background:#7c6ff7;color:#fff}
 #reader{border-radius:12px;overflow:hidden;background:#000;max-height:220px}
 #reader video{width:100%!important;border-radius:12px;object-fit:cover;height:220px}
@@ -193,7 +193,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Dark theme */
 body.dark{background:linear-gradient(180deg,#2d2556,#1a1440);color:#e0d8ff}
-body.dark .header{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.08)}
+body.dark .header{background:#1a1440;border-color:transparent}
 body.dark .header h1{color:#fff}
 body.dark .user-badge{color:#a78bfa}
 body.dark .btn-sm{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.1);color:#999}
@@ -363,8 +363,8 @@ body.dark .profile-card div{color:#c4b8f0}
 <div class="header">
   <h1 style="letter-spacing:-0.5px;display:flex;align-items:center;"><img src="/icons/icon-72x72.png" width="28" height="28" alt="" style="border-radius:7px;margin-right:8px;">Piksta</h1>
   <div class="header-right">
-    <button class="btn-sm" onclick="openProfile()" style="border:none;color:#7c6ff7;font-weight:500;font-size:13px;display:flex;align-items:center;gap:4px;" id="userBadge"><i class="ti ti-user-circle" style="font-size:18px"></i> <span id="userBadgeName"></span></button>
-    <button class="btn-sm" onclick="doLogout()">Выйти</button>
+    <button class="btn-sm" onclick="openProfile()" style="border:none;color:#a78bfa;font-weight:500;font-size:13px;display:flex;align-items:center;gap:4px;" id="userBadge"><i class="ti ti-user-circle" style="font-size:18px"></i> <span id="userBadgeName"></span></button>
+    <button class="btn-sm" onclick="doLogout()" style="color:#888;border-color:#444;">Выйти</button>
   </div>
 </div>
 
@@ -431,7 +431,7 @@ body.dark .profile-card div{color:#c4b8f0}
     <div class="fulllist" id="fullListContainer"></div>
   </div>
   <div class="btn-grid">
-    <button class="btn-grid-item btn-grid-success" onclick="toggleScannedList()"><i class="ti ti-checks" aria-hidden="true" style="font-size:22px"></i> Считано <span id="statScannedBtn">0</span></button>
+    <button class="btn-grid-item btn-grid-success" onclick="toggleScannedList()" style="display:none"><i class="ti ti-checks" aria-hidden="true" style="font-size:22px"></i> Считано <span id="statScannedBtn">0</span></button>
     <button class="btn-grid-item btn-grid-accent" onclick="toggleUnscanned()"><i class="ti ti-clipboard-list" aria-hidden="true" style="font-size:22px"></i> Осталось <span id="unscannedCount">0</span></button>
   </div>
   <div class="unscanned-list" id="scannedListWrap" style="display:none"></div>
@@ -1020,6 +1020,41 @@ function toggleScannedList() {
       :done.map(r=>'<div class="unscanned-item"><span class="unscanned-track">'+r.t+'</span><span class="unscanned-wh">'+r.w+'</span></div>').join('');
   }
 }
+
+function toggleRemainingList() {
+  const w = document.getElementById('fullListWrapper');
+  if (w.style.display === 'block') { w.style.display = 'none'; return; }
+  w.style.display = 'block';
+  const container = document.getElementById('fullListContainer');
+  const items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', done: !!scanned[i] }))
+    .filter(r => !r.done);
+  container.innerHTML = items.length === 0
+    ? '<div style="padding:14px;text-align:center;color:#999">Всё отсканировано!</div>'
+    : items.map(r => `<div class="fulllist-item">
+        <span class="fulllist-idx">${r.idx + 1}</span>
+        <span class="fulllist-status">⬜</span>
+        <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
+        <span class="fulllist-track">${r.track}</span>
+        <span class="fulllist-wh"><input value="${r.wh}" data-idx="${r.idx}" /></span>
+      </div>`).join('');
+  document.querySelectorAll('.fulllist-img-wrap').forEach(wrap => {
+    const img_url = wrap.dataset.img;
+    if (img_url) {
+      const img = document.createElement('img');
+      img.className = 'fulllist-img';
+      img.src = img_url;
+      img.addEventListener('error', () => { wrap.innerHTML = '<span class="fulllist-img-ph">📦</span>'; });
+      img.addEventListener('click', () => img.classList.toggle('expanded'));
+      wrap.appendChild(img);
+    } else {
+      wrap.innerHTML = '<span class="fulllist-img-ph">📦</span>';
+    }
+  });
+  document.querySelectorAll('.fulllist-wh input').forEach(inp => {
+    inp.addEventListener('change', () => editWarehouse(parseInt(inp.dataset.idx), inp.value));
+  });
+}
+
 
 function toggleUnscanned() { const l=document.getElementById('unscannedList'); l.style.display=l.style.display==='none'?'block':'none'; if(l.style.display==='block') showUnscanned(); }
 function showUnscanned() {
