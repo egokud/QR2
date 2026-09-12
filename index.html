@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @media(min-width:641px){body{padding-top:16px}}
 .hide{display:none!important}
 
-.header{background:#1a1440;border-bottom:none;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.header{background:#1a1440;border-bottom:none;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:0 0 16px 16px}
 .header h1{font-size:17px;font-weight:600;color:#fff}
 .header-right{display:flex;gap:8px;align-items:center}
 .btn-sm{background:none;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;cursor:pointer;padding:6px 10px;color:#555}
@@ -50,15 +50,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Stats */
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 16px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .stat-card{border-radius:12px;padding:14px 12px;border:none;text-align:center;cursor:pointer;transition:transform 0.1s}.stat-card:active{transform:scale(0.97)}
 .stat-num{font-size:28px;font-weight:700}
 .stat-label{font-size:11px;color:#999;margin-top:2px}
-.progress-wrap{margin:8px 16px 12px;background:#ede8f8;border-radius:10px;overflow:hidden;height:6px}
+.progress-wrap{margin:8px 0 12px;background:#ede8f8;border-radius:10px;overflow:hidden;height:6px}
 .progress-bar{height:100%;background:linear-gradient(90deg,#6C4DB8,#a78bfa);border-radius:10px;transition:width .4s}
 
 /* Shipment */
-.shipment-section{margin:12px 16px;background:#fff;border-radius:12px;padding:14px;border:0.5px solid #e0e0e0}
+.shipment-section{margin:12px 0;background:#fff;border-radius:12px;padding:14px;border:0.5px solid #e0e0e0}
 .shipment-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:500}
 .shipment-row{display:flex;gap:8px;align-items:center}
 .shipment-select{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px;font-size:15px;font-weight:500;outline:none;background:#fff;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -67,7 +67,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 
 /* Gun */
-.gun-section{background:#fff;margin:0 16px 12px;border-radius:12px;padding:14px;border:2px solid #7c6ff7}
+.gun-section{background:#fff;margin:0 0 12px;border-radius:12px;padding:14px;border:2px solid #7c6ff7}
 .gun-section h3{font-size:11px;color:#7c6ff7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700}
 .manual-row{display:flex;gap:8px}
 .manual-row input{flex:1;border:1px solid #e0e0e0;border-radius:8px;padding:11px;font-size:15px;outline:none;min-width:0}
@@ -76,14 +76,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .gun-hint{margin-top:6px;font-size:11px;color:#aaa;text-align:center}
 
 /* Scanner */
-.scanner-section{margin:0 16px 12px}
+.scanner-section{margin:0 0 12px}
 .btn-scan{display:block;width:100%;background:#fff;color:#555;border:1.5px solid #ede8f8;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.15s}.btn-scan:hover{background:#f4f1ff}
 .btn-scan.stop{background:#7c6ff7;color:#fff}
 #reader{border-radius:12px;overflow:hidden;background:#000;max-height:220px}
 #reader video{width:100%!important;border-radius:12px;object-fit:cover;height:220px}
 
 /* Results */
-.result-card{margin:0 16px 12px;border-radius:12px;padding:16px;border:1.5px solid}
+.result-card{margin:0 0 12px;border-radius:12px;padding:16px;border:1.5px solid}
 .result-card.success{background:#f0fdf4;border-color:#86efac}
 .result-card.error{background:#fef2f2;border-color:#fca5a5}
 .result-card.already{background:#fffbeb;border-color:#fcd34d}
@@ -96,7 +96,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .result-message{font-size:13px;color:#555}
 
 /* History */
-.history{margin:0 16px 12px}
+.history{margin:0 0 12px}
 .history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .history-header h3{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px}
 .history-header button{font-size:11px;color:#dc2626;background:none;border:none;cursor:pointer}
@@ -107,7 +107,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Bottom */
 .bottom-section{margin:0 16px 14px}
-.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 12px}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 12px}
 .btn-grid-item{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px 10px;border-radius:12px;background:#ede8f8;border:1.5px solid #ddd6f3;font-size:15px;cursor:pointer;color:#5a3da0;font-weight:500;transition:background 0.15s}.btn-grid-item:hover{background:#e0d4f5}
 .btn-grid-item:active{opacity:.85}
 .btn-grid-success{background:#f0fdf4;border-color:#86efac;color:#16a34a}
@@ -173,7 +173,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .profile-msg{font-size:13px;text-align:center;margin-top:8px;padding:8px;border-radius:8px}
 .profile-msg-ok{color:#16a34a;background:#f0fdf4}
 .profile-msg-err{color:#dc2626;background:#fef2f2}
-.admin-section{background:#fff;border-radius:12px;padding:14px;border:0.5px solid #e0e0e0;margin:12px 16px}
+.admin-section{background:#fff;border-radius:12px;padding:14px;border:0.5px solid #e0e0e0;margin:12px 0}
 .admin-section h3{font-size:12px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
 .admin-user-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
 .admin-user-row:last-child{border-bottom:none}
@@ -358,7 +358,7 @@ body.dark .profile-card div{color:#c4b8f0}
 </div>
 
 <!-- MAIN APP -->
-<div id="appScreen" class="hide">
+<div id="appScreen" class="hide" style="padding:0 16px;">
 
 <div class="header">
   <h1 style="letter-spacing:-0.5px;display:flex;align-items:center;"><img src="/icons/icon-72x72.png" width="28" height="28" alt="" style="border-radius:7px;margin-right:8px;">Piksta</h1>
