@@ -959,18 +959,11 @@ async function checkCacheStatus() {
   }
   if (!('caches' in window)) return;
   try {
-    const cache = await caches.open('piksta-images-v1');
-    let inCache = 0;
-    // Проверяем выборочно первые 20 URL для скорости
-    const sample = urls.slice(0, 20);
-    for (const url of sample) {
-      const m = await cache.match(url);
-      if (m) inCache++;
-    }
-    // Если большинство из выборки в кэше — считаем что приход загружен
-    if (inCache >= sample.length * 0.6) {
+    const inCache = await countCachedForShipment(urls);
+    // Загружено если 90%+ картинок в кэше
+    if (inCache >= urls.length * 0.9) {
       btn.classList.add('cached');
-      btn.title = `Картинки загружены — работают без интернета`;
+      btn.title = `Картинки загружены (${inCache} из ${urls.length}) — работают без интернета`;
     } else {
       btn.classList.remove('cached');
       btn.title = 'Загрузить картинки заранее (для надёжности при плохом интернете)';
@@ -981,9 +974,13 @@ async function checkCacheStatus() {
 
 async function cacheShipmentImages() {
   const btn = document.getElementById('btnCacheImages');
-  const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))]; // уникальные URL
+  const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))];
   if (urls.length === 0) {
     showToast('В этом приходе нет картинок');
+    return;
+  }
+  if (!('caches' in window)) {
+    showToast('Ваш браузер не поддерживает офлайн-режим');
     return;
   }
 
@@ -993,43 +990,55 @@ async function cacheShipmentImages() {
   const origClass = icon.className;
   icon.className = 'ti ti-loader-2';
 
+  const cache = await caches.open('piksta-images-v1');
   let loaded = 0;
-  const cache = ('caches' in window) ? await caches.open('piksta-images-v1') : null;
 
-  // Загружаем параллельно батчами по 10 — быстрее и надёжнее
-  const batchSize = 10;
+  // Загружаем параллельно батчами по 8, каждую картинку кладём в Cache API
+  const batchSize = 8;
   for (let i = 0; i < urls.length; i += batchSize) {
     const batch = urls.slice(i, i + batchSize);
     await Promise.all(batch.map(async (url) => {
       try {
-        // Прогреваем HTTP-кэш браузера через Image (надёжно для картинок)
-        await new Promise((res, rej) => {
-          const img = new Image();
-          img.onload = res;
-          img.onerror = rej;
-          img.src = url;
-          // Таймаут 10 сек на картинку
-          setTimeout(rej, 10000);
-        });
-        // Дополнительно кладём в Cache API для Service Worker
-        if (cache) {
-          try {
-            const resp = await fetch(url, { mode: 'no-cors' });
-            await cache.put(url, resp);
-          } catch(e) {}
-        }
+        // Проверяем — может уже в кэше
+        const existing = await cache.match(url);
+        if (existing) { loaded++; return; }
+        // Загружаем и кладём в кэш (opaque response нормально кэшируется)
+        const resp = await fetch(url, { mode: 'no-cors', cache: 'force-cache' });
+        await cache.put(url, resp);
         loaded++;
-      } catch(e) {}
+      } catch(e) {
+        // одна картинка не загрузилась — не страшно, продолжаем
+      }
     }));
     btn.title = `Загружаю картинки: ${loaded}/${urls.length}`;
   }
 
   btn.classList.remove('caching');
   icon.className = origClass;
-  btn.classList.add('cached');
-  btn.title = `Картинки загружены (${loaded} из ${urls.length}) — работают без интернета`;
-  showToast(`✅ Загружено ${loaded} картинок для работы офлайн`);
+
+  // Проверяем реально сколько в кэше
+  const finalCount = await countCachedForShipment(urls);
+  if (finalCount >= urls.length * 0.9) {
+    btn.classList.add('cached');
+    btn.title = `Картинки загружены (${finalCount} из ${urls.length}) — работают без интернета`;
+    showToast(`✅ Загружено ${finalCount} картинок для работы офлайн`);
+  } else {
+    btn.title = `Загружено ${finalCount} из ${urls.length}. Нажмите ещё раз чтобы догрузить`;
+    showToast(`Загружено ${finalCount} из ${urls.length}. Проверьте интернет и нажмите ещё раз`);
+  }
 }
+
+async function countCachedForShipment(urls) {
+  if (!('caches' in window)) return 0;
+  const cache = await caches.open('piksta-images-v1');
+  let n = 0;
+  for (const url of urls) {
+    const m = await cache.match(url);
+    if (m) n++;
+  }
+  return n;
+}
+
 
 function showToast(msg) {
   let toast = document.getElementById('pikstaToast');
