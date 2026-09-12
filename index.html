@@ -856,10 +856,11 @@ function levenshtein(a, b) {
 function lookup(code) {
   code = code.trim(); if (!code || !TABLE.length) return;
   const isP = code.length <= 6, cl = code.toLowerCase();
-  let rows = TABLE.map((r,i) => ({i,t:r[0],w:r[1]})).filter(r => isP ? r.t.toLowerCase().endsWith(cl) : r.t.toLowerCase()===cl);
+  // Частичный код ищем по вхождению в любом месте трека (includes), полный — точное совпадение
+  let rows = TABLE.map((r,i) => ({i,t:r[0],w:r[1]})).filter(r => isP ? r.t.toLowerCase().includes(cl) : r.t.toLowerCase()===cl);
   if (!rows.length && !isP) {
     const l4 = cl.slice(-4);
-    const by4 = TABLE.map((r,i)=>({i,t:r[0],w:r[1]})).filter(r=>r.t.toLowerCase().endsWith(l4));
+    const by4 = TABLE.map((r,i)=>({i,t:r[0],w:r[1]})).filter(r=>r.t.toLowerCase().includes(l4));
     if (by4.length) { const ut=[...new Set(by4.map(r=>r.t))]; showResult('fuzzy',code,null,null,ut,'По последним 4 цифрам:'); return; }
     const fz = TABLE.map((r,i)=>({i,t:r[0],w:r[1],d:levenshtein(cl,r[0].toLowerCase())})).filter(r=>r.d<=3).sort((a,b)=>a.d-b.d);
     if (fz.length) { showResult('fuzzy',code,null,null,[...new Set(fz.slice(0,4).map(r=>r.t))],'Похожие варианты:'); return; }
