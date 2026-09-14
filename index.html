@@ -579,7 +579,8 @@ auth.languageCode = 'ru';
 // Явно сохраняем сессию входа в браузере (чтобы не выкидывало после обновления)
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 const db = firebase.firestore();
-db.enablePersistence({synchronizeTabs: true}).catch(()=>{});
+// db.enablePersistence отключён — ломал загрузку данных после смены ключа
+// (при необходимости офлайн-кэш можно вернуть через FirestoreSettings.cache)
 const ADMIN_EMAIL = 'egokud@gmail.com';
 
 // ============ STATE ============
