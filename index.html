@@ -1129,11 +1129,38 @@ function toggleFullList() {
   if (w.style.display === 'block') renderFullList();
 }
 
+// ── Работа со складами: капитализация и поиск по полному слову ──
+// Склад "Алеся и Яна" = сборный (два склада), ищется по любой части.
+// Склад "Денис Петров" = один склад (имя+фамилия одного получателя).
+const WH_CONJ = new Set(['и','с','в','на','для','от','до','по','за','из','у','о','к']);
+function capitalizeWh(str){
+  if(!str) return str;
+  return str.trim().split(/\s+/).map((w,i)=>{
+    const l=w.toLowerCase();
+    if(i>0 && WH_CONJ.has(l)) return l;
+    return w.charAt(0).toUpperCase()+w.slice(1);
+  }).join(' ');
+}
+// Разбивает склад на отдельные склады-получатели ПО СОЮЗУ "и".
+// "Алеся и Яна" → ["Алеся","Яна"]; "Денис Петров" → ["Денис Петров"] (один склад).
+function splitWarehouses(wh){
+  if(!wh) return [];
+  // делим только по " и " (союз-разделитель складов), остальное — цельное имя склада
+  return wh.split(/\s+и\s+/i).map(s=>s.trim()).filter(Boolean);
+}
+// Совпадает ли запрос с любым складом-получателем ПО ПОЛНОМУ СЛОВУ.
+// query="яна" совпадёт с "Алеся и Яна" (часть "Яна"). query="ян" НЕ совпадёт.
+function whMatchesQuery(wh, query){
+  if(!query) return true;
+  const parts = splitWarehouses(wh).map(p=>p.toLowerCase());
+  return parts.includes(query);
+}
+
 function renderFullList() {
   const query = (document.getElementById('fullListSearch').value || '').toLowerCase().trim();
   const container = document.getElementById('fullListContainer');
   let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', done: !!scanned[i] }));
-  if (query) items = items.filter(r => r.track.toLowerCase().includes(query) || r.wh.toLowerCase().includes(query));
+  if (query) items = items.filter(r => r.track.toLowerCase().includes(query) || whMatchesQuery(r.wh, query));
   container.innerHTML = items.length === 0
     ? '<div style="padding:14px;text-align:center;color:#999">Ничего не найдено</div>'
     : items.map(r => `<div class="fulllist-item">
@@ -1162,17 +1189,19 @@ function renderFullList() {
 
 async function editWarehouse(idx, newWh) {
   if (!activeShipmentId || idx < 0 || idx >= TABLE.length) return;
-  TABLE[idx][1] = newWh.trim();
+  const clean = capitalizeWh(newWh.trim());  // авто-заглавная, союзы маленькими
+  TABLE[idx][1] = clean;
   // Update in Firestore
   const doc = await shipmentsRef().doc(activeShipmentId).get();
   if (doc.exists) {
     const data = doc.data().data;
     if (data[idx]) {
-      if (Array.isArray(data[idx])) data[idx][1] = newWh.trim();
-      else data[idx].w = newWh.trim();
+      if (Array.isArray(data[idx])) data[idx][1] = clean;
+      else data[idx].w = clean;
       await shipmentsRef().doc(activeShipmentId).update({ data });
     }
   }
+  renderFullList();  // перерисуем чтобы показать склад с заглавной
 }
 
 function toggleScannedList() {
