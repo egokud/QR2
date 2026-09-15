@@ -418,6 +418,10 @@ body.dark .auth-card input::placeholder{color:#6b5fa0}
 .profile-info-val{color:#1a1a1a}
 body.dark .profile-info-val{color:#e0d8ff}
 body.dark .profile-card div{color:#c4b8f0}
+  .reg-check { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: #666; margin: 4px 0 8px; text-align: left; cursor: pointer; line-height: 1.4; }
+  .reg-check input { width: 16px; height: 16px; margin-top: 1px; flex-shrink: 0; }
+  .reg-check a { color: #6C4DB8; }
+  body.dark .reg-check { color: #a89de0; }
 </style>
 </head>
 <body>
@@ -454,6 +458,8 @@ body.dark .profile-card div{color:#c4b8f0}
     <input type="email" id="regEmail" placeholder="Email">
     <input type="password" id="regPass" placeholder="Пароль (мин. 6 символов)">
     <input type="password" id="regPass2" placeholder="Повторите пароль">
+    <label class="reg-check"><input type="checkbox" id="regChk1"><span>Я принимаю условия <a href="/offer.html" target="_blank">публичной оферты</a> и <a href="/terms.html" target="_blank">пользовательского соглашения</a></span></label>
+    <label class="reg-check"><input type="checkbox" id="regChk2"><span>Я согласен на <a href="/consent.html" target="_blank">обработку персональных данных</a> согласно <a href="/privacy.html" target="_blank">политике конфиденциальности</a></span></label>
     <button class="btn-primary" id="regBtn" onclick="doRegister()">Зарегистрироваться</button>
     <div class="auth-links"><a href="#" onclick="showScreen('login');return false">← Вход</a></div>
   </div>
@@ -641,6 +647,19 @@ body.dark .profile-card div{color:#c4b8f0}
     </div>
 
     <div class="profile-card">
+      <h3><i class="ti ti-coin" aria-hidden="true" style="font-size:14px;margin-right:4px;"></i> Валюта</h3>
+      <div class="profile-field">
+        <label>Валюта расчётов</label>
+        <select id="profileCurrency" onchange="saveCurrency()" style="width:100%;border:1.5px solid #e0d8ff;border-radius:8px;padding:10px;font-size:14px;outline:none;color:#1a1440;">
+          <option value="BYN">BYN — белорусский рубль</option>
+          <option value="RUB">RUB — российский рубль</option>
+          <option value="KZT">KZT — казахстанский тенге</option>
+        </select>
+      </div>
+      <div id="currencyMsg" class="profile-msg" style="display:none"></div>
+    </div>
+
+    <div class="profile-card">
       <h3><i class="ti ti-info-circle" aria-hidden="true" style="font-size:14px;margin-right:4px;"></i> Информация</h3>
       <div style="font-size:13px;color:#777;">
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">
@@ -821,14 +840,21 @@ async function doRegister() {
   if (!name || !email || !pass) { showError('regError', 'Заполните все поля'); return; }
   if (pass.length < 6) { showError('regError', 'Пароль минимум 6 символов'); return; }
   if (pass !== pass2) { showError('regError', 'Пароли не совпадают'); return; }
+  if (!document.getElementById('regChk1').checked || !document.getElementById('regChk2').checked) {
+    showError('regError', 'Необходимо принять условия и согласиться с обработкой данных');
+    return;
+  }
   document.getElementById('regBtn').disabled = true;
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await cred.user.updateProfile({ displayName: name });
     const role = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
     await db.collection('users').doc(cred.user.uid).set({
-      name, email, role, created: firebase.firestore.FieldValue.serverTimestamp()
+      name, email, role, created: firebase.firestore.FieldValue.serverTimestamp(),
+      acceptedTerms: true, acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    // Задача 3: письмо подтверждения email
+    try { await cred.user.sendEmailVerification(); } catch(ve) {}
   } catch(e) {
     const msg = e.code === 'auth/email-already-in-use' ? 'Email уже зарегистрирован' :
       e.code === 'auth/weak-password' ? 'Слишком простой пароль' :
@@ -2118,6 +2144,8 @@ function openProfile() {
   document.getElementById('profileEmail').value = currentUser.email;
   document.getElementById('themeToggle').checked = document.body.classList.contains('dark');
   document.getElementById('profileName').value = userProfile.name || '';
+  const curSel = document.getElementById('profileCurrency');
+  if (curSel) curSel.value = userProfile.currency || 'BYN';
   document.getElementById('profileRole').textContent = userProfile.role === 'admin' ? 'Администратор' : 'Пользователь';
   const created = userProfile.created?.toDate ? userProfile.created.toDate() : new Date(userProfile.created || Date.now());
   document.getElementById('profileCreated').textContent = created.toLocaleDateString('ru');
@@ -2133,6 +2161,18 @@ function openProfile() {
 
 function closeProfile() {
   document.getElementById('profileOverlay').classList.remove('show');
+}
+
+async function saveCurrency() {
+  const cur = document.getElementById('profileCurrency').value;
+  userProfile.currency = cur;
+  try {
+    await db.collection('users').doc(currentUser.uid).update({ currency: cur });
+    const msg = document.getElementById('currencyMsg');
+    msg.textContent = '✅ Валюта сохранена: ' + cur;
+    msg.style.display = 'block'; msg.style.color = '#22a05c';
+    setTimeout(() => msg.style.display = 'none', 2000);
+  } catch(e) {}
 }
 
 async function saveName() {
