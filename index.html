@@ -148,6 +148,7 @@ body.dark .rate-field input{background:#2a2545;border-color:rgba(255,255,255,0.1
 .fulllist-item:last-child{border-bottom:none}
 .fulllist-idx{color:#ccc;width:24px;text-align:right;flex-shrink:0;font-size:11px}
 .fulllist-track{color:#1a1a1a;font-family:monospace;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qty-b{background:#F5A623;color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:8px;font-family:sans-serif}
 .fulllist-wh{flex-shrink:0}
 .fulllist-wh input{border:1px solid #e0e0e0;border-radius:6px;padding:5px 8px;font-size:12px;width:100px;outline:none;color:#7c6ff7;font-weight:600}
 .fulllist-wh input:focus{border-color:#7c6ff7}
@@ -1219,7 +1220,7 @@ async function loadShipmentData(id) {
   const cacheBtn = document.getElementById('btnCacheImages');
   if (cacheBtn) { cacheBtn.classList.remove('caching'); }
   const doc = await shipmentsRef().doc(id).get();
-  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'']);
+  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1']);
   currentRates = (doc.exists && doc.data().rates) ? { ...DEFAULT_RATES, ...doc.data().rates } : { ...DEFAULT_RATES };
   currentWeights = (doc.exists && doc.data().weights) ? { ...doc.data().weights } : {};
   currentTare = (doc.exists && doc.data().tare) ? doc.data().tare : 0;
@@ -1676,7 +1677,7 @@ function renderWarehouseGrouped(items, container) {
     html += g.items.map(r => `<div class="fulllist-item">
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${r.track}</span>
+        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
         <span class="fulllist-price">¥${(parseFloat(r.price)||0).toFixed(2)}</span>
       </div>`).join('');
   }
@@ -1696,7 +1697,7 @@ function renderWarehouseGrouped(items, container) {
 function renderFullList() {
   const query = (document.getElementById('fullListSearch').value || '').toLowerCase().trim();
   const container = document.getElementById('fullListContainer');
-  let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', price: r[3]||'', done: !!scanned[i] }));
+  let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', price: r[3]||'', qty: parseInt(r[5])||1, done: !!scanned[i] }));
   if (query) items = items.filter(r => r.track.toLowerCase().includes(query) || whMatchesQuery(r.wh, query));
   if (listSortMode === 'warehouse') { renderWarehouseGrouped(items, container); return; }
   container.innerHTML = items.length === 0
@@ -1705,7 +1706,7 @@ function renderFullList() {
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${r.track}</span>
+        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
         <span class="fulllist-wh"><input value="${r.wh}" onchange="editWarehouse(${r.idx}, this.value)" /></span>
       </div>`).join('');
   // Инициализируем картинки в списке через JS (избегаем inline handlers)
@@ -1765,7 +1766,7 @@ function toggleRemainingList() {
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">⬜</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${r.track}</span>
+        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
         <span class="fulllist-wh"><input value="${r.wh}" data-idx="${r.idx}" /></span>
       </div>`).join('');
   document.querySelectorAll('.fulllist-img-wrap').forEach(wrap => {
