@@ -191,6 +191,28 @@ body.dark .weigh-client-name{color:#e0d8ff}
 .weigh-client input:focus{border-color:#6C4DB8}
 body.dark .weigh-client input{background:#2a2545;color:#a78bfa}
 .weigh-unit{font-size:12px;color:#999;margin-left:4px}
+.calc-screen{display:none;position:fixed;inset:0;background:#f4f1ff;z-index:200;flex-direction:column}
+.calc-screen.show{display:flex}
+body.dark .calc-screen{background:#0f0e1a}
+.calc-grand{background:#1a1440;color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.calc-grand-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.calc-grand-row:last-child{margin-bottom:0}
+.calc-grand-label{font-size:13px;color:#a89de0}
+.calc-grand-val{font-size:20px;font-weight:800}
+.calc-grand-val.profit{color:#4ade80}
+.calc-client{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(108,77,184,0.06)}
+body.dark .calc-client{background:#1e1b35}
+.calc-client-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.calc-client-name{font-size:17px;font-weight:700;color:#1a1440}
+body.dark .calc-client-name{color:#e0d8ff}
+.calc-client-due{font-size:22px;font-weight:800;color:#6C4DB8}
+.calc-rows{font-size:13px;color:#666}
+body.dark .calc-rows{color:#a89de0}
+.calc-row{display:flex;justify-content:space-between;padding:3px 0}
+.calc-row.total{border-top:1px solid #eee;margin-top:6px;padding-top:8px;font-weight:700;color:#1a1440}
+body.dark .calc-row.total{border-color:rgba(255,255,255,0.1);color:#e0d8ff}
+.calc-row.profit{color:#22c55e;font-weight:600}
+.calc-noweight{background:#fff3cd;color:#856404;font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px}
 .overlay-card{background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:380px;text-align:center;animation:popIn .2s ease}
 @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 .overlay-card.success-card{background:#f0fdf4;border:2px solid #86efac}
@@ -619,6 +641,18 @@ body.dark .profile-card div{color:#c4b8f0}
   </div>
 </div>
 
+<div class="calc-screen" id="calcScreen">
+  <div class="weigh-header">
+    <button class="weigh-back" onclick="closeCalc()"><i class="ti ti-arrow-left"></i></button>
+    <span class="weigh-title">Расчёт по клиентам</span>
+    <button class="weigh-done" id="calcExportBtn" onclick="alert('Выгрузка — следующий этап')"><i class="ti ti-download"></i></button>
+  </div>
+  <div class="weigh-body">
+    <div class="calc-grand" id="calcGrand"></div>
+    <div id="calcList"></div>
+  </div>
+</div>
+
 <div class="scan-overlay" id="weighPrompt" onclick="event.stopPropagation()">
   <div class="overlay-card">
     <div class="overlay-icon"><i class="ti ti-scale" style="color:#6C4DB8"></i></div>
@@ -907,10 +941,97 @@ function onTareChange() {
   saveWeights();
 }
 
-// Заглушка расчёта — реализуем в Этапе 4
+// ============ РАСЧЁТ ПО КЛИЕНТАМ (Этап 4) ============
+// Считает по каждому клиенту: юани, вес+доля тары, клиент должен, прибыль.
+function computeClientCalc() {
+  const { names, counts } = getClientsInShipment();
+  const r = currentRates;
+
+  // Собираем по клиентам: сумма закупки (юани), сумма цены клиента (юани)
+  const buyYuan = {};   // клиент -> Σ цена закупки
+  const clientYuan = {}; // клиент -> Σ цена клиента
+  for (const row of TABLE) {
+    const wh = row[1] || '';
+    const parts = splitWarehouses(wh);
+    if (!parts.length) continue;
+    const buyPrice = parseFloat(row[3]) || 0;         // цена закупки (r[3])
+    const cliPrice = parseFloat(row[4]) || buyPrice;  // цена клиента (r[4]); если нет — = закупке
+    for (const p of parts) {
+      buyYuan[p] = (buyYuan[p] || 0) + buyPrice / parts.length;      // сборный: делим
+      clientYuan[p] = (clientYuan[p] || 0) + cliPrice / parts.length;
+    }
+  }
+
+  // Общий вес клиентов (для распределения тары)
+  let totalClientWeight = 0;
+  for (const n of names) totalClientWeight += (currentWeights[n] || 0);
+
+  // Итоговый вес для доставки: max(вес карго, наш вес). Разница если карго больше = тара.
+  const ourWeight = totalClientWeight;
+  const effectiveTotal = Math.max(currentCargoWeight || 0, ourWeight);
+  // Тара = введённая тара ИЛИ разница карго-наш (что больше учитываем как тару сверх веса клиентов)
+  const tareTotal = Math.max(currentTare || 0, (currentCargoWeight || 0) - ourWeight);
+
+  const clients = names.map(name => {
+    const w = currentWeights[name] || 0;
+    // доля тары пропорционально весу
+    const tareShare = totalClientWeight > 0 ? (w / totalClientWeight) * tareTotal : 0;
+    const shipWeight = w + tareShare;
+
+    const goodsClient = (clientYuan[name] || 0) * r.clientRate;   // товар клиенту в ₽
+    const goodsCost = (buyYuan[name] || 0) * r.buyRate;           // себестоимость товара в ₽
+    const shipClient = shipWeight * r.shipClient;                 // доставка клиенту в ₽
+    const shipCost = shipWeight * r.shipCargo;                    // доставка себестоимость в ₽
+
+    const due = goodsClient + shipClient;                        // клиент должен
+    const profit = (goodsClient - goodsCost) + (shipClient - shipCost); // прибыль
+
+    return {
+      name, count: counts[name],
+      yuan: clientYuan[name] || 0,
+      weight: w, tareShare, shipWeight,
+      goodsClient, shipClient, due, profit,
+      noWeight: w === 0
+    };
+  });
+
+  const grandDue = clients.reduce((s,c)=>s+c.due, 0);
+  const grandProfit = clients.reduce((s,c)=>s+c.profit, 0);
+  return { clients, grandDue, grandProfit, ourWeight, effectiveTotal, tareTotal };
+}
+
 function openCalc() {
   closeWeighing();
-  alert('Экран расчёта по клиентам — следующий этап');
+  if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
+  renderCalc();
+  document.getElementById('calcScreen').classList.add('show');
+}
+
+function closeCalc() {
+  document.getElementById('calcScreen').classList.remove('show');
+}
+
+function renderCalc() {
+  const { clients, grandDue, grandProfit } = computeClientCalc();
+
+  document.getElementById('calcGrand').innerHTML = `
+    <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)} ₽</span></div>
+    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)} ₽</span></div>`;
+
+  document.getElementById('calcList').innerHTML = clients.map(c => `
+    <div class="calc-client">
+      <div class="calc-client-head">
+        <span class="calc-client-name">${c.name}</span>
+        <span class="calc-client-due">${c.due.toFixed(0)} ₽</span>
+      </div>
+      ${c.noWeight ? '<div class="calc-noweight"><i class="ti ti-alert-triangle"></i> Вес не указан — доставка не посчитана</div>' : ''}
+      <div class="calc-rows">
+        <div class="calc-row"><span>Товар (${c.count} поз., ¥${c.yuan.toFixed(2)})</span><span>${c.goodsClient.toFixed(0)} ₽</span></div>
+        <div class="calc-row"><span>Доставка (${(c.shipWeight*1000).toFixed(0)} г)</span><span>${c.shipClient.toFixed(0)} ₽</span></div>
+        <div class="calc-row total"><span>Клиент должен</span><span>${c.due.toFixed(0)} ₽</span></div>
+        <div class="calc-row profit"><span>Твоя прибыль</span><span>${c.profit.toFixed(0)} ₽</span></div>
+      </div>
+    </div>`).join('');
 }
 
 // Показать/скрыть строку курсов, заполнить поля текущими значениями
