@@ -612,8 +612,8 @@ body.dark .profile-card div{color:#c4b8f0}
   </div>
   <div class="weigh-body">
     <div class="weigh-tare">
-      <label>Вес тары (коробки), кг</label>
-      <input type="number" step="0.05" id="tareInput" placeholder="0.00" onchange="onTareChange()">
+      <label>Вес тары (коробки), г</label>
+      <input type="number" step="50" inputmode="numeric" id="tareInput" placeholder="0" onchange="onTareChange()">
     </div>
     <div class="weigh-list" id="weighList"></div>
   </div>
@@ -869,7 +869,7 @@ function getClientsInShipment() {
 function openWeighing() {
   if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
   renderWeighList();
-  document.getElementById('tareInput').value = currentTare || '';
+  document.getElementById('tareInput').value = currentTare ? Math.round(currentTare * 1000) : '';
   document.getElementById('weighScreen').classList.add('show');
 }
 
@@ -884,15 +884,16 @@ function renderWeighList() {
     const w = currentWeights[name] || '';
     return `<div class="weigh-client ${w ? 'filled' : ''}" id="wc-${encodeURIComponent(name)}">
       <div class="weigh-client-name">${name} <span class="weigh-client-count">${counts[name]} поз.</span></div>
-      <input type="number" step="0.05" placeholder="0.00" value="${w}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)">
-      <span class="weigh-unit">кг</span>
+      <input type="number" step="50" inputmode="numeric" placeholder="0" value="${w ? Math.round(w*1000) : ''}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)">
+      <span class="weigh-unit">г</span>
     </div>`;
   }).join('');
 }
 
 function onWeightChange(input) {
   const name = decodeURIComponent(input.dataset.name);
-  const val = parseFloat(input.value) || 0;
+  const grams = parseFloat(input.value) || 0;
+  const val = grams / 1000;  // храним в кг, вводим в граммах
   if (val > 0) currentWeights[name] = val;
   else delete currentWeights[name];
   const card = document.getElementById('wc-' + encodeURIComponent(name));
@@ -901,7 +902,8 @@ function onWeightChange(input) {
 }
 
 function onTareChange() {
-  currentTare = parseFloat(document.getElementById('tareInput').value) || 0;
+  const grams = parseFloat(document.getElementById('tareInput').value) || 0;
+  currentTare = grams / 1000;  // храним в кг, вводим в граммах
   saveWeights();
 }
 
