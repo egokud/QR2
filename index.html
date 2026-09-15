@@ -901,61 +901,84 @@ function toggleOwner(name) {
   renderCalc();
 }
 
-// ============ ВЫГРУЗКА ОТЧЁТА В PDF (через печать) ============
+// ============ ВЫГРУЗКА ОТЧЁТА В PDF (через печать, табличный вид) ============
 function exportCalcPDF() {
   const { clients, grandDue, grandProfit, ourWeight, tareTotal } = computeClientCalc();
   const shipName = document.getElementById('shipmentSelect').selectedOptions[0]?.text || 'Приход';
   const totalWeight = (ourWeight + tareTotal);
   const dateStr = new Date().toLocaleDateString('ru-RU');
 
-  const rows = clients.map(c => {
+  const bodyRows = clients.map(c => {
     if (c.isOwner) {
       const cost = c.goodsCost + c.shipCost;
-      return `<div class="p-client p-owner">
-        <div class="p-head"><b>${c.name} (это я)</b><b class="p-cost">−${cost.toFixed(0)} ₽</b></div>
-        <div class="p-row"><span>Мои товары (${c.count} поз., ¥${c.yuan.toFixed(2)}) по себестоимости</span><span>${c.goodsCost.toFixed(0)} ₽</span></div>
-        <div class="p-row"><span>Моя доставка (${(c.shipWeight*1000).toFixed(0)} г) по себестоимости</span><span>${c.shipCost.toFixed(0)} ₽</span></div>
-        <div class="p-row p-total p-cost"><span>Мои затраты (минус из прибыли)</span><span>−${cost.toFixed(0)} ₽</span></div>
-      </div>`;
+      return `<tr class="owner">
+        <td class="nm">${c.name} <span class="tag">это я</span></td>
+        <td class="n">${c.count}</td>
+        <td class="n">${c.yuan.toFixed(0)}</td>
+        <td class="n">${(c.shipWeight*1000).toFixed(0)}</td>
+        <td class="n">${c.goodsCost.toFixed(0)}</td>
+        <td class="n">${c.shipCost.toFixed(0)}</td>
+        <td class="n due cost">−${cost.toFixed(0)}</td>
+        <td class="n cost">−${cost.toFixed(0)}</td>
+      </tr>`;
     }
-    return `<div class="p-client">
-      <div class="p-head"><b>${c.name}</b><b class="p-due">${c.due.toFixed(0)} ₽</b></div>
-      <div class="p-row"><span>Товар (${c.count} поз., ¥${c.yuan.toFixed(2)})</span><span>${c.goodsClient.toFixed(0)} ₽</span></div>
-      <div class="p-row"><span>Доставка (${(c.shipWeight*1000).toFixed(0)} г)</span><span>${c.shipClient.toFixed(0)} ₽</span></div>
-      <div class="p-row p-total"><span>Клиент должен</span><span>${c.due.toFixed(0)} ₽</span></div>
-      <div class="p-row p-profit"><span>Прибыль</span><span>${c.profit.toFixed(0)} ₽</span></div>
-    </div>`;
+    return `<tr>
+      <td class="nm">${c.name}</td>
+      <td class="n">${c.count}</td>
+      <td class="n">${c.yuan.toFixed(0)}</td>
+      <td class="n">${(c.shipWeight*1000).toFixed(0)}</td>
+      <td class="n">${c.goodsClient.toFixed(0)}</td>
+      <td class="n">${c.shipClient.toFixed(0)}</td>
+      <td class="n due">${c.due.toFixed(0)}</td>
+      <td class="n prof">${c.profit.toFixed(0)}</td>
+    </tr>`;
   }).join('');
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Отчёт — ${shipName}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Arial,sans-serif}
-    body{padding:20px;color:#1a1440;font-size:13px}
+    body{padding:20px;color:#1a1440}
     h1{font-size:18px;margin-bottom:2px}
     .sub{color:#888;font-size:12px;margin-bottom:14px}
-    .grand{background:#1a1440;color:#fff;border-radius:10px;padding:14px;margin-bottom:16px}
-    .grand div{display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px}
-    .grand div:last-child{margin-bottom:0}
-    .grand .val{font-weight:800;font-size:18px}
-    .grand .profit{color:#4ade80}
-    .p-client{border:1px solid #e0d8ff;border-radius:10px;padding:12px;margin-bottom:8px;page-break-inside:avoid}
-    .p-owner{border-color:#e24b4a;background:#fef2f2}
-    .p-head{display:flex;justify-content:space-between;font-size:15px;margin-bottom:8px}
-    .p-due{color:#6C4DB8}
-    .p-cost{color:#e24b4a}
-    .p-row{display:flex;justify-content:space-between;padding:3px 0;color:#555;font-size:12px}
-    .p-total{border-top:1px solid #eee;margin-top:5px;padding-top:6px;font-weight:700;color:#1a1440}
-    .p-profit{color:#22c55e;font-weight:600}
+    .grand{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+    .gcard{background:#f4f1ff;border-radius:8px;padding:10px 14px;flex:1;min-width:120px}
+    .gcard .lbl{font-size:11px;color:#888}
+    .gcard .val{font-size:20px;font-weight:800;color:#6C4DB8}
+    .gcard .val.profit{color:#22a05c}
+    .gcard .val.minus{color:#e24b4a}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#1a1440;color:#fff;padding:8px 6px;text-align:right;font-weight:600;font-size:11px}
+    th:first-child{text-align:left;border-radius:6px 0 0 0}
+    th:last-child{border-radius:0 6px 0 0}
+    td{padding:8px 6px;border-bottom:1px solid #eee}
+    td.nm{text-align:left;font-weight:600}
+    td.n{text-align:right;font-variant-numeric:tabular-nums}
+    td.due{font-weight:800;color:#6C4DB8}
+    td.prof{color:#22a05c;font-weight:600}
+    td.cost{color:#e24b4a;font-weight:600}
+    tr.owner td{background:#fef2f2}
+    .tag{font-size:9px;background:#e24b4a;color:#fff;border-radius:4px;padding:1px 5px;font-weight:400;vertical-align:middle}
+    tr.total td{border-top:2px solid #1a1440;border-bottom:none;font-weight:800;font-size:13px;padding-top:10px}
+    tr.total td.due{color:#6C4DB8}
+    tr.total td.prof{color:${grandProfit<0?'#e24b4a':'#22a05c'}}
     @media print{body{padding:0}}
   </style></head><body>
     <h1>Финансовый отчёт</h1>
     <div class="sub">${shipName} · ${dateStr}</div>
     <div class="grand">
-      <div><span>Все клиенты должны</span><span class="val">${grandDue.toFixed(0)} ₽</span></div>
-      <div><span>Твоя прибыль</span><span class="val profit">${grandProfit.toFixed(0)} ₽</span></div>
-      <div><span>Общий вес</span><span class="val">${totalWeight.toFixed(2)} кг</span></div>
+      <div class="gcard"><div class="lbl">Клиенты должны</div><div class="val">${grandDue.toFixed(0)} ₽</div></div>
+      <div class="gcard"><div class="lbl">Твоя прибыль</div><div class="val ${grandProfit<0?'minus':'profit'}">${grandProfit.toFixed(0)} ₽</div></div>
+      <div class="gcard"><div class="lbl">Общий вес</div><div class="val">${totalWeight.toFixed(2)} кг</div></div>
     </div>
-    ${rows}
+    <table>
+      <thead><tr>
+        <th>Клиент</th><th>Поз.</th><th>¥</th><th>Вес,г</th><th>Товар ₽</th><th>Дост. ₽</th><th>Должен ₽</th><th>Приб. ₽</th>
+      </tr></thead>
+      <tbody>
+        ${bodyRows}
+        <tr class="total"><td class="nm">Итого</td><td></td><td></td><td class="n">${(totalWeight*1000).toFixed(0)}</td><td></td><td></td><td class="n due">${grandDue.toFixed(0)}</td><td class="n prof">${grandProfit.toFixed(0)}</td></tr>
+      </tbody>
+    </table>
   </body></html>`;
 
   const w = window.open('', '_blank');
