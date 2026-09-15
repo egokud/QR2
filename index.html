@@ -419,10 +419,10 @@ body.dark .profile-card div{color:#c4b8f0}
   <div class="shipment-row">
     <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()"></select>
     <button class="btn-icon-cache" id="btnCacheImages" onclick="cacheShipmentImages()" title="Загрузить картинки заранее (для надёжности при плохом интернете)"><i class="ti ti-cloud-download" aria-hidden="true"></i></button>
-    <button class="btn-icon-cache" id="btnRates" onclick="toggleRatesRow()" title="Курсы этого прихода"><i class="ti ti-settings" aria-hidden="true"></i></button>
     <div class="menu-wrap">
       <button class="btn-icon-menu" id="btnMenu" onclick="toggleShipMenu(event)" title="Ещё"><i class="ti ti-dots-vertical" aria-hidden="true"></i></button>
       <div class="ship-menu" id="shipMenu">
+        <button onclick="toggleRatesRow();closeShipMenu()"><i class="ti ti-settings" aria-hidden="true"></i> Курсы прихода</button>
         <button onclick="openUploadModal();closeShipMenu()"><i class="ti ti-plus" aria-hidden="true"></i> Добавить приход</button>
         <button onclick="deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>
       </div>
@@ -791,16 +791,19 @@ async function saveRates() {
 }
 
 // Показать/скрыть строку курсов, заполнить поля текущими значениями
+function fillRateFields() {
+  const rc = document.getElementById('rateClient'); if (!rc) return;
+  rc.value = currentRates.clientRate;
+  document.getElementById('rateBuy').value = currentRates.buyRate;
+  document.getElementById('rateShipClient').value = currentRates.shipClient;
+  document.getElementById('rateShipCargo').value = currentRates.shipCargo;
+}
+
 function toggleRatesRow() {
   const row = document.getElementById('ratesRow');
   const show = row.style.display === 'none';
   row.style.display = show ? 'block' : 'none';
-  if (show) {
-    document.getElementById('rateClient').value = currentRates.clientRate;
-    document.getElementById('rateBuy').value = currentRates.buyRate;
-    document.getElementById('rateShipClient').value = currentRates.shipClient;
-    document.getElementById('rateShipCargo').value = currentRates.shipCargo;
-  }
+  if (show) fillRateFields();
 }
 
 // При изменении любого поля курса — обновляем currentRates и сохраняем в приход
@@ -841,6 +844,9 @@ async function loadShipmentData(id) {
   const doc = await shipmentsRef().doc(id).get();
   const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'']);
   currentRates = (doc.exists && doc.data().rates) ? { ...DEFAULT_RATES, ...doc.data().rates } : { ...DEFAULT_RATES };
+  // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
+  const ratesRow = document.getElementById('ratesRow');
+  if (ratesRow && ratesRow.style.display !== 'none') fillRateFields();
   // Demo mode: limit to 5 tracks
   if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
   const scDoc = await scannedRef(id).get();
