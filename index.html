@@ -148,6 +148,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .fulllist-wh input:focus{border-color:#7c6ff7}
 .fulllist-status{width:20px;flex-shrink:0;text-align:center;font-size:14px}
 .fulllist-search{width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:9px;font-size:13px;outline:none;margin-bottom:8px}
+.fulllist-price{margin-left:auto;font-weight:700;color:#1a1a1a;font-size:14px;padding-left:8px}
+body.dark .fulllist-price{color:#fff}
+.sort-toggle{flex:1;padding:7px;border:1.5px solid #e0d8ff;border-radius:8px;background:#fff;color:#6C4DB8;font-size:13px;font-weight:600;cursor:pointer}
+.sort-toggle.sort-active{background:#6C4DB8;color:#fff;border-color:#6C4DB8}
+.wh-group-header{background:#f4f1ff;padding:8px 12px;font-weight:700;color:#1a1440;font-size:14px;border-radius:8px;margin:10px 0 4px;display:flex;justify-content:space-between;align-items:center}
+.wh-group-total{font-size:12px;color:#6C4DB8;font-weight:600}
+.wh-grand-total{background:#1a1440;color:#fff;padding:10px 12px;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;font-weight:700;font-size:14px}
+body.dark .sort-toggle{background:#2a2545;border-color:rgba(255,255,255,0.1);color:#a78bfa}
+body.dark .sort-toggle.sort-active{background:#6C4DB8;color:#fff}
+body.dark .wh-group-header{background:#2a2545;color:#e0d8ff}
 .fulllist-search:focus{border-color:#7c6ff7}
 
 /* Overlay */
@@ -456,6 +466,10 @@ body.dark .profile-card div{color:#c4b8f0}
   </div>
   <div id="fullListWrap" style="display:none;margin-bottom:8px">
     <input type="text" class="fulllist-search" id="fullListSearch" placeholder="Поиск по треку или складу..." oninput="renderFullList()">
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button id="sortDefaultBtn" class="sort-toggle sort-active" onclick="setListSort('default')">Обычный</button>
+      <button id="sortWhBtn" class="sort-toggle" onclick="setListSort('warehouse')">По складам</button>
+    </div>
     <div class="fulllist" id="fullListContainer"></div>
   </div>
   <div class="unscanned-list" id="scannedListWrap" style="display:none"></div>
@@ -777,7 +791,7 @@ async function loadShipmentData(id) {
   const cacheBtn = document.getElementById('btnCacheImages');
   if (cacheBtn) { cacheBtn.classList.remove('caching'); }
   const doc = await shipmentsRef().doc(id).get();
-  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'']);
+  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'']);
   // Demo mode: limit to 5 tracks
   if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
   const scDoc = await scannedRef(id).get();
@@ -1034,6 +1048,16 @@ async function cacheShipmentImages() {
   icon.className = 'ti ti-loader-2';
 
   const cache = await caches.open('piksta-images-v1');
+
+  // Чистим кэш от картинок ДРУГИХ приходов (Safari жёстко лимитирует opaque-картинки)
+  try {
+    const urlSet = new Set(urls);
+    const cachedKeys = await cache.keys();
+    for (const req of cachedKeys) {
+      if (!urlSet.has(req.url)) await cache.delete(req);
+    }
+  } catch(e) {}
+
   let loaded = 0;
 
   // Загружаем параллельно батчами по 8, каждую картинку кладём в Cache API
@@ -1047,7 +1071,14 @@ async function cacheShipmentImages() {
         if (existing) { loaded++; return; }
         // Загружаем и кладём в кэш (opaque response нормально кэшируется)
         const resp = await fetch(url, { mode: 'no-cors', cache: 'force-cache' });
-        await cache.put(url, resp);
+        try {
+          await cache.put(url, resp);
+        } catch(quotaErr) {
+          const allKeys = await cache.keys();
+          for (const k of allKeys) await cache.delete(k);
+          const resp2 = await fetch(url, { mode: 'no-cors', cache: 'force-cache' });
+          await cache.put(url, resp2);
+        }
         loaded++;
       } catch(e) {
         // одна картинка не загрузилась — не страшно, продолжаем
@@ -1156,11 +1187,70 @@ function whMatchesQuery(wh, query){
   return parts.includes(query);
 }
 
+let listSortMode = 'default';
+
+function setListSort(mode) {
+  listSortMode = mode;
+  document.getElementById('sortDefaultBtn').classList.toggle('sort-active', mode === 'default');
+  document.getElementById('sortWhBtn').classList.toggle('sort-active', mode === 'warehouse');
+  renderFullList();
+}
+
+function computeWarehouseStats(items) {
+  const groups = {};
+  for (const r of items) {
+    const parts = splitWarehouses(r.wh);
+    const price = parseFloat(r.price) || 0;
+    if (!parts.length) {
+      const key = '— без склада —';
+      if (!groups[key]) groups[key] = { count: 0, sum: 0, items: [] };
+      groups[key].count += 1; groups[key].sum += price; groups[key].items.push(r);
+      continue;
+    }
+    const share = price / parts.length;
+    for (const wh of parts) {
+      if (!groups[wh]) groups[wh] = { count: 0, sum: 0, items: [] };
+      groups[wh].count += 1; groups[wh].sum += share; groups[wh].items.push(r);
+    }
+  }
+  return groups;
+}
+
+function renderWarehouseGrouped(items, container) {
+  const groups = computeWarehouseStats(items);
+  const names = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ru'));
+  let grandCount = 0, grandSum = 0;
+  for (const n of names) { grandCount += groups[n].count; grandSum += groups[n].sum; }
+  let html = `<div class="wh-grand-total"><span>Складов: ${names.length}</span><span>${grandCount} поз. · ¥${grandSum.toFixed(2)}</span></div>`;
+  for (const name of names) {
+    const g = groups[name];
+    html += `<div class="wh-group-header"><span>${name}</span><span class="wh-group-total">${g.count} поз. · ¥${g.sum.toFixed(2)}</span></div>`;
+    html += g.items.map(r => `<div class="fulllist-item">
+        <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
+        <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
+        <span class="fulllist-track">${r.track}</span>
+        <span class="fulllist-price">¥${(parseFloat(r.price)||0).toFixed(2)}</span>
+      </div>`).join('');
+  }
+  container.innerHTML = html;
+  container.querySelectorAll('.fulllist-img-wrap').forEach(wrap => {
+    const img_url = wrap.dataset.img;
+    if (img_url) {
+      const img = document.createElement('img');
+      img.className = 'fulllist-img'; img.src = img_url;
+      img.addEventListener('error', () => { wrap.innerHTML = '<span class="fulllist-img-ph">📦</span>'; });
+      img.addEventListener('click', () => img.classList.toggle('expanded'));
+      wrap.appendChild(img);
+    } else { wrap.innerHTML = '<span class="fulllist-img-ph">📦</span>'; }
+  });
+}
+
 function renderFullList() {
   const query = (document.getElementById('fullListSearch').value || '').toLowerCase().trim();
   const container = document.getElementById('fullListContainer');
-  let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', done: !!scanned[i] }));
+  let items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', price: r[3]||'', done: !!scanned[i] }));
   if (query) items = items.filter(r => r.track.toLowerCase().includes(query) || whMatchesQuery(r.wh, query));
+  if (listSortMode === 'warehouse') { renderWarehouseGrouped(items, container); return; }
   container.innerHTML = items.length === 0
     ? '<div style="padding:14px;text-align:center;color:#999">Ничего не найдено</div>'
     : items.map(r => `<div class="fulllist-item">
