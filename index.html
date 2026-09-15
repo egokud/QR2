@@ -168,6 +168,29 @@ body.dark .wh-group-header{background:#2a2545;color:#e0d8ff}
 /* Overlay */
 .scan-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:24px}
 .scan-overlay.show{display:flex}
+.weigh-screen{display:none;position:fixed;inset:0;background:#f4f1ff;z-index:200;flex-direction:column}
+.weigh-screen.show{display:flex}
+body.dark .weigh-screen{background:#0f0e1a}
+.weigh-header{background:#1a1440;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.weigh-back{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0}
+.weigh-title{color:#fff;font-size:16px;font-weight:600;flex:1}
+.weigh-done{background:#F5A623;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.weigh-body{flex:1;overflow-y:auto;padding:14px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box}
+.weigh-tare{background:#fff3cd;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.weigh-tare label{display:block;font-size:12px;color:#856404;margin-bottom:6px;font-weight:600}
+.weigh-tare input{width:100%;border:1.5px solid #ffc107;border-radius:8px;padding:10px;font-size:18px;font-weight:700;outline:none;box-sizing:border-box;color:#1a1440}
+body.dark .weigh-tare{background:#2a2010}
+body.dark .weigh-tare input{background:#1a1735;color:#e0d8ff}
+.weigh-client{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 4px rgba(108,77,184,0.06)}
+.weigh-client.filled{border:2px solid #6C4DB8}
+body.dark .weigh-client{background:#1e1b35}
+.weigh-client-name{flex:1;font-size:15px;font-weight:600;color:#1a1440}
+body.dark .weigh-client-name{color:#e0d8ff}
+.weigh-client-count{font-size:11px;color:#999;font-weight:400}
+.weigh-client input{width:110px;border:1.5px solid #e0d8ff;border-radius:8px;padding:8px;font-size:16px;font-weight:700;text-align:center;outline:none;color:#6C4DB8}
+.weigh-client input:focus{border-color:#6C4DB8}
+body.dark .weigh-client input{background:#2a2545;color:#a78bfa}
+.weigh-unit{font-size:12px;color:#999;margin-left:4px}
 .overlay-card{background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:380px;text-align:center;animation:popIn .2s ease}
 @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 .overlay-card.success-card{background:#f0fdf4;border:2px solid #86efac}
@@ -422,6 +445,8 @@ body.dark .profile-card div{color:#c4b8f0}
     <div class="menu-wrap">
       <button class="btn-icon-menu" id="btnMenu" onclick="toggleShipMenu(event)" title="Ещё"><i class="ti ti-dots-vertical" aria-hidden="true"></i></button>
       <div class="ship-menu" id="shipMenu">
+        <button onclick="openWeighing();closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
+        <button onclick="openCalc();closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
         <button onclick="toggleRatesRow();closeShipMenu()"><i class="ti ti-settings" aria-hidden="true"></i> Курсы прихода</button>
         <button onclick="openUploadModal();closeShipMenu()"><i class="ti ti-plus" aria-hidden="true"></i> Добавить приход</button>
         <button onclick="deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>
@@ -579,6 +604,31 @@ body.dark .profile-card div{color:#c4b8f0}
   </div>
 </div>
 
+<div class="weigh-screen" id="weighScreen">
+  <div class="weigh-header">
+    <button class="weigh-back" onclick="closeWeighing()"><i class="ti ti-arrow-left"></i></button>
+    <span class="weigh-title">Взвешивание</span>
+    <button class="weigh-done" id="weighDoneBtn" onclick="openCalc()">К расчёту →</button>
+  </div>
+  <div class="weigh-body">
+    <div class="weigh-tare">
+      <label>Вес тары (коробки), кг</label>
+      <input type="number" step="0.05" id="tareInput" placeholder="0.00" onchange="onTareChange()">
+    </div>
+    <div class="weigh-list" id="weighList"></div>
+  </div>
+</div>
+
+<div class="scan-overlay" id="weighPrompt" onclick="event.stopPropagation()">
+  <div class="overlay-card">
+    <div class="overlay-icon"><i class="ti ti-scale" style="color:#6C4DB8"></i></div>
+    <div class="overlay-warehouse" style="font-size:22px">Всё отсканировано!</div>
+    <div class="overlay-track">Готовы перейти к взвешиванию?</div>
+    <button class="overlay-ok" onclick="document.getElementById('weighPrompt').classList.remove('show');openWeighing()">Перейти к взвешиванию</button>
+    <button class="overlay-ok" style="background:#f4f1ff;color:#6C4DB8;margin-top:8px" onclick="document.getElementById('weighPrompt').classList.remove('show')">Позже</button>
+  </div>
+</div>
+
 <!-- Upload modal -->
 <div class="modal-overlay" id="uploadModal">
   <div class="modal-card">
@@ -622,6 +672,10 @@ let activeShipmentId = null;
 // Курсы текущего прихода (раздел Клиенты). Дефолты если приходов ещё не было.
 const DEFAULT_RATES = { clientRate: 0.60, buyRate: 0.46, shipClient: 20, shipCargo: 15 };
 let currentRates = { ...DEFAULT_RATES };
+let currentWeights = {};      // { "Егор": 3.2, "Вероника": 1.8, ... } вес по клиентам
+let currentTare = 0;          // вес тары (коробки)
+let currentCargoWeight = 0;   // вес от карго (Этап 5)
+let shipmentDeparted = false; // галочка "выехала" (Этап 5)
 let scanner = null;
 let scanning = false;
 let allCameras = [];
@@ -790,6 +844,73 @@ async function saveRates() {
   await shipmentsRef().doc(activeShipmentId).update({ rates: currentRates });
 }
 
+async function saveWeights() {
+  if (!activeShipmentId) return;
+  await shipmentsRef().doc(activeShipmentId).update({ weights: currentWeights, tare: currentTare });
+}
+
+// ============ ВЗВЕШИВАНИЕ (Этап 2) ============
+// Уникальные клиенты прихода (склады). Сборные "Алеся и Яна" разбиваем на части.
+function getClientsInShipment() {
+  const set = new Set();
+  const counts = {};  // клиент -> число позиций
+  for (const r of TABLE) {
+    const wh = r[1] || '';
+    const parts = splitWarehouses(wh);
+    if (!parts.length) continue;
+    for (const p of parts) {
+      set.add(p);
+      counts[p] = (counts[p] || 0) + 1;
+    }
+  }
+  return { names: [...set].sort((a,b)=>a.localeCompare(b,'ru')), counts };
+}
+
+function openWeighing() {
+  if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
+  renderWeighList();
+  document.getElementById('tareInput').value = currentTare || '';
+  document.getElementById('weighScreen').classList.add('show');
+}
+
+function closeWeighing() {
+  document.getElementById('weighScreen').classList.remove('show');
+}
+
+function renderWeighList() {
+  const { names, counts } = getClientsInShipment();
+  const list = document.getElementById('weighList');
+  list.innerHTML = names.map(name => {
+    const w = currentWeights[name] || '';
+    return `<div class="weigh-client ${w ? 'filled' : ''}" id="wc-${encodeURIComponent(name)}">
+      <div class="weigh-client-name">${name} <span class="weigh-client-count">${counts[name]} поз.</span></div>
+      <input type="number" step="0.05" placeholder="0.00" value="${w}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)">
+      <span class="weigh-unit">кг</span>
+    </div>`;
+  }).join('');
+}
+
+function onWeightChange(input) {
+  const name = decodeURIComponent(input.dataset.name);
+  const val = parseFloat(input.value) || 0;
+  if (val > 0) currentWeights[name] = val;
+  else delete currentWeights[name];
+  const card = document.getElementById('wc-' + encodeURIComponent(name));
+  if (card) card.classList.toggle('filled', val > 0);
+  saveWeights();
+}
+
+function onTareChange() {
+  currentTare = parseFloat(document.getElementById('tareInput').value) || 0;
+  saveWeights();
+}
+
+// Заглушка расчёта — реализуем в Этапе 4
+function openCalc() {
+  closeWeighing();
+  alert('Экран расчёта по клиентам — следующий этап');
+}
+
 // Показать/скрыть строку курсов, заполнить поля текущими значениями
 function fillRateFields() {
   const rc = document.getElementById('rateClient'); if (!rc) return;
@@ -844,6 +965,10 @@ async function loadShipmentData(id) {
   const doc = await shipmentsRef().doc(id).get();
   const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'']);
   currentRates = (doc.exists && doc.data().rates) ? { ...DEFAULT_RATES, ...doc.data().rates } : { ...DEFAULT_RATES };
+  currentWeights = (doc.exists && doc.data().weights) ? { ...doc.data().weights } : {};
+  currentTare = (doc.exists && doc.data().tare) ? doc.data().tare : 0;
+  currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
+  shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
   // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
   const ratesRow = document.getElementById('ratesRow');
   if (ratesRow && ratesRow.style.display !== 'none') fillRateFields();
@@ -1041,6 +1166,11 @@ function overlayOk() {
   let mw=document.querySelector('.multi-warn'); if(mw)mw.remove();
   if (scanner) try{scanner.resume()}catch(e){}
   setTimeout(()=>document.getElementById('manualInput').focus(),200);
+  // Всё отсканировано (осталось 0) → предлагаем взвешивание
+  const total = TABLE.length, done = Object.keys(scanned).length;
+  if (total > 0 && done >= total) {
+    setTimeout(() => document.getElementById('weighPrompt').classList.add('show'), 400);
+  }
 }
 
 
