@@ -75,6 +75,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-icon-cache.caching{color:#6C4DB8;pointer-events:none}
 .btn-icon-cache.caching i{animation:spin 1s linear infinite}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.rate-field{flex:1;display:flex;flex-direction:column;gap:2px}
+.rate-field span{font-size:10px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rate-field input{border:1px solid #e0d8ff;border-radius:6px;padding:6px;font-size:13px;width:100%;outline:none;color:#1a1440;box-sizing:border-box}
+.rate-field input:focus{border-color:#6C4DB8}
+body.dark .rate-field input{background:#2a2545;border-color:rgba(255,255,255,0.1);color:#e0d8ff}
 .shipment-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:500}
 .shipment-row{display:flex;gap:8px;align-items:center}
 .shipment-select{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px;font-size:15px;font-weight:500;outline:none;background:#fff;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -414,12 +419,22 @@ body.dark .profile-card div{color:#c4b8f0}
   <div class="shipment-row">
     <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()"></select>
     <button class="btn-icon-cache" id="btnCacheImages" onclick="cacheShipmentImages()" title="Загрузить картинки заранее (для надёжности при плохом интернете)"><i class="ti ti-cloud-download" aria-hidden="true"></i></button>
+    <button class="btn-icon-cache" id="btnRates" onclick="toggleRatesRow()" title="Курсы этого прихода"><i class="ti ti-settings" aria-hidden="true"></i></button>
     <div class="menu-wrap">
       <button class="btn-icon-menu" id="btnMenu" onclick="toggleShipMenu(event)" title="Ещё"><i class="ti ti-dots-vertical" aria-hidden="true"></i></button>
       <div class="ship-menu" id="shipMenu">
         <button onclick="openUploadModal();closeShipMenu()"><i class="ti ti-plus" aria-hidden="true"></i> Добавить приход</button>
         <button onclick="deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>
       </div>
+    </div>
+  </div>
+  <div id="ratesRow" style="display:none;margin-top:8px">
+    <div style="font-size:11px;color:#888;margin-bottom:4px">Курсы этого прихода:</div>
+    <div style="display:flex;gap:6px">
+      <label class="rate-field"><span>Клиент ₽/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()"></label>
+      <label class="rate-field"><span>Закупка ₽/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()"></label>
+      <label class="rate-field"><span>Дост.клиент ₽/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()"></label>
+      <label class="rate-field"><span>Дост.карго ₽/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()"></label>
     </div>
   </div>
 </div>
@@ -604,6 +619,9 @@ let TABLE = [];
 let scanned = {};
 let scanHistory = [];
 let activeShipmentId = null;
+// Курсы текущего прихода (раздел Клиенты). Дефолты если приходов ещё не было.
+const DEFAULT_RATES = { clientRate: 0.60, buyRate: 0.46, shipClient: 20, shipCargo: 15 };
+let currentRates = { ...DEFAULT_RATES };
 let scanner = null;
 let scanning = false;
 let allCameras = [];
@@ -765,6 +783,36 @@ async function showApp() {
 
 // ============ SHIPMENTS (FIRESTORE) ============
 function shipmentsRef() { return db.collection('users').doc(currentUser.uid).collection('shipments'); }
+
+// Сохранить курсы текущего прихода в Firebase
+async function saveRates() {
+  if (!activeShipmentId) return;
+  await shipmentsRef().doc(activeShipmentId).update({ rates: currentRates });
+}
+
+// Показать/скрыть строку курсов, заполнить поля текущими значениями
+function toggleRatesRow() {
+  const row = document.getElementById('ratesRow');
+  const show = row.style.display === 'none';
+  row.style.display = show ? 'block' : 'none';
+  if (show) {
+    document.getElementById('rateClient').value = currentRates.clientRate;
+    document.getElementById('rateBuy').value = currentRates.buyRate;
+    document.getElementById('rateShipClient').value = currentRates.shipClient;
+    document.getElementById('rateShipCargo').value = currentRates.shipCargo;
+  }
+}
+
+// При изменении любого поля курса — обновляем currentRates и сохраняем в приход
+function onRateChange() {
+  currentRates = {
+    clientRate: parseFloat(document.getElementById('rateClient').value) || 0,
+    buyRate:    parseFloat(document.getElementById('rateBuy').value) || 0,
+    shipClient: parseFloat(document.getElementById('rateShipClient').value) || 0,
+    shipCargo:  parseFloat(document.getElementById('rateShipCargo').value) || 0,
+  };
+  saveRates();
+}
 function scannedRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('scanned').doc(shipId); }
 function historyRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('history').doc(shipId || activeShipmentId); }
 
@@ -792,6 +840,7 @@ async function loadShipmentData(id) {
   if (cacheBtn) { cacheBtn.classList.remove('caching'); }
   const doc = await shipmentsRef().doc(id).get();
   const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'']);
+  currentRates = (doc.exists && doc.data().rates) ? { ...DEFAULT_RATES, ...doc.data().rates } : { ...DEFAULT_RATES };
   // Demo mode: limit to 5 tracks
   if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
   const scDoc = await scannedRef(id).get();
@@ -843,7 +892,13 @@ async function uploadCSV() {
         }
       }
       if (data.length === 0) { alert('Данные не найдены в CSV'); return; }
-      const ref = await shipmentsRef().add({ name, data, created: firebase.firestore.FieldValue.serverTimestamp() });
+      // Курсы нового прихода копируются с ПОСЛЕДНЕГО прихода (или дефолт если первый)
+      let newRates = { ...DEFAULT_RATES };
+      try {
+        const lastSnap = await shipmentsRef().orderBy('created', 'desc').limit(1).get();
+        if (!lastSnap.empty && lastSnap.docs[0].data().rates) newRates = { ...DEFAULT_RATES, ...lastSnap.docs[0].data().rates };
+      } catch(e) {}
+      const ref = await shipmentsRef().add({ name, data, rates: newRates, created: firebase.firestore.FieldValue.serverTimestamp() });
       closeUploadModal();
       activeShipmentId = ref.id;
       await loadShipments();
