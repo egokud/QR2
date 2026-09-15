@@ -213,6 +213,11 @@ body.dark .calc-rows{color:#a89de0}
 body.dark .calc-row.total{border-color:rgba(255,255,255,0.1);color:#e0d8ff}
 .calc-row.profit{color:#22c55e;font-weight:600}
 .calc-noweight{background:#fff3cd;color:#856404;font-size:12px;padding:8px 10px;border-radius:8px;margin-bottom:10px}
+.owner-chk{font-size:11px;font-weight:400;color:#999;margin-left:8px;cursor:pointer;white-space:nowrap}
+.owner-chk input{vertical-align:middle;margin-right:2px}
+.calc-client.owner{border:2px solid #e24b4a;background:#fef2f2}
+body.dark .calc-client.owner{background:#2a1518;border-color:#e24b4a}
+.owner-cost{color:#e24b4a!important}
 .overlay-card{background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:380px;text-align:center;animation:popIn .2s ease}
 @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 .overlay-card.success-card{background:#f0fdf4;border:2px solid #86efac}
@@ -645,7 +650,7 @@ body.dark .profile-card div{color:#c4b8f0}
   <div class="weigh-header">
     <button class="weigh-back" onclick="closeCalc()"><i class="ti ti-arrow-left"></i></button>
     <span class="weigh-title">Расчёт по клиентам</span>
-    <button class="weigh-done" id="calcExportBtn" onclick="alert('Выгрузка — следующий этап')"><i class="ti ti-download"></i></button>
+    <button class="weigh-done" id="calcExportBtn" onclick="exportCalcPDF()"><i class="ti ti-download"></i> PDF</button>
   </div>
   <div class="weigh-body">
     <div class="calc-grand" id="calcGrand"></div>
@@ -707,6 +712,7 @@ let activeShipmentId = null;
 const DEFAULT_RATES = { clientRate: 0.60, buyRate: 0.46, shipClient: 20, shipCargo: 15 };
 let currentRates = { ...DEFAULT_RATES };
 let currentWeights = {};      // { "Егор": 3.2, "Вероника": 1.8, ... } вес по клиентам
+let currentOwners = {};       // { "Я": true } клиенты помеченные "это владелец" (затраты, не доход)
 let currentTare = 0;          // вес тары (коробки)
 let currentCargoWeight = 0;   // вес от карго (Этап 5)
 let shipmentDeparted = false; // галочка "выехала" (Этап 5)
@@ -883,6 +889,82 @@ async function saveWeights() {
   await shipmentsRef().doc(activeShipmentId).update({ weights: currentWeights, tare: currentTare });
 }
 
+async function saveOwners() {
+  if (!activeShipmentId) return;
+  await shipmentsRef().doc(activeShipmentId).update({ owners: currentOwners });
+}
+
+function toggleOwner(name) {
+  if (currentOwners[name]) delete currentOwners[name];
+  else currentOwners[name] = true;
+  saveOwners();
+  renderCalc();
+}
+
+// ============ ВЫГРУЗКА ОТЧЁТА В PDF (через печать) ============
+function exportCalcPDF() {
+  const { clients, grandDue, grandProfit, ourWeight, tareTotal } = computeClientCalc();
+  const shipName = document.getElementById('shipmentSelect').selectedOptions[0]?.text || 'Приход';
+  const totalWeight = (ourWeight + tareTotal);
+  const dateStr = new Date().toLocaleDateString('ru-RU');
+
+  const rows = clients.map(c => {
+    if (c.isOwner) {
+      const cost = c.goodsCost + c.shipCost;
+      return `<div class="p-client p-owner">
+        <div class="p-head"><b>${c.name} (это я)</b><b class="p-cost">−${cost.toFixed(0)} ₽</b></div>
+        <div class="p-row"><span>Мои товары (${c.count} поз., ¥${c.yuan.toFixed(2)}) по себестоимости</span><span>${c.goodsCost.toFixed(0)} ₽</span></div>
+        <div class="p-row"><span>Моя доставка (${(c.shipWeight*1000).toFixed(0)} г) по себестоимости</span><span>${c.shipCost.toFixed(0)} ₽</span></div>
+        <div class="p-row p-total p-cost"><span>Мои затраты (минус из прибыли)</span><span>−${cost.toFixed(0)} ₽</span></div>
+      </div>`;
+    }
+    return `<div class="p-client">
+      <div class="p-head"><b>${c.name}</b><b class="p-due">${c.due.toFixed(0)} ₽</b></div>
+      <div class="p-row"><span>Товар (${c.count} поз., ¥${c.yuan.toFixed(2)})</span><span>${c.goodsClient.toFixed(0)} ₽</span></div>
+      <div class="p-row"><span>Доставка (${(c.shipWeight*1000).toFixed(0)} г)</span><span>${c.shipClient.toFixed(0)} ₽</span></div>
+      <div class="p-row p-total"><span>Клиент должен</span><span>${c.due.toFixed(0)} ₽</span></div>
+      <div class="p-row p-profit"><span>Прибыль</span><span>${c.profit.toFixed(0)} ₽</span></div>
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Отчёт — ${shipName}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Arial,sans-serif}
+    body{padding:20px;color:#1a1440;font-size:13px}
+    h1{font-size:18px;margin-bottom:2px}
+    .sub{color:#888;font-size:12px;margin-bottom:14px}
+    .grand{background:#1a1440;color:#fff;border-radius:10px;padding:14px;margin-bottom:16px}
+    .grand div{display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px}
+    .grand div:last-child{margin-bottom:0}
+    .grand .val{font-weight:800;font-size:18px}
+    .grand .profit{color:#4ade80}
+    .p-client{border:1px solid #e0d8ff;border-radius:10px;padding:12px;margin-bottom:8px;page-break-inside:avoid}
+    .p-owner{border-color:#e24b4a;background:#fef2f2}
+    .p-head{display:flex;justify-content:space-between;font-size:15px;margin-bottom:8px}
+    .p-due{color:#6C4DB8}
+    .p-cost{color:#e24b4a}
+    .p-row{display:flex;justify-content:space-between;padding:3px 0;color:#555;font-size:12px}
+    .p-total{border-top:1px solid #eee;margin-top:5px;padding-top:6px;font-weight:700;color:#1a1440}
+    .p-profit{color:#22c55e;font-weight:600}
+    @media print{body{padding:0}}
+  </style></head><body>
+    <h1>Финансовый отчёт</h1>
+    <div class="sub">${shipName} · ${dateStr}</div>
+    <div class="grand">
+      <div><span>Все клиенты должны</span><span class="val">${grandDue.toFixed(0)} ₽</span></div>
+      <div><span>Твоя прибыль</span><span class="val profit">${grandProfit.toFixed(0)} ₽</span></div>
+      <div><span>Общий вес</span><span class="val">${totalWeight.toFixed(2)} кг</span></div>
+    </div>
+    ${rows}
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Разрешите всплывающие окна для выгрузки'); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 400);
+}
+
 // ============ ВЗВЕШИВАНИЕ (Этап 2) ============
 // Уникальные клиенты прихода (склады). Сборные "Алеся и Яна" разбиваем на части.
 function getClientsInShipment() {
@@ -983,20 +1065,28 @@ function computeClientCalc() {
     const shipClient = shipWeight * r.shipClient;                 // доставка клиенту в ₽
     const shipCost = shipWeight * r.shipCargo;                    // доставка себестоимость в ₽
 
-    const due = goodsClient + shipClient;                        // клиент должен
-    const profit = (goodsClient - goodsCost) + (shipClient - shipCost); // прибыль
+    const isOwner = !!currentOwners[name];
+    let due, profit;
+    if (isOwner) {
+      // Клиент "это я" (владелец): дохода нет, товары+доставка по СЕБЕСТОИМОСТИ = затраты (минус)
+      due = 0;
+      profit = -(goodsCost + shipCost);  // вычитается из общей прибыли
+    } else {
+      due = goodsClient + shipClient;                        // клиент должен
+      profit = (goodsClient - goodsCost) + (shipClient - shipCost); // прибыль
+    }
 
     return {
-      name, count: counts[name],
+      name, count: counts[name], isOwner,
       yuan: clientYuan[name] || 0,
       weight: w, tareShare, shipWeight,
-      goodsClient, shipClient, due, profit,
+      goodsClient, shipClient, goodsCost, shipCost, due, profit,
       noWeight: w === 0
     };
   });
 
-  const grandDue = clients.reduce((s,c)=>s+c.due, 0);
-  const grandProfit = clients.reduce((s,c)=>s+c.profit, 0);
+  const grandDue = clients.reduce((s,c)=>s+c.due, 0);       // сколько должны реальные клиенты
+  const grandProfit = clients.reduce((s,c)=>s+c.profit, 0); // итог с учётом затрат владельца (может быть минус)
   return { clients, grandDue, grandProfit, ourWeight, effectiveTotal, tareTotal };
 }
 
@@ -1018,10 +1108,25 @@ function renderCalc() {
     <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)} ₽</span></div>
     <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)} ₽</span></div>`;
 
-  document.getElementById('calcList').innerHTML = clients.map(c => `
-    <div class="calc-client">
+  document.getElementById('calcList').innerHTML = clients.map(c => {
+    const ownerChk = `<label class="owner-chk"><input type="checkbox" ${c.isOwner?'checked':''} onchange="toggleOwner('${c.name.replace(/'/g,"\\'")}')"> это я</label>`;
+    if (c.isOwner) {
+      // Владелец — затраты (красным)
+      return `<div class="calc-client owner">
+        <div class="calc-client-head">
+          <span class="calc-client-name">${c.name} ${ownerChk}</span>
+          <span class="calc-client-due owner-cost">−${(c.goodsCost+c.shipCost).toFixed(0)} ₽</span>
+        </div>
+        <div class="calc-rows">
+          <div class="calc-row"><span>Мои товары (${c.count} поз., ¥${c.yuan.toFixed(2)}) по себестоимости</span><span>${c.goodsCost.toFixed(0)} ₽</span></div>
+          <div class="calc-row"><span>Моя доставка (${(c.shipWeight*1000).toFixed(0)} г) по себестоимости</span><span>${c.shipCost.toFixed(0)} ₽</span></div>
+          <div class="calc-row total owner-cost"><span>Мои затраты (минус из прибыли)</span><span>−${(c.goodsCost+c.shipCost).toFixed(0)} ₽</span></div>
+        </div>
+      </div>`;
+    }
+    return `<div class="calc-client">
       <div class="calc-client-head">
-        <span class="calc-client-name">${c.name}</span>
+        <span class="calc-client-name">${c.name} ${ownerChk}</span>
         <span class="calc-client-due">${c.due.toFixed(0)} ₽</span>
       </div>
       ${c.noWeight ? '<div class="calc-noweight"><i class="ti ti-alert-triangle"></i> Вес не указан — доставка не посчитана</div>' : ''}
@@ -1031,7 +1136,8 @@ function renderCalc() {
         <div class="calc-row total"><span>Клиент должен</span><span>${c.due.toFixed(0)} ₽</span></div>
         <div class="calc-row profit"><span>Твоя прибыль</span><span>${c.profit.toFixed(0)} ₽</span></div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // Показать/скрыть строку курсов, заполнить поля текущими значениями
@@ -1086,10 +1192,11 @@ async function loadShipmentData(id) {
   const cacheBtn = document.getElementById('btnCacheImages');
   if (cacheBtn) { cacheBtn.classList.remove('caching'); }
   const doc = await shipmentsRef().doc(id).get();
-  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'']);
+  const raw = doc.exists ? doc.data().data : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'']);
   currentRates = (doc.exists && doc.data().rates) ? { ...DEFAULT_RATES, ...doc.data().rates } : { ...DEFAULT_RATES };
   currentWeights = (doc.exists && doc.data().weights) ? { ...doc.data().weights } : {};
   currentTare = (doc.exists && doc.data().tare) ? doc.data().tare : 0;
+  currentOwners = (doc.exists && doc.data().owners) ? { ...doc.data().owners } : {};
   currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
   shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
   // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
