@@ -194,6 +194,28 @@ body.dark .weigh-client input{background:#2a2545;color:#a78bfa}
 .weigh-unit{font-size:12px;color:#999;margin-left:4px}
 .calc-screen{display:none;position:fixed;inset:0;background:#f4f1ff;z-index:200;flex-direction:column}
 .calc-screen.show{display:flex}
+#priceEditScreen{display:none;position:fixed;inset:0;background:#f4f1ff;z-index:200;flex-direction:column}
+#priceEditScreen.show{display:flex}
+body.dark #priceEditScreen{background:#0f0e1a}
+.pe-item{background:#fff;border-radius:10px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(108,77,184,0.06)}
+body.dark .pe-item{background:#1e1b35}
+.pe-item.multi{border:2px solid #F5A623;background:#fff9f0}
+body.dark .pe-item.multi{background:#2a2010}
+.pe-img{width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#f0eeff}
+.pe-img-ph{width:56px;height:56px;border-radius:8px;background:#f0eeff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.pe-info{flex:1;min-width:0}
+.pe-track{font-family:monospace;font-size:12px;color:#1a1440;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.dark .pe-track{color:#e0d8ff}
+.pe-wh{font-size:12px;color:#6C4DB8;font-weight:600;margin-top:2px}
+.pe-qty{background:#F5A623;color:#fff;font-size:13px;font-weight:800;padding:2px 9px;border-radius:10px;margin-left:6px}
+.pe-prices{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.pe-price-field{display:flex;align-items:center;gap:4px}
+.pe-price-field label{font-size:9px;color:#999;width:44px;text-align:right}
+.pe-price-field input{width:64px;border:1.5px solid #e0d8ff;border-radius:6px;padding:5px;font-size:14px;font-weight:700;text-align:center;outline:none}
+.pe-price-field input.buy{color:#1a1a1a}
+.pe-price-field input.client{color:#6C4DB8}
+.pe-price-field input:focus{border-color:#6C4DB8}
+body.dark .pe-price-field input{background:#2a2545;color:#e0d8ff}
 body.dark .calc-screen{background:#0f0e1a}
 .calc-grand{background:#1a1440;color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .calc-grand-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
@@ -473,6 +495,7 @@ body.dark .profile-card div{color:#c4b8f0}
     <div class="menu-wrap">
       <button class="btn-icon-menu" id="btnMenu" onclick="toggleShipMenu(event)" title="Ещё"><i class="ti ti-dots-vertical" aria-hidden="true"></i></button>
       <div class="ship-menu" id="shipMenu">
+        <button onclick="openPriceEditor();closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
         <button onclick="openWeighing();closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
         <button onclick="openCalc();closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
         <button onclick="toggleRatesRow();closeShipMenu()"><i class="ti ti-settings" aria-hidden="true"></i> Курсы прихода</button>
@@ -644,6 +667,18 @@ body.dark .profile-card div{color:#c4b8f0}
       <input type="number" step="50" inputmode="numeric" id="tareInput" placeholder="0" onchange="onTareChange()">
     </div>
     <div class="weigh-list" id="weighList"></div>
+  </div>
+</div>
+
+<div class="calc-screen" id="priceEditScreen">
+  <div class="weigh-header">
+    <button class="weigh-back" onclick="closePriceEditor()"><i class="ti ti-arrow-left"></i></button>
+    <span class="weigh-title">Редактор цен</span>
+    <button class="weigh-done" onclick="closePriceEditor()">Готово</button>
+  </div>
+  <div class="weigh-body">
+    <input type="text" class="fulllist-search" id="peSearch" placeholder="Поиск по треку или складу..." oninput="renderPriceEditor()">
+    <div id="peList"></div>
   </div>
 </div>
 
@@ -900,6 +935,85 @@ function toggleOwner(name) {
   else currentOwners[name] = true;
   saveOwners();
   renderCalc();
+}
+
+// ============ РЕДАКТОР ЦЕН ============
+function openPriceEditor() {
+  if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
+  document.getElementById('peSearch').value = '';
+  renderPriceEditor();
+  document.getElementById('priceEditScreen').classList.add('show');
+}
+function closePriceEditor() {
+  document.getElementById('priceEditScreen').classList.remove('show');
+}
+
+function renderPriceEditor() {
+  const q = (document.getElementById('peSearch').value || '').toLowerCase().trim();
+  let items = TABLE.map((r, i) => ({
+    idx: i, track: r[0], wh: r[1]||'', img: r[2]||'',
+    buy: r[3]||'', client: r[4]||'', qty: parseInt(r[5])||1
+  }));
+  if (q) items = items.filter(r => r.track.toLowerCase().includes(q) || r.wh.toLowerCase().includes(q));
+
+  const list = document.getElementById('peList');
+  list.innerHTML = items.map(r => `
+    <div class="pe-item ${r.qty>1?'multi':''}">
+      <span class="pe-img-wrap" data-img="${r.img}"></span>
+      <div class="pe-info">
+        <div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>
+        <div class="pe-wh">${r.wh || '— без склада —'}</div>
+      </div>
+      <div class="pe-prices">
+        <div class="pe-price-field"><label>Закупка ¥</label><input type="number" step="0.01" class="buy" data-idx="${r.idx}" value="${r.buy}" placeholder="—" onchange="onEditBuy(this)"></div>
+        <div class="pe-price-field"><label>Клиент ¥</label><input type="number" step="0.01" class="client" data-idx="${r.idx}" value="${r.client}" placeholder="${r.buy||'—'}" onchange="onEditClient(this)"></div>
+      </div>
+    </div>`).join('');
+
+  // картинки
+  list.querySelectorAll('.pe-img-wrap').forEach(wrap => {
+    const url = wrap.dataset.img;
+    if (url) {
+      const img = document.createElement('img');
+      img.className = 'pe-img'; img.src = url;
+      img.addEventListener('error', () => { wrap.innerHTML = '<span class="pe-img-ph">📦</span>'; });
+      wrap.appendChild(img);
+    } else { wrap.innerHTML = '<span class="pe-img-ph">📦</span>'; }
+  });
+}
+
+async function onEditBuy(input) {
+  const idx = parseInt(input.dataset.idx);
+  if (idx<0 || idx>=TABLE.length) return;
+  TABLE[idx][3] = input.value;
+  const cli = document.querySelector(`.client[data-idx="${idx}"]`);
+  if (cli) cli.placeholder = input.value || '—';
+  await savePriceAt(idx);
+}
+
+async function onEditClient(input) {
+  const idx = parseInt(input.dataset.idx);
+  if (idx<0 || idx>=TABLE.length) return;
+  TABLE[idx][4] = input.value;
+  await savePriceAt(idx);
+}
+
+// Сохраняем цену конкретного трека обратно в приход (точечно, не трогая остальное)
+async function savePriceAt(idx) {
+  if (!activeShipmentId || idx < 0 || idx >= TABLE.length) return;
+  const doc = await shipmentsRef().doc(activeShipmentId).get();
+  if (!doc.exists) return;
+  const data = doc.data().data;
+  if (!data[idx]) return;
+  if (Array.isArray(data[idx])) {
+    // старый формат-массив [t,w,img,p,pc,q]
+    data[idx][3] = String(TABLE[idx][3]||'');
+    data[idx][4] = String(TABLE[idx][4]||'');
+  } else {
+    data[idx].p = String(TABLE[idx][3]||'');
+    data[idx].pc = String(TABLE[idx][4]||'');
+  }
+  await shipmentsRef().doc(activeShipmentId).update({ data });
 }
 
 // ============ ВЫГРУЗКА ОТЧЁТА В PDF (через печать, табличный вид) ============
