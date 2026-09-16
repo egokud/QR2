@@ -830,8 +830,8 @@ const db = firebase.firestore();
 const FS_BASE = 'https://firestore.googleapis.com/v1/projects/parcel-scanner-90427/databases/(default)/documents';
 function fsVal(v){if(v==null)return null;if('stringValue'in v)return v.stringValue;if('integerValue'in v)return parseInt(v.integerValue);if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;if('timestampValue'in v)return new Date(v.timestampValue);if('mapValue'in v){const o={};for(const k in(v.mapValue.fields||{}))o[k]=fsVal(v.mapValue.fields[k]);return o;}if('arrayValue'in v)return(v.arrayValue.values||[]).map(fsVal);if('nullValue'in v)return null;return null;}
 function fsDocToObj(doc){const o={};for(const k in(doc.fields||{}))o[k]=fsVal(doc.fields[k]);return o;}
-async function fsGet(path){const token=await auth.currentUser.getIdToken();const r=await fetch(FS_BASE+'/'+path,{headers:{'Authorization':'Bearer '+token}});if(r.status===404)return{exists:false};if(!r.ok)throw new Error('fsGet '+r.status);const doc=await r.json();return{exists:true,data:()=>fsDocToObj(doc),id:(doc.name||'').split('/').pop()};}
-async function fsList(path){const token=await auth.currentUser.getIdToken();const r=await fetch(FS_BASE+'/'+path+'?pageSize=300',{headers:{'Authorization':'Bearer '+token}});if(!r.ok)throw new Error('fsList '+r.status);const j=await r.json();return(j.documents||[]).map(doc=>({id:(doc.name||'').split('/').pop(),data:()=>fsDocToObj(doc)}));}
+async function fsGet(path, tok){const token=tok||(auth.currentUser&&await auth.currentUser.getIdToken());const r=await fetch(FS_BASE+'/'+path,{headers:{'Authorization':'Bearer '+token}});if(r.status===404)return{exists:false};if(!r.ok)throw new Error('fsGet '+r.status);const doc=await r.json();return{exists:true,data:()=>fsDocToObj(doc),id:(doc.name||'').split('/').pop()};}
+async function fsList(path, tok){const token=tok||(auth.currentUser&&await auth.currentUser.getIdToken());const r=await fetch(FS_BASE+'/'+path+'?pageSize=300',{headers:{'Authorization':'Bearer '+token}});if(!r.ok)throw new Error('fsList '+r.status);const j=await r.json();return(j.documents||[]).map(doc=>({id:(doc.name||'').split('/').pop(),data:()=>fsDocToObj(doc)}));}
 const ADMIN_EMAIL = 'egokud@gmail.com';
 
 // ============ STATE ============
@@ -946,23 +946,25 @@ function doLogout() { if (scanning) stopScanner(); auth.signOut(); }
 
 // ============ USER PROFILE ============
 async function loadUserProfile() {
+  const uid = currentUser.uid;
+  const email = currentUser.email;
+  const displayName = currentUser.displayName;
+  const token = await currentUser.getIdToken();
+  // Читаем профиль СРАЗУ через REST (SDK-чтение роняет сессию, поэтому его не трогаем)
   let doc;
   try {
-    doc = await Promise.race([
-      db.collection('users').doc(currentUser.uid).get(),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('profile-timeout')),5000))
-    ]);
-  } catch(sdkErr) {
-    doc = await fsGet('users/' + currentUser.uid);  // SDK упал — читаем через REST
+    doc = await fsGet('users/' + uid, token);
+  } catch(e) {
+    doc = { exists: false };
   }
   if (doc.exists) {
     userProfile = doc.data();
   } else {
-    const role = currentUser.email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
-    userProfile = { name: currentUser.displayName || currentUser.email, email: currentUser.email, role };
-    await db.collection('users').doc(currentUser.uid).set({
-      ...userProfile, created: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    const role = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
+    userProfile = { name: displayName || email, email, role };
+    try {
+      await db.collection('users').doc(uid).set({ ...userProfile, created: firebase.firestore.FieldValue.serverTimestamp() });
+    } catch(e) {}
   }
 }
 
@@ -2278,16 +2280,9 @@ async function renderAdminPanel() {
   if(!userProfile||userProfile.role!=='admin'){document.getElementById('adminPanel').style.display='none';return;}
   document.getElementById('adminPanel').style.display='block';
   try {
-    let snapDocs;
-    try {
-      const snap = await Promise.race([
-        db.collection('users').get(),
-        new Promise((_,rej)=>setTimeout(()=>rej(new Error('sdk-timeout')),5000))
-      ]);
-      snapDocs = snap.docs;
-    } catch(sdkErr) {
-      snapDocs = await fsList('users');  // SDK упал — читаем всех через REST
-    }
+    // Читаем всех юзеров через REST (SDK роняет сессию)
+    let snapDocs = [];
+    try { snapDocs = await fsList('users'); } catch(e) { console.warn('admin list:', e.message); }
     let html='';
     let userCount = 0;
     for (const doc of snapDocs) {
