@@ -185,6 +185,10 @@ body.dark .wh-group-header{background:#2a2545;color:#e0d8ff}
 .fulllist-search:focus{border-color:#6C4DB8}
 
 /* Overlay */
+.rates-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1100;align-items:center;justify-content:center;padding:20px}
+.rates-modal.open{display:flex}
+.rates-modal-card{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:420px}
+body.dark .rates-modal-card{background:#2d2556}
 .scan-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;padding:24px}
 .scan-overlay.show{display:flex}
 .weigh-screen{display:none;position:fixed;inset:0;background:#f7f8fa;z-index:200;flex-direction:column}
@@ -527,22 +531,7 @@ body.dark .profile-card div{color:#c4b8f0}
   <div id="shipmentCards"></div>
   <div class="ship-menu" id="shipMenu" style="position:fixed"></div>
   <div class="ship-menu" id="statusPicker" style="position:fixed"></div>
-  <div id="ratesRow" style="display:none;margin-top:8px">
-    <div style="font-size:11px;color:#888;margin-bottom:4px">Курсы этого прихода:</div>
-    <div style="display:flex;gap:6px">
-      <label class="rate-field"><span>Клиент ₽/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()"></label>
-      <label class="rate-field"><span>Закупка ₽/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()"></label>
-      <label class="rate-field"><span>Дост.клиент ₽/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()"></label>
-      <label class="rate-field"><span>Дост.карго ₽/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()"></label>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #eee">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#1a1a2e;cursor:pointer;white-space:nowrap">
-        <input type="checkbox" id="departedChk" style="width:16px;height:16px" onchange="onDepartedChange()">
-        <i class="ti ti-truck" style="font-size:16px"></i> Выехала
-      </label>
-      <label class="rate-field" style="flex:1"><span>Вес от карго, г</span><input type="number" step="50" inputmode="numeric" id="cargoWeightInput" placeholder="0" onchange="onCargoWeightChange()"></label>
-    </div>
-  </div>
+
 </div>
 
 <div class="stats">
@@ -686,6 +675,25 @@ body.dark .profile-card div{color:#c4b8f0}
 </div>
 
 <!-- Overlay -->
+<div class="rates-modal" id="ratesModal" onclick="if(event.target===this)closeRatesModal()">
+  <div class="rates-modal-card">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div>
+        <div style="font-size:17px;font-weight:500;color:#1a1a2e">Курсы прихода</div>
+        <div style="font-size:13px;color:#9aa0ab;margin-top:2px" id="ratesModalSub"></div>
+      </div>
+      <button onclick="closeRatesModal()" style="background:none;border:none;color:#9aa0ab;cursor:pointer;font-size:20px;padding:0"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px">
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Клиент ₽/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Закупка ₽/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка клиенту ₽/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка карго ₽/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
+    </div>
+    <button onclick="closeRatesModal()" style="width:100%;margin-top:20px;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:500;cursor:pointer">Готово</button>
+  </div>
+</div>
+
 <div class="scan-overlay" id="scanOverlay" onclick="overlayOk()">
   <div class="overlay-card" id="overlayCard" onclick="event.stopPropagation()">
     <div id="overlayImg" style="display:none;margin-bottom:12px;"></div>
@@ -706,6 +714,14 @@ body.dark .profile-card div{color:#c4b8f0}
     <div class="weigh-tare">
       <label>Вес тары (коробки), г</label>
       <input type="number" step="50" inputmode="numeric" id="tareInput" placeholder="0" onchange="onTareChange()">
+    </div>
+    <div class="weigh-tare" style="background:#eef2ff">
+      <label style="color:#4a5568">Вес от карго, г (сколько намерил карго)</label>
+      <input type="number" step="50" inputmode="numeric" id="cargoWeightInput" placeholder="0" onchange="onCargoWeightChange()" style="border-color:#c3cfe8">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a1a2e;cursor:pointer;margin-top:10px;margin-bottom:0;font-weight:400">
+        <input type="checkbox" id="departedChk" style="width:16px;height:16px" onchange="onDepartedChange()">
+        <i class="ti ti-truck" style="font-size:16px"></i> Отправка выехала в карго
+      </label>
     </div>
     <div class="weigh-list" id="weighList"></div>
   </div>
@@ -1217,6 +1233,8 @@ function openWeighing() {
   if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
   renderWeighList();
   document.getElementById('tareInput').value = currentTare ? Math.round(currentTare * 1000) : '';
+  const cw = document.getElementById('cargoWeightInput'); if (cw) cw.value = currentCargoWeight ? Math.round(currentCargoWeight*1000) : '';
+  const dep = document.getElementById('departedChk'); if (dep) dep.checked = !!shipmentDeparted;
   document.getElementById('weighScreen').classList.add('show');
 }
 
@@ -1380,15 +1398,23 @@ function fillRateFields() {
   document.getElementById('rateBuy').value = currentRates.buyRate;
   document.getElementById('rateShipClient').value = currentRates.shipClient;
   document.getElementById('rateShipCargo').value = currentRates.shipCargo;
-  const dep = document.getElementById('departedChk'); if (dep) dep.checked = !!shipmentDeparted;
-  const cw = document.getElementById('cargoWeightInput'); if (cw) cw.value = currentCargoWeight ? Math.round(currentCargoWeight*1000) : '';
+
 }
 
-function toggleRatesRow() {
-  const row = document.getElementById('ratesRow');
-  const show = row.style.display === 'none';
-  row.style.display = show ? 'block' : 'none';
-  if (show) fillRateFields();
+function openRatesModal(id) {
+  // id — приход чьи курсы (для подписи). Активный уже переключён pickShipment.
+  const s = allShipments.find(x => x.id === id);
+  const sub = document.getElementById('ratesModalSub');
+  if (s && sub) {
+    const cnt = (s.data || []).length;
+    const posWord = cnt % 10 === 1 && cnt % 100 !== 11 ? 'позиция' : (cnt % 10 >= 2 && cnt % 10 <= 4 && (cnt % 100 < 10 || cnt % 100 >= 20) ? 'позиции' : 'позиций');
+    sub.textContent = `${s.name} · ${cnt} ${posWord}`;
+  }
+  fillRateFields();
+  document.getElementById('ratesModal').classList.add('open');
+}
+function closeRatesModal() {
+  document.getElementById('ratesModal').classList.remove('open');
 }
 
 // При изменении любого поля курса — обновляем currentRates и сохраняем в приход
@@ -1489,7 +1515,7 @@ function openShipMenu(id, ev) {
     <button onclick="pickShipment('${id}');openPriceEditor();closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
     <button onclick="pickShipment('${id}');openWeighing();closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
     <button onclick="pickShipment('${id}');openCalc();closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
-    <button onclick="pickShipment('${id}');toggleRatesRow();closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
+    <button onclick="pickShipment('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
     <button onclick="pickShipment('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
     <button onclick="pickShipment('${id}');resetAll();closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
     <button onclick="pickShipment('${id}');deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
@@ -1544,8 +1570,7 @@ async function loadShipmentData(id) {
   currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
   shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
   // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
-  const ratesRow = document.getElementById('ratesRow');
-  if (ratesRow && ratesRow.style.display !== 'none') fillRateFields();
+
   // Demo mode: limit to 5 tracks
   if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
   const scDoc = await scannedRef(id).get();
