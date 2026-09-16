@@ -65,7 +65,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-icon-menu{background:#fff;border:1px solid #e0e0e0;border-radius:8px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888;font-size:18px}
 .btn-icon-menu:hover{background:#f7f8fa}
 .ship-menu{display:none;position:fixed;background:#fff;border:1px solid #e0e0e0;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.12);z-index:1000;min-width:190px;overflow:hidden}
-.ship-gear{background:none;border:1px solid #d5d8dd;border-radius:7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#5f6470;font-size:15px;flex-shrink:0;padding:0}
+.ship-gear{background:#fafbfc;border:none;border-left:1px solid #e5e7eb;width:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#5f6470;font-size:19px;flex-shrink:0;padding:0}
 .ship-gear:hover{background:#f7f8fa;border-color:#c5c8ce}
 
 .ship-menu.open{display:block}
@@ -86,22 +86,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 body.dark .rate-field input{background:#2a2545;border-color:rgba(255,255,255,0.1);color:#e0d8ff}
 .shipment-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:500}
 .shipment-row{display:flex;gap:8px;align-items:center}
-.ship-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:9px 12px;cursor:pointer;margin-bottom:7px;transition:all 0.15s;box-shadow:0 1px 2px rgba(16,24,40,0.06),0 1px 3px rgba(16,24,40,0.1)}
+.ship-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:0;cursor:pointer;margin-bottom:7px;transition:all 0.15s;box-shadow:0 1px 2px rgba(16,24,40,0.06),0 1px 3px rgba(16,24,40,0.1);display:flex;align-items:stretch;overflow:hidden}
 .ship-card:hover{border-color:#c5c8ce;box-shadow:0 2px 4px rgba(16,24,40,0.08),0 2px 6px rgba(16,24,40,0.12)}
 .ship-card.active{border:1.5px solid #6C4DB8;box-shadow:0 2px 6px rgba(108,77,184,0.18)}
 .ship-card.done{opacity:0.6}
-.ship-card-body{display:flex;flex-direction:column;gap:3px}
-.ship-card-row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.ship-card-row2{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.ship-card-row2 .ship-card-status-wrap{margin-left:auto}
-.ship-card-dot{margin-right:8.5px}
-.ship-card-name{font-size:15px;font-weight:500;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ship-card-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:9px 12px;justify-content:center}
+.ship-card-name{font-size:15px;font-weight:500;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ship-card.done .ship-card-name{color:#6b7280}
+.ship-card-line2{display:flex;align-items:center;gap:6px}
 .ship-card-count{font-size:13px;font-weight:500;color:#6C4DB8;white-space:nowrap}
 .ship-card.done .ship-card-count{color:#9aa0ab}
-.ship-card-status-wrap{display:flex;align-items:center;gap:7px;cursor:pointer;flex-shrink:0}
+.ship-card-sep{color:#c5c8ce;font-size:13px}
+.ship-card-status-wrap{display:flex;align-items:center;gap:6px;cursor:pointer}
 .ship-card-status{font-size:13px;font-weight:500;white-space:nowrap}
-.ship-card-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.ship-card-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 body.dark .ship-card{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.08)}
 body.dark .ship-card-name{color:#e0d8ff}
 .shipment-select{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px;font-size:15px;font-weight:500;outline:none;background:#fff;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -1452,7 +1450,7 @@ const SHIP_STATUSES = {
   forming:   { label: 'Формируется', color: '#4a90d9', text: '#2563a8' },
   transit:   { label: 'В дороге',    color: '#f5c518', text: '#b8860b' },
   warehouse: { label: 'На складе',   color: '#3cb371', text: '#2e8b57' },
-  done:      { label: 'Готово',      color: '#b0b4bb', text: '#9aa0ab' },
+  done:      { label: 'Архив',       color: '#b0b4bb', text: '#9aa0ab' },
 };
 
 async function loadShipments() {
@@ -1488,18 +1486,17 @@ function renderShipmentCards() {
     const posWord = count % 10 === 1 && count % 100 !== 11 ? 'позиция' : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20) ? 'позиции' : 'позиций');
     return `<div class="ship-card ${active?'active':''} ${isDone?'done':''}" onclick="pickShipment('${s.id}')">
       <div class="ship-card-body">
-        <div class="ship-card-row1">
-          <span class="ship-card-name">${s.name}</span>
-          <button class="ship-gear" onclick="event.stopPropagation();openShipMenu('${s.id}',event)" title="Действия"><i class="ti ti-settings" aria-hidden="true"></i></button>
-        </div>
-        <div class="ship-card-row2">
+        <div class="ship-card-name">${s.name}</div>
+        <div class="ship-card-line2">
           <span class="ship-card-count">${count} ${posWord}</span>
+          <span class="ship-card-sep">·</span>
           <span class="ship-card-status-wrap" onclick="event.stopPropagation();openStatusPicker('${s.id}',event)">
-            <span class="ship-card-status" style="color:${st.text}">${st.label}</span>
             <span class="ship-card-dot" style="background:${st.color}"></span>
+            <span class="ship-card-status" style="color:${st.text}">${st.label}</span>
           </span>
         </div>
       </div>
+      <button class="ship-gear" onclick="event.stopPropagation();openShipMenu('${s.id}',event)" title="Действия"><i class="ti ti-settings" aria-hidden="true"></i></button>
     </div>`;
   }).join('');
 }
