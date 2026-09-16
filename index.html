@@ -196,10 +196,10 @@ body.dark .rates-modal-card{background:#2d2556}
 .weigh-screen{display:none;position:fixed;inset:0;background:#f7f8fa;z-index:200;flex-direction:column}
 .weigh-screen.show{display:flex}
 body.dark .weigh-screen{background:#0f0e1a}
-.weigh-header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
-.weigh-back{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0}
-.weigh-title{color:#fff;font-size:16px;font-weight:600;flex:1}
-.weigh-done{background:#F5A623;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.weigh-header{background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box}
+.weigh-back{background:none;border:none;color:#5f6470;font-size:22px;cursor:pointer;padding:0}
+.weigh-title{color:#1a1a2e;font-size:16px;font-weight:500;flex:1}
+.weigh-done{background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer}
 .weigh-body{flex:1;overflow-y:auto;padding:14px;max-width:640px;margin:0 auto;width:100%;box-sizing:border-box}
 .weigh-tare{background:#fff3cd;border-radius:12px;padding:12px 14px;margin-bottom:14px}
 .weigh-tare label{display:block;font-size:12px;color:#856404;margin-bottom:6px;font-weight:600}
@@ -225,24 +225,24 @@ body.dark #priceEditScreen{background:#0f0e1a}
 .pe-hint-chip{background:#eef0f3;color:#6C4DB8;border:1.5px solid #dde0e6;border-radius:16px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .pe-hint-chip:hover,.pe-hint-chip:active{background:#6C4DB8;color:#fff}
 body.dark .pe-hint-chip{background:#2a2545;color:#8b7fd4;border-color:rgba(255,255,255,0.1)}
-.pe-item{background:#fff;border-radius:12px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;box-shadow:0 1px 4px rgba(108,77,184,0.08)}
+.pe-item{background:#fff;border:0.5px solid #e5e7eb;border-radius:12px;padding:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(16,24,40,0.08)}
 body.dark .pe-item{background:#1e1b35}
 .pe-item.multi{border:2px solid #F5A623;background:#fff9f0}
 body.dark .pe-item.multi{background:#2a2010}
-.pe-left{flex:1;min-width:0;display:flex;gap:10px;align-items:center;max-width:calc(100% - 250px)}
-.pe-img{width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#f0f1f4;cursor:zoom-in}
-.pe-img.zoom{width:160px;height:160px}
-.pe-img-ph{width:60px;height:60px;border-radius:8px;background:#f0f1f4;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.pe-top{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.pe-img{width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#eceef2;cursor:zoom-in}
+.pe-img.zoom{width:200px;height:200px}
+.pe-img-ph{width:52px;height:52px;border-radius:8px;background:#eceef2;display:flex;align-items:center;justify-content:center;font-size:24px;color:#c5c8ce;flex-shrink:0}
 .pe-info{flex:1;min-width:0}
-.pe-track{font-family:monospace;font-size:16px;color:#1a1a2e;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-body.dark .pe-track{color:#e0d8ff}
-.pe-wh{font-size:18px;color:#6C4DB8;font-weight:500;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pe-qty{background:#F5A623;color:#fff;font-size:14px;font-weight:600;padding:1px 8px;border-radius:9px;margin-left:6px;font-family:sans-serif;vertical-align:middle}
-.pe-prices{display:flex;gap:8px;flex-shrink:0}
-.pe-price-field{display:flex;flex-direction:column;gap:3px}
-.pe-price-field span{font-size:11px;color:#999;text-align:center}
-.pe-price-field input{width:112px;border:1.5px solid #e0d8ff;border-radius:8px;padding:10px 10px;font-size:18px;font-weight:400;text-align:center;outline:none;box-sizing:border-box}
-.pe-price-field input.buy{color:#1a1a1a}
+.pe-track{font-family:monospace;font-size:13px;color:#4a5260;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.dark .pe-track{color:#c4b8f0}
+.pe-wh{font-size:15px;color:#6C4DB8;font-weight:500;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pe-qty{background:#F5A623;color:#fff;font-size:13px;font-weight:600;padding:1px 8px;border-radius:9px;margin-left:6px;font-family:sans-serif;vertical-align:middle}
+.pe-prices{display:flex;gap:8px}
+.pe-price-field{flex:1;display:flex;flex-direction:column;gap:3px}
+.pe-price-field span{font-size:11px;color:#9aa0ab;text-align:center}
+.pe-price-field input{width:100%;border:1px solid #d5d8dd;border-radius:8px;padding:9px;font-size:16px;font-weight:400;text-align:center;outline:none;box-sizing:border-box}
+.pe-price-field input.buy{color:#4a5260}
 .pe-price-field input.client{color:#6C4DB8}
 .pe-price-field input:focus{border-color:#6C4DB8}
 body.dark .pe-price-field input{background:#2a2545;color:#e0d8ff}
@@ -1063,7 +1063,7 @@ function renderPriceEditor() {
   const list = document.getElementById('peList');
   list.innerHTML = items.map(r => `
     <div class="pe-item ${r.qty>1?'multi':''}">
-      <div class="pe-left">
+      <div class="pe-top">
         <span class="pe-img-wrap" data-img="${r.img}"></span>
         <div class="pe-info">
           <div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>
