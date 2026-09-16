@@ -504,20 +504,6 @@ body.dark .profile-card div{color:#c4b8f0}
 
 <!-- MAIN APP -->
 <div id="appScreen" class="hide" style="padding:0 16px;">
-<div class="shipment-section">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <span class="shipment-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px;cursor:pointer" onclick="toggleShipCollapse()">Приходы <i class="ti ti-chevron-up" id="shipCollapseIcon" style="font-size:16px;color:#9aa0ab;transition:transform 0.2s"></i></span>
-    <button onclick="openUploadModal()" style="display:flex;align-items:center;gap:5px;background:none;border:1px solid #d5d8dd;border-radius:8px;padding:5px 11px;font-size:13px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-plus" style="font-size:16px"></i> Добавить приход</button>
-  </div>
-  <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()" style="display:none"></select>
-  <button id="btnCacheImages" onclick="cacheShipmentImages()" style="display:none"></button>
-  <div id="shipmentCards"></div>
-  <div class="ship-menu" id="shipMenu" style="position:fixed"></div>
-  <div class="ship-menu" id="statusPicker" style="position:fixed"></div>
-</div>
-
-
-
 <div class="header">
   <h1 style="letter-spacing:-0.5px;display:flex;align-items:center;"><img src="/icons/icon-72x72.png" width="28" height="28" alt="" style="border-radius:7px;margin-right:8px;">Piksta</h1>
   <div class="header-right">
@@ -536,6 +522,18 @@ body.dark .profile-card div{color:#c4b8f0}
     <a href="https://t.me/ekudinof" target="_blank" style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:#fff;border:1px solid #e0e0e0;border-radius:10px;text-decoration:none;color:#555;font-size:13px;font-weight:500"><i class="ti ti-brand-telegram" style="font-size:18px;color:#6C4DB8"></i> Telegram</a>
   </div>
 </div>
+<div class="shipment-section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <span class="shipment-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px;cursor:pointer" onclick="toggleShipCollapse()">Приходы <i class="ti ti-chevron-up" id="shipCollapseIcon" style="font-size:16px;color:#9aa0ab;transition:transform 0.2s"></i></span>
+    <button onclick="openUploadModal()" style="display:flex;align-items:center;gap:5px;background:none;border:1px solid #d5d8dd;border-radius:8px;padding:5px 11px;font-size:13px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-plus" style="font-size:16px"></i> Добавить приход</button>
+  </div>
+  <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()" style="display:none"></select>
+  <button id="btnCacheImages" onclick="cacheShipmentImages()" style="display:none"></button>
+  <div id="shipmentCards"></div>
+  <div class="ship-menu" id="shipMenu" style="position:fixed"></div>
+  <div class="ship-menu" id="statusPicker" style="position:fixed"></div>
+</div>
+
 <div class="stats">
   <div class="stat-card" style="background:#e8f5e9;cursor:pointer;" onclick="toggleScannedList()"><div class="stat-num" id="statScanned" style="color:#2e7d32;">0</div><div class="stat-label" style="color:#66bb6a;">считано</div></div>
   <div class="stat-card" style="background:#fff;border:1.5px solid #eef0f3;cursor:pointer;" onclick="toggleRemainingList()"><div class="stat-num" id="statTotal" style="color:#6C4DB8;">0</div><div class="stat-label" style="color:#8b7fd4;">осталось</div></div>
