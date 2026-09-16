@@ -260,6 +260,7 @@ body.dark .calc-client{background:#1e1b35}
 .calc-client-name{font-size:17px;font-weight:700;color:#1a1a2e}
 body.dark .calc-client-name{color:#e0d8ff}
 .calc-client-due{font-size:22px;font-weight:800;color:#6C4DB8}
+.cur{font-size:0.6em;font-weight:400;margin-left:3px;opacity:0.7}
 .calc-rows{font-size:13px;color:#666}
 body.dark .calc-rows{color:#a89de0}
 .calc-row{display:flex;justify-content:space-between;padding:3px 0}
@@ -1384,8 +1385,8 @@ function renderCalc() {
   const { clients, grandDue, grandProfit } = computeClientCalc();
 
   document.getElementById('calcGrand').innerHTML = `
-    <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)} BYN</span></div>
-    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)} BYN</span></div>`;
+    <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)}<span class="cur">BYN</span></span></div>
+    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>`;
 
   document.getElementById('calcList').innerHTML = clients.map(c => {
     const ownerChk = `<label class="owner-chk"><input type="checkbox" ${c.isOwner?'checked':''} onchange="toggleOwner('${c.name.replace(/'/g,"\\'")}')"> это я</label>`;
@@ -1394,7 +1395,7 @@ function renderCalc() {
       return `<div class="calc-client owner">
         <div class="calc-client-head">
           <span class="calc-client-name">${c.name} ${ownerChk}</span>
-          <span class="calc-client-due owner-cost">−${(c.goodsCost+c.shipCost).toFixed(0)} BYN</span>
+          <span class="calc-client-due owner-cost">−${(c.goodsCost+c.shipCost).toFixed(0)}<span class="cur">BYN</span></span>
         </div>
         <div class="calc-rows">
           <div class="calc-row"><span>Мои товары (${c.count} поз., ¥${c.yuan.toFixed(2)}) по себестоимости</span><span>${c.goodsCost.toFixed(0)} BYN</span></div>
@@ -1406,7 +1407,7 @@ function renderCalc() {
     return `<div class="calc-client">
       <div class="calc-client-head">
         <span class="calc-client-name">${c.name} ${ownerChk}</span>
-        <span class="calc-client-due">${c.due.toFixed(0)} BYN</span>
+        <span class="calc-client-due">${c.due.toFixed(0)}<span class="cur">BYN</span></span>
       </div>
       ${c.noWeight ? '<div class="calc-noweight"><i class="ti ti-alert-triangle"></i> Вес не указан — доставка не посчитана</div>' : ''}
       <div class="calc-rows">
