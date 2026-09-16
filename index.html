@@ -91,7 +91,7 @@ body.dark .rate-field input{background:#2a2545;border-color:rgba(255,255,255,0.1
 .ship-card.active{border:1.5px solid #6C4DB8;box-shadow:0 2px 6px rgba(108,77,184,0.18)}
 .ship-card.done{opacity:0.6}
 .ship-card-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:9px 12px;justify-content:center}
-.ship-card-name{font-size:15px;font-weight:500;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ship-card-name{font-size:15px;font-weight:500;color:#4a5260;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ship-card.done .ship-card-name{color:#6b7280}
 .ship-card-line2{display:flex;align-items:center;gap:6px}
 .ship-card-count{font-size:13px;font-weight:500;color:#6C4DB8;white-space:nowrap}
@@ -543,11 +543,11 @@ body.dark .profile-card div{color:#c4b8f0}
 <div class="gun-section">
   <h3><i class="ti ti-scan" style="font-size:14px;margin-right:4px"></i> Сканер / Ввести вручную</h3>
   <div class="manual-row" style="display:flex;gap:8px;align-items:center;">
-    <input type="text" id="manualInput" placeholder="Наведи пистолет или введи код" autocomplete="off" style="flex:1;">
+    <input type="text" id="manualInput" placeholder="Готов к приёму" autocomplete="off" style="flex:1;">
     <button onclick="toggleScanner()" style="width:44px;height:44px;min-width:44px;background:#fff;border:1px solid #d5d8dd;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-camera" style="font-size:20px;color:#5f6470;" aria-hidden="true"></i></button>
     <button onclick="manualSearch()" style="min-width:80px;">Найти</button>
   </div>
-  <div class="gun-hint" id="gunHint">Готов к приёму</div>
+  <div class="gun-hint" id="gunHint">Наведи пистолет или введи код вручную</div>
 </div>
 
 <div id="resultBlock"></div>
@@ -2366,7 +2366,7 @@ async function changePassword() {
 function manualSearch() {
   const v=document.getElementById('manualInput').value.trim(); if(!v)return;
   lookup(v); document.getElementById('manualInput').value='';
-  setTimeout(()=>{document.getElementById('manualInput').focus();document.getElementById('gunHint').textContent='Готов'},300);
+  setTimeout(()=>{document.getElementById('manualInput').focus();document.getElementById('gunHint').textContent='Наведи пистолет или введи код вручную'},300);
 }
 document.getElementById('manualInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualSearch()}});
 document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&document.getElementById('appScreen').style.display!=='none')document.getElementById('manualInput').focus()});
