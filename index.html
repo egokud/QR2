@@ -1383,11 +1383,14 @@ function closeCalc() {
 }
 
 function renderCalc() {
-  const { clients, grandDue, grandProfit } = computeClientCalc();
+  const { clients, grandDue, grandProfit, ourWeight, tareTotal } = computeClientCalc();
+  const totalWeight = ourWeight + tareTotal;
 
   document.getElementById('calcGrand').innerHTML = `
     <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)}<span class="cur">BYN</span></span></div>
-    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>`;
+    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
+    <div class="calc-grand-row"><span class="calc-grand-label">Общий вес</span><span class="calc-grand-val">${totalWeight.toFixed(2)}<span class="cur">кг</span></span></div>
+    <div class="calc-grand-row"><span class="calc-grand-label">Вес тары</span><span class="calc-grand-val">${tareTotal.toFixed(2)}<span class="cur">кг</span></span></div>`;
 
   document.getElementById('calcList').innerHTML = clients.map(c => {
     const ownerChk = `<label class="owner-chk"><input type="checkbox" ${c.isOwner?'checked':''} onchange="toggleOwner('${c.name.replace(/'/g,"\\'")}')"> это я</label>`;
