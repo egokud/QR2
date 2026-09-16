@@ -465,9 +465,11 @@ body.dark .profile-card div{color:#c4b8f0}
       <div class="auth-subtitle" style="font-size:13px;margin-top:2px;">Сканер посылок</div>
     </div>
     <div id="loginError" class="auth-error hide"></div>
-    <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
-    <input type="password" id="loginPass" placeholder="Пароль" autocomplete="current-password">
-    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Войти</button>
+    <form onsubmit="doLogin();return false;" style="margin:0">
+      <input type="email" id="loginEmail" name="username" placeholder="Email" autocomplete="username" style="width:100%;box-sizing:border-box">
+      <input type="password" id="loginPass" name="password" placeholder="Пароль" autocomplete="current-password" style="width:100%;box-sizing:border-box">
+      <button type="submit" class="btn-primary" id="loginBtn">Войти</button>
+    </form>
     <div class="auth-links">
       <a href="#" onclick="showScreen('register');return false">Регистрация</a>
       <span>|</span>
@@ -939,7 +941,10 @@ function doLogout() { if (scanning) stopScanner(); auth.signOut(); }
 
 // ============ USER PROFILE ============
 async function loadUserProfile() {
-  const doc = await db.collection('users').doc(currentUser.uid).get();
+  const doc = await Promise.race([
+    db.collection('users').doc(currentUser.uid).get(),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('profile-timeout')),8000))
+  ]);
   if (doc.exists) {
     userProfile = doc.data();
   } else {
