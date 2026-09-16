@@ -684,11 +684,11 @@ body.dark .profile-card div{color:#c4b8f0}
       </div>
       <button onclick="closeRatesModal()" style="background:none;border:none;color:#9aa0ab;cursor:pointer;font-size:20px;padding:0"><i class="ti ti-x"></i></button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px">
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Клиент ₽/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Закупка ₽/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка клиенту ₽/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка карго ₽/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e"></label>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:18px">
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Клиент ₽/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Закупка ₽/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка клиенту ₽/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка карго ₽/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
     </div>
     <button onclick="closeRatesModal()" style="width:100%;margin-top:20px;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:500;cursor:pointer">Готово</button>
   </div>
@@ -736,6 +736,10 @@ body.dark .profile-card div{color:#c4b8f0}
   <div class="weigh-body">
     <input type="text" class="fulllist-search" id="peSearch" placeholder="Поиск по треку или складу..." oninput="onPeSearchInput()">
     <div id="peHints" class="pe-hints"></div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button id="peSortDefault" class="sort-toggle sort-active" onclick="setPeSort('default')">Обычный</button>
+      <button id="peSortWh" class="sort-toggle" onclick="setPeSort('warehouse')">По складам</button>
+    </div>
     <div id="peList"></div>
   </div>
 </div>
@@ -1015,7 +1019,14 @@ function closePriceEditor() {
   document.getElementById('priceEditScreen').classList.remove('show');
 }
 
-let peExactWh = null;  // если выбран точный склад из подсказки — фильтр по нему
+let peExactWh = null;
+let peSortMode = 'default';
+function setPeSort(mode) {
+  peSortMode = mode;
+  document.getElementById('peSortDefault').classList.toggle('sort-active', mode === 'default');
+  document.getElementById('peSortWh').classList.toggle('sort-active', mode === 'warehouse');
+  renderPriceEditor();
+}  // если выбран точный склад из подсказки — фильтр по нему
 
 function onPeSearchInput() {
   peExactWh = null;  // ручной ввод сбрасывает точный выбор
@@ -1058,6 +1069,11 @@ function renderPriceEditor() {
     items = items.filter(r => r.wh === peExactWh);
   } else if (q) {
     items = items.filter(r => r.track.toLowerCase().includes(q) || r.wh.toLowerCase().includes(q));
+  }
+
+  // Сортировка "По складам" — группируем товары по клиенту (складу)
+  if (peSortMode === 'warehouse') {
+    items = items.slice().sort((a, b) => (a.wh || 'яяя').localeCompare(b.wh || 'яяя', 'ru'));
   }
 
   const list = document.getElementById('peList');
