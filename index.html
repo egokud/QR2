@@ -65,7 +65,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-icon-menu{background:#fff;border:1px solid #e0e0e0;border-radius:8px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888;font-size:18px}
 .btn-icon-menu:hover{background:#f7f8fa}
 .ship-menu{display:none;position:fixed;background:#fff;border:1px solid #e0e0e0;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.12);z-index:1000;min-width:190px;overflow:hidden}
-.ship-gear{background:none;border:1px solid #d5d8dd;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#5f6470;font-size:17px;flex-shrink:0;padding:0}
+.ship-gear{background:none;border:1px solid #d5d8dd;border-radius:7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#5f6470;font-size:15px;flex-shrink:0;padding:0}
 .ship-gear:hover{background:#f7f8fa;border-color:#c5c8ce}
 .ship-card-right{gap:12px}
 .ship-menu.open{display:block}
@@ -86,7 +86,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 body.dark .rate-field input{background:#2a2545;border-color:rgba(255,255,255,0.1);color:#e0d8ff}
 .shipment-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:500}
 .shipment-row{display:flex;gap:8px;align-items:center}
-.ship-card{background:#fff;border:0.5px solid #e5e7eb;border-radius:10px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:6px;transition:border-color 0.15s}
+.ship-card{background:#fff;border:0.5px solid #e5e7eb;border-radius:9px;padding:6px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:4px;transition:border-color 0.15s}
 .ship-card:hover{border-color:#c5c8ce}
 .ship-card.active{border:1.5px solid #6C4DB8}
 .ship-card.done{opacity:0.65}
@@ -526,6 +526,7 @@ body.dark .profile-card div{color:#c4b8f0}
   <button id="btnCacheImages" onclick="cacheShipmentImages()" style="display:none"></button>
   <div id="shipmentCards"></div>
   <div class="ship-menu" id="shipMenu" style="position:fixed"></div>
+  <div class="ship-menu" id="statusPicker" style="position:fixed"></div>
   <div id="ratesRow" style="display:none;margin-top:8px">
     <div style="font-size:11px;color:#888;margin-bottom:4px">Курсы этого прихода:</div>
     <div style="display:flex;gap:6px">
@@ -1461,7 +1462,7 @@ function renderShipmentCards() {
         <span class="ship-card-count">${count} ${posWord}</span>
       </div>
       <div class="ship-card-right">
-        <span class="ship-card-status-wrap" onclick="event.stopPropagation();cycleStatus('${s.id}')" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <span class="ship-card-status-wrap" onclick="event.stopPropagation();openStatusPicker('${s.id}',event)" style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <span class="ship-card-status" style="color:${st.text}">${st.label}</span>
           <span class="ship-card-dot" style="background:${st.color}"></span>
         </span>
@@ -1499,16 +1500,34 @@ function openShipMenu(id, ev) {
   menu.classList.add('open');
 }
 
-// Смена статуса по кругу (тап на статус справа)
-async function cycleStatus(id) {
-  const order = ['forming','transit','warehouse','done'];
+// Открыть оверлей выбора статуса (тап на статус)
+function openStatusPicker(id, ev) {
   const s = allShipments.find(x => x.id === id);
-  if (!s) return;
-  const cur = order.indexOf(s.status || 'forming');
-  const next = order[(cur + 1) % order.length];
-  s.status = next;
+  const curStatus = s ? (s.status || 'forming') : 'forming';
+  const menu = document.getElementById('statusPicker');
+  const order = ['forming','transit','warehouse','done'];
+  menu.innerHTML = order.map(key => {
+    const st = SHIP_STATUSES[key];
+    const isCur = key === curStatus;
+    return `<button onclick="setStatus('${id}','${key}')" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:${isCur?'#f7f8fa':'none'};border:none;padding:11px 14px;font-size:14px;color:#1a1a2e;cursor:pointer;font-weight:500">
+      <span style="width:12px;height:12px;border-radius:50%;background:${st.color};flex-shrink:0"></span>
+      <span style="color:${st.text}">${st.label}</span>
+      ${isCur?'<i class="ti ti-check" style="margin-left:auto;color:#6C4DB8;font-size:16px"></i>':''}
+    </button>`;
+  }).join('');
+  const rect = ev.currentTarget.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.min(rect.left - 40, window.innerWidth - 200) + 'px';
+  menu.classList.add('open');
+}
+
+// Установить конкретный статус
+async function setStatus(id, key) {
+  const s = allShipments.find(x => x.id === id);
+  if (s) s.status = key;
+  document.getElementById('statusPicker').classList.remove('open');
   renderShipmentCards();
-  try { await shipmentsRef().doc(id).update({ status: next }); } catch(e) {}
+  try { await shipmentsRef().doc(id).update({ status: key }); } catch(e) {}
 }
 
 async function loadShipmentData(id) {
@@ -1745,6 +1764,10 @@ document.addEventListener('click', (e) => {
   const menu = document.getElementById('shipMenu');
   if (menu && menu.classList.contains('open') && !menu.contains(e.target) && !e.target.closest('.ship-gear')) {
     menu.classList.remove('open');
+  }
+  const sp = document.getElementById('statusPicker');
+  if (sp && sp.classList.contains('open') && !sp.contains(e.target) && !e.target.closest('.ship-card-status-wrap')) {
+    sp.classList.remove('open');
   }
 });
 
