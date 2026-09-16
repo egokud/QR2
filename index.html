@@ -248,12 +248,12 @@ body.dark .pe-track{color:#c4b8f0}
 .pe-price-field input:focus{border-color:#6C4DB8}
 body.dark .pe-price-field input{background:#2a2545;color:#e0d8ff}
 body.dark .calc-screen{background:#0f0e1a}
-.calc-grand{background:#1a1a2e;color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.calc-grand{background:#fff;border:0.5px solid #e5e7eb;color:#1a1a2e;border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(16,24,40,0.08)}
 .calc-grand-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .calc-grand-row:last-child{margin-bottom:0}
-.calc-grand-label{font-size:13px;color:#a89de0}
-.calc-grand-val{font-size:20px;font-weight:800}
-.calc-grand-val.profit{color:#4ade80}
+.calc-grand-label{font-size:13px;color:#6b7280}
+.calc-grand-val{font-size:20px;font-weight:700;color:#4a5260}
+.calc-grand-val.profit{color:#22a05c}
 .calc-client{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(108,77,184,0.06)}
 body.dark .calc-client{background:#1e1b35}
 .calc-client-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
@@ -686,10 +686,10 @@ body.dark .profile-card div{color:#c4b8f0}
       <button onclick="closeRatesModal()" style="background:none;border:none;color:#9aa0ab;cursor:pointer;font-size:20px;padding:0"><i class="ti ti-x"></i></button>
     </div>
     <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:18px">
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Клиент ₽/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Закупка ₽/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка клиенту ₽/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка карго ₽/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Клиент BYN/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Закупка BYN/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка клиенту BYN/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка карго BYN/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
     </div>
     <button onclick="closeRatesModal()" style="width:100%;margin-top:20px;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:500;cursor:pointer">Готово</button>
   </div>
@@ -1218,13 +1218,13 @@ function exportCalcPDF() {
     <h1>Финансовый отчёт</h1>
     <div class="sub">${shipName} · ${dateStr}</div>
     <div class="grand">
-      <div class="gcard"><div class="lbl">Клиенты должны</div><div class="val">${grandDue.toFixed(0)} ₽</div></div>
-      <div class="gcard"><div class="lbl">Твоя прибыль</div><div class="val ${grandProfit<0?'minus':'profit'}">${grandProfit.toFixed(0)} ₽</div></div>
+      <div class="gcard"><div class="lbl">Клиенты должны</div><div class="val">${grandDue.toFixed(0)} BYN</div></div>
+      <div class="gcard"><div class="lbl">Твоя прибыль</div><div class="val ${grandProfit<0?'minus':'profit'}">${grandProfit.toFixed(0)} BYN</div></div>
       <div class="gcard"><div class="lbl">Общий вес</div><div class="val">${totalWeight.toFixed(2)} кг</div></div>
     </div>
     <table>
       <thead><tr>
-        <th>Клиент</th><th>Поз.</th><th>¥</th><th>Товар,г</th><th>С тарой,г</th><th>Товар ₽</th><th>Дост. ₽</th><th>Должен ₽</th><th>Приб. ₽</th>
+        <th>Клиент</th><th>Поз.</th><th>¥</th><th>Товар,г</th><th>С тарой,г</th><th>Товар BYN</th><th>Дост. BYN</th><th>Должен BYN</th><th>Приб. BYN</th>
       </tr></thead>
       <tbody>
         ${bodyRows}
@@ -1339,10 +1339,10 @@ function computeClientCalc() {
     // Округляем вес с тарой ВВЕРХ до 50 г — доставка считается с округлённого
     const shipWeight = w > 0 ? Math.ceil(shipWeightRaw * 20) / 20 : 0;  // *20/20 = шаг 0.05кг=50г
 
-    const goodsClient = (clientYuan[name] || 0) * r.clientRate;   // товар клиенту в ₽
-    const goodsCost = (buyYuan[name] || 0) * r.buyRate;           // себестоимость товара в ₽
-    const shipClient = shipWeight * r.shipClient;                 // доставка клиенту в ₽ (с округлённого)
-    const shipCost = shipWeight * r.shipCargo;                    // доставка себестоимость в ₽
+    const goodsClient = (clientYuan[name] || 0) * r.clientRate;   // товар клиенту в BYN
+    const goodsCost = (buyYuan[name] || 0) * r.buyRate;           // себестоимость товара в BYN
+    const shipClient = shipWeight * r.shipClient;                 // доставка клиенту в BYN (с округлённого)
+    const shipCost = shipWeight * r.shipCargo;                    // доставка себестоимость в BYN
 
     const isOwner = !!currentOwners[name];
     let due, profit;
@@ -1384,8 +1384,8 @@ function renderCalc() {
   const { clients, grandDue, grandProfit } = computeClientCalc();
 
   document.getElementById('calcGrand').innerHTML = `
-    <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)} ₽</span></div>
-    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)} ₽</span></div>`;
+    <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)} BYN</span></div>
+    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)} BYN</span></div>`;
 
   document.getElementById('calcList').innerHTML = clients.map(c => {
     const ownerChk = `<label class="owner-chk"><input type="checkbox" ${c.isOwner?'checked':''} onchange="toggleOwner('${c.name.replace(/'/g,"\\'")}')"> это я</label>`;
@@ -1394,26 +1394,26 @@ function renderCalc() {
       return `<div class="calc-client owner">
         <div class="calc-client-head">
           <span class="calc-client-name">${c.name} ${ownerChk}</span>
-          <span class="calc-client-due owner-cost">−${(c.goodsCost+c.shipCost).toFixed(0)} ₽</span>
+          <span class="calc-client-due owner-cost">−${(c.goodsCost+c.shipCost).toFixed(0)} BYN</span>
         </div>
         <div class="calc-rows">
-          <div class="calc-row"><span>Мои товары (${c.count} поз., ¥${c.yuan.toFixed(2)}) по себестоимости</span><span>${c.goodsCost.toFixed(0)} ₽</span></div>
-          <div class="calc-row"><span>Моя доставка (товар ${(c.weight*1000).toFixed(0)} г → с тарой ${(c.shipWeight*1000).toFixed(0)} г) по себестоимости</span><span>${c.shipCost.toFixed(0)} ₽</span></div>
-          <div class="calc-row total owner-cost"><span>Мои затраты (минус из прибыли)</span><span>−${(c.goodsCost+c.shipCost).toFixed(0)} ₽</span></div>
+          <div class="calc-row"><span>Мои товары (${c.count} поз., ¥${c.yuan.toFixed(2)}) по себестоимости</span><span>${c.goodsCost.toFixed(0)} BYN</span></div>
+          <div class="calc-row"><span>Моя доставка (товар ${(c.weight*1000).toFixed(0)} г → с тарой ${(c.shipWeight*1000).toFixed(0)} г) по себестоимости</span><span>${c.shipCost.toFixed(0)} BYN</span></div>
+          <div class="calc-row total owner-cost"><span>Мои затраты (минус из прибыли)</span><span>−${(c.goodsCost+c.shipCost).toFixed(0)} BYN</span></div>
         </div>
       </div>`;
     }
     return `<div class="calc-client">
       <div class="calc-client-head">
         <span class="calc-client-name">${c.name} ${ownerChk}</span>
-        <span class="calc-client-due">${c.due.toFixed(0)} ₽</span>
+        <span class="calc-client-due">${c.due.toFixed(0)} BYN</span>
       </div>
       ${c.noWeight ? '<div class="calc-noweight"><i class="ti ti-alert-triangle"></i> Вес не указан — доставка не посчитана</div>' : ''}
       <div class="calc-rows">
-        <div class="calc-row"><span>Товар (${c.count} поз., ¥${c.yuan.toFixed(2)})</span><span>${c.goodsClient.toFixed(0)} ₽</span></div>
-        <div class="calc-row"><span>Доставка (товар ${(c.weight*1000).toFixed(0)} г → с тарой ${(c.shipWeight*1000).toFixed(0)} г)</span><span>${c.shipClient.toFixed(0)} ₽</span></div>
-        <div class="calc-row total"><span>Клиент должен</span><span>${c.due.toFixed(0)} ₽</span></div>
-        <div class="calc-row profit"><span>Твоя прибыль</span><span>${c.profit.toFixed(0)} ₽</span></div>
+        <div class="calc-row"><span>Товар (${c.count} поз., ¥${c.yuan.toFixed(2)})</span><span>${c.goodsClient.toFixed(0)} BYN</span></div>
+        <div class="calc-row"><span>Доставка (товар ${(c.weight*1000).toFixed(0)} г → с тарой ${(c.shipWeight*1000).toFixed(0)} г)</span><span>${c.shipClient.toFixed(0)} BYN</span></div>
+        <div class="calc-row total"><span>Клиент должен</span><span>${c.due.toFixed(0)} BYN</span></div>
+        <div class="calc-row profit"><span>Твоя прибыль</span><span>${c.profit.toFixed(0)} BYN</span></div>
       </div>
     </div>`;
   }).join('');
