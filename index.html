@@ -35,6 +35,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .auth-card h2{font-size:18px;text-align:center;margin-bottom:18px;color:#1a1a1a}
 .auth-card input{width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:11px;font-size:14px;margin-bottom:10px;outline:none}
 .auth-card input:focus{border-color:#6C4DB8}
+  .auth-card input:-webkit-autofill{-webkit-box-shadow:0 0 0 100px #fff inset;-webkit-text-fill-color:#1a1a2e;transition:background-color 9999s}
 .btn-primary{width:100%;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer}
 .btn-primary:active{opacity:.85}
 .btn-primary:disabled{opacity:.5}
@@ -63,7 +64,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .menu-wrap{position:relative;flex-shrink:0}
 .btn-icon-menu{background:#fff;border:1px solid #e0e0e0;border-radius:8px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888;font-size:18px}
 .btn-icon-menu:hover{background:#f7f8fa}
-.ship-menu{display:none;position:absolute;right:0;top:44px;background:#fff;border:1px solid #e0e0e0;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.12);z-index:100;min-width:180px;overflow:hidden}
+.ship-menu{display:none;position:fixed;background:#fff;border:1px solid #e0e0e0;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.12);z-index:1000;min-width:190px;overflow:hidden}
+.ship-gear{background:none;border:1px solid #d5d8dd;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#5f6470;font-size:17px;flex-shrink:0;padding:0}
+.ship-gear:hover{background:#f7f8fa;border-color:#c5c8ce}
+.ship-card-right{gap:12px}
 .ship-menu.open{display:block}
 .ship-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;padding:12px 14px;font-size:14px;color:#1a1a2e;cursor:pointer;font-weight:500}
 .ship-menu button:hover{background:#f7f8fa}
@@ -82,6 +86,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 body.dark .rate-field input{background:#2a2545;border-color:rgba(255,255,255,0.1);color:#e0d8ff}
 .shipment-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:500}
 .shipment-row{display:flex;gap:8px;align-items:center}
+.ship-card{background:#fff;border:0.5px solid #e5e7eb;border-radius:10px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:6px;transition:border-color 0.15s}
+.ship-card:hover{border-color:#c5c8ce}
+.ship-card.active{border:1.5px solid #6C4DB8}
+.ship-card.done{opacity:0.65}
+.ship-card-left{text-align:left;display:flex;align-items:baseline;gap:8px;min-width:0;flex:1}
+.ship-card-name{font-size:15px;font-weight:500;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ship-card.done .ship-card-name{color:#6b7280}
+.ship-card-count{font-size:14px;font-weight:500;color:#6C4DB8;white-space:nowrap;flex-shrink:0}
+.ship-card.done .ship-card-count{color:#9aa0ab}
+.ship-card-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ship-card-status{font-size:13px;font-weight:500;white-space:nowrap}
+.ship-card-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+body.dark .ship-card{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.08)}
+body.dark .ship-card-name{color:#e0d8ff}
 .shipment-select{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:12px;font-size:15px;font-weight:500;outline:none;background:#fff;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 .btn-icon{background:#6C4DB8;color:#fff;border:none;border-radius:10px;width:46px;height:46px;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .btn-icon-del{background:#f5f5f5;color:#999;border:1px solid #e0e0e0;border-radius:10px;width:46px;height:46px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -500,23 +518,14 @@ body.dark .profile-card div{color:#c4b8f0}
   </div>
 </div>
 <div class="shipment-section">
-  <div class="shipment-label">Текущий приход</div>
-  <div class="shipment-row">
-    <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()"></select>
-    <button class="btn-icon-cache" id="btnCacheImages" onclick="cacheShipmentImages()" title="Загрузить картинки заранее (для надёжности при плохом интернете)"><i class="ti ti-cloud-download" aria-hidden="true"></i></button>
-    <div class="menu-wrap">
-      <button class="btn-icon-menu" id="btnMenu" onclick="toggleShipMenu(event)" title="Ещё"><i class="ti ti-dots-vertical" aria-hidden="true"></i></button>
-      <div class="ship-menu" id="shipMenu">
-        <button onclick="openPriceEditor();closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
-        <button onclick="openWeighing();closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
-        <button onclick="openCalc();closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
-        <button onclick="toggleRatesRow();closeShipMenu()"><i class="ti ti-settings" aria-hidden="true"></i> Курсы прихода</button>
-        <button onclick="openUploadModal();closeShipMenu()"><i class="ti ti-plus" aria-hidden="true"></i> Добавить приход</button>
-        <button onclick="resetAll();closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
-        <button onclick="deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>
-      </div>
-    </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <span class="shipment-label" style="margin-bottom:0">Приходы</span>
+    <button onclick="openUploadModal()" style="display:flex;align-items:center;gap:5px;background:none;border:1px solid #d5d8dd;border-radius:8px;padding:5px 11px;font-size:13px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-plus" style="font-size:16px"></i> Добавить приход</button>
   </div>
+  <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()" style="display:none"></select>
+  <button id="btnCacheImages" onclick="cacheShipmentImages()" style="display:none"></button>
+  <div id="shipmentCards"></div>
+  <div class="ship-menu" id="shipMenu" style="position:fixed"></div>
   <div id="ratesRow" style="display:none;margin-top:8px">
     <div style="font-size:11px;color:#888;margin-bottom:4px">Курсы этого прихода:</div>
     <div style="display:flex;gap:6px">
@@ -1405,10 +1414,22 @@ function onCargoWeightChange() {
 function scannedRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('scanned').doc(shipId); }
 function historyRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('history').doc(shipId || activeShipmentId); }
 
+let allShipments = [];  // кэш приходов для рендера плашек
+
+// Статусы прихода: ключ → {слово, цвет}
+const SHIP_STATUSES = {
+  forming:   { label: 'Формируется', color: '#4a90d9', text: '#2563a8' },
+  transit:   { label: 'В дороге',    color: '#f5c518', text: '#b8860b' },
+  warehouse: { label: 'На складе',   color: '#3cb371', text: '#2e8b57' },
+  done:      { label: 'Готово',      color: '#b0b4bb', text: '#9aa0ab' },
+};
+
 async function loadShipments() {
   const snap = await shipmentsRef().orderBy('created', 'desc').get();
   const shipments = [];
   snap.forEach(doc => shipments.push({ id: doc.id, ...doc.data() }));
+  allShipments = shipments;
+  // Скрытый select держим синхронно (некоторый код читает shipmentSelect)
   const sel = document.getElementById('shipmentSelect');
   sel.innerHTML = shipments.length === 0
     ? '<option value="">— Загрузите CSV —</option>'
@@ -1420,6 +1441,74 @@ async function loadShipments() {
   } else {
     TABLE = []; scanned = {}; updateStats();
   }
+  renderShipmentCards();
+}
+
+// Рендер плашек приходов со статусами
+function renderShipmentCards() {
+  const box = document.getElementById('shipmentCards');
+  if (!box) return;
+  if (!allShipments.length) { box.innerHTML = '<div style="font-size:13px;color:#9aa0ab;padding:8px 0">Нет приходов. Добавьте через меню.</div>'; return; }
+  box.innerHTML = allShipments.map(s => {
+    const st = SHIP_STATUSES[s.status] || SHIP_STATUSES.forming;
+    const active = s.id === activeShipmentId;
+    const isDone = s.status === 'done';
+    const count = (s.data || []).length;
+    const posWord = count % 10 === 1 && count % 100 !== 11 ? 'позиция' : (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20) ? 'позиции' : 'позиций');
+    return `<div class="ship-card ${active?'active':''} ${isDone?'done':''}" onclick="pickShipment('${s.id}')">
+      <div class="ship-card-left">
+        <span class="ship-card-name">${s.name}</span>
+        <span class="ship-card-count">${count} ${posWord}</span>
+      </div>
+      <div class="ship-card-right">
+        <span class="ship-card-status-wrap" onclick="event.stopPropagation();cycleStatus('${s.id}')" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <span class="ship-card-status" style="color:${st.text}">${st.label}</span>
+          <span class="ship-card-dot" style="background:${st.color}"></span>
+        </span>
+        <button class="ship-gear" onclick="event.stopPropagation();openShipMenu('${s.id}',event)" title="Действия"><i class="ti ti-settings" aria-hidden="true"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Выбрать приход активным (тап на плашку)
+async function pickShipment(id) {
+  if (id === activeShipmentId) return;
+  document.getElementById('shipmentSelect').value = id;
+  await loadShipmentData(id);
+  renderShipmentCards();
+}
+
+// Открыть меню действий для конкретного прихода (шестерёнка)
+let shipMenuTargetId = null;
+function openShipMenu(id, ev) {
+  shipMenuTargetId = id;
+  const menu = document.getElementById('shipMenu');
+  menu.innerHTML = `
+    <button onclick="pickShipment('${id}');openPriceEditor();closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
+    <button onclick="pickShipment('${id}');openWeighing();closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
+    <button onclick="pickShipment('${id}');openCalc();closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
+    <button onclick="pickShipment('${id}');toggleRatesRow();closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
+    <button onclick="pickShipment('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
+    <button onclick="pickShipment('${id}');resetAll();closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
+    <button onclick="pickShipment('${id}');deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
+  // позиционируем меню под шестерёнкой
+  const rect = ev.currentTarget.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  menu.classList.add('open');
+}
+
+// Смена статуса по кругу (тап на статус справа)
+async function cycleStatus(id) {
+  const order = ['forming','transit','warehouse','done'];
+  const s = allShipments.find(x => x.id === id);
+  if (!s) return;
+  const cur = order.indexOf(s.status || 'forming');
+  const next = order[(cur + 1) % order.length];
+  s.status = next;
+  renderShipmentCards();
+  try { await shipmentsRef().doc(id).update({ status: next }); } catch(e) {}
 }
 
 async function loadShipmentData(id) {
@@ -1495,7 +1584,7 @@ async function uploadCSV() {
         const lastSnap = await shipmentsRef().orderBy('created', 'desc').limit(1).get();
         if (!lastSnap.empty && lastSnap.docs[0].data().rates) newRates = { ...DEFAULT_RATES, ...lastSnap.docs[0].data().rates };
       } catch(e) {}
-      const ref = await shipmentsRef().add({ name, data, rates: newRates, created: firebase.firestore.FieldValue.serverTimestamp() });
+      const ref = await shipmentsRef().add({ name, data, rates: newRates, status: "forming", created: firebase.firestore.FieldValue.serverTimestamp() });
       closeUploadModal();
       activeShipmentId = ref.id;
       await loadShipments();
@@ -1654,8 +1743,7 @@ function closeShipMenu() {
 // Закрываем меню при клике вне его
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('shipMenu');
-  const btn = document.getElementById('btnMenu');
-  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target) && !e.target.closest('.ship-gear')) {
     menu.classList.remove('open');
   }
 });
