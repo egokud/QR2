@@ -1196,7 +1196,7 @@ function exportCalcPDF() {
     .grand{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
     .gcard{background:#f7f8fa;border-radius:8px;padding:10px 14px;flex:1;min-width:120px}
     .gcard .lbl{font-size:11px;color:#888}
-    .gcard .val{font-size:20px;font-weight:800;color:#6C4DB8}
+    .gcard .val{font-size:20px;font-weight:400;color:#6C4DB8}
     .gcard .val.profit{color:#22a05c}
     .gcard .val.minus{color:#e24b4a}
     table{width:100%;border-collapse:collapse;font-size:12px}
@@ -1222,6 +1222,7 @@ function exportCalcPDF() {
       <div class="gcard"><div class="lbl">Клиенты должны</div><div class="val">${grandDue.toFixed(0)} BYN</div></div>
       <div class="gcard"><div class="lbl">Твоя прибыль</div><div class="val ${grandProfit<0?'minus':'profit'}">${grandProfit.toFixed(0)} BYN</div></div>
       <div class="gcard"><div class="lbl">Общий вес</div><div class="val">${totalWeight.toFixed(2)} кг</div></div>
+      <div class="gcard"><div class="lbl">Вес тары</div><div class="val">${tareTotal.toFixed(2)} кг</div></div>
     </div>
     <table>
       <thead><tr>
