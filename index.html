@@ -830,12 +830,14 @@ const db = firebase.firestore();
 const FS_BASE = 'https://firestore.googleapis.com/v1/projects/parcel-scanner-90427/databases/(default)/documents';
 function fsVal(v){if(v==null)return null;if('stringValue'in v)return v.stringValue;if('integerValue'in v)return parseInt(v.integerValue);if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;if('timestampValue'in v)return new Date(v.timestampValue);if('mapValue'in v){const o={};for(const k in(v.mapValue.fields||{}))o[k]=fsVal(v.mapValue.fields[k]);return o;}if('arrayValue'in v)return(v.arrayValue.values||[]).map(fsVal);if('nullValue'in v)return null;return null;}
 function fsDocToObj(doc){const o={};for(const k in(doc.fields||{}))o[k]=fsVal(doc.fields[k]);return o;}
-async function fsGet(path){const token=await auth.currentUser.getIdToken();const r=await fetch(FS_BASE+'/'+path,{headers:{'Authorization':'Bearer '+token}});if(r.status===404)return{exists:false};if(!r.ok)throw new Error('fsGet '+r.status);const doc=await r.json();return{exists:true,data:()=>fsDocToObj(doc),id:(doc.name||'').split('/').pop()};}
-async function fsList(path){const token=await auth.currentUser.getIdToken();const r=await fetch(FS_BASE+'/'+path+'?pageSize=300',{headers:{'Authorization':'Bearer '+token}});if(!r.ok)throw new Error('fsList '+r.status);const j=await r.json();return(j.documents||[]).map(doc=>({id:(doc.name||'').split('/').pop(),data:()=>fsDocToObj(doc)}));}
+async function fsGet(path){const token=savedToken||(auth.currentUser&&await auth.currentUser.getIdToken());const r=await fetch(FS_BASE+'/'+path,{headers:{'Authorization':'Bearer '+token}});if(r.status===404)return{exists:false};if(!r.ok)throw new Error('fsGet '+r.status);const doc=await r.json();return{exists:true,data:()=>fsDocToObj(doc),id:(doc.name||'').split('/').pop()};}
+async function fsList(path){const token=savedToken||(auth.currentUser&&await auth.currentUser.getIdToken());const r=await fetch(FS_BASE+'/'+path+'?pageSize=300',{headers:{'Authorization':'Bearer '+token}});if(!r.ok)throw new Error('fsList '+r.status);const j=await r.json();return(j.documents||[]).map(doc=>({id:(doc.name||'').split('/').pop(),data:()=>fsDocToObj(doc)}));}
 const ADMIN_EMAIL = 'egokud@gmail.com';
 
 // ============ STATE ============
 let currentUser = null;
+let savedUid = null;
+let savedToken = null;
 let userProfile = null;
 let TABLE = [];
 let scanned = {};
@@ -859,6 +861,8 @@ auth.onAuthStateChanged(async (user) => {
   document.getElementById('loadingScreen').classList.add('hide');
   if (user) {
     currentUser = user;
+    savedUid = user.uid;
+    try { savedToken = await user.getIdToken(); } catch(e) {}
     await loadUserProfile();
     showApp();
   } else {
@@ -946,7 +950,7 @@ function doLogout() { if (scanning) stopScanner(); auth.signOut(); }
 
 // ============ USER PROFILE ============
 async function loadUserProfile() {
-  const uid = currentUser.uid, email = currentUser.email, displayName = currentUser.displayName;
+  const uid = savedUid, email = (currentUser&&currentUser.email)||'', displayName = (currentUser&&currentUser.displayName)||'';
   const token = await currentUser.getIdToken();
   let doc;
   try { doc = await fsGet('users/' + uid, token); } catch(e) { doc = { exists: false }; }
@@ -1567,7 +1571,7 @@ const SHIP_STATUSES = {
 async function loadShipments() {
   let shipments = [];
   try {
-    const docs = await fsList('users/' + currentUser.uid + '/shipments');
+    const docs = await fsList('users/' + savedUid + '/shipments');
     shipments = docs.map(d => ({ id: d.id, ...d.data() }));
     // сортировка по created desc
     shipments.sort((a,b) => {
@@ -1686,7 +1690,7 @@ async function loadShipmentData(id) {
   const cacheBtn = document.getElementById('btnCacheImages');
   if (cacheBtn) { cacheBtn.classList.remove('caching'); }
   let doc;
-  try { doc = await fsGet('users/' + currentUser.uid + '/shipments/' + id); } catch(e) { doc = { exists: false, data:()=>({}) }; }
+  try { doc = await fsGet('users/' + savedUid + '/shipments/' + id); } catch(e) { doc = { exists: false, data:()=>({}) }; }
   const raw = doc.exists ? (doc.data().data || []) : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1']);
   currentRates = (doc.exists && doc.data().rates) ? { ...DEFAULT_RATES, ...doc.data().rates } : { ...DEFAULT_RATES };
   currentWeights = (doc.exists && doc.data().weights) ? { ...doc.data().weights } : {};
@@ -1699,7 +1703,7 @@ async function loadShipmentData(id) {
   // Demo mode: limit to 5 tracks
   if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
   let scDoc;
-  try { scDoc = await fsGet('users/' + currentUser.uid + '/scanned/' + id); } catch(e) { scDoc = { exists: false }; }
+  try { scDoc = await fsGet('users/' + savedUid + '/scanned/' + id); } catch(e) { scDoc = { exists: false }; }
   scanned = scDoc.exists ? (scDoc.data().items || {}) : {};
   updateStats();
   checkCacheStatus(); // проверяем загружены ли картинки этого прихода
@@ -1784,7 +1788,7 @@ async function saveScanned() {
 // ============ HISTORY (FIRESTORE) ============
 async function loadHistory() {
   try {
-    const doc = await fsGet('users/' + currentUser.uid + '/history/' + (activeShipmentId || 'main'));
+    const doc = await fsGet('users/' + savedUid + '/history/' + (activeShipmentId || 'main'));
     scanHistory = doc.exists ? (doc.data().items || []) : [];
   } catch(e) { scanHistory = []; }
 }
