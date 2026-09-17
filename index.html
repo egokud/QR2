@@ -2512,6 +2512,30 @@ function manualSearch() {
   lookup(v); document.getElementById('manualInput').value='';
   setTimeout(()=>{document.getElementById('manualInput').focus();document.getElementById('gunHint').textContent='Наведи пистолет или введи код вручную'},300);
 }
+// Автоконвертация русской раскладки в английскую ТОЛЬКО в поле сканера.
+// Пистолет шлёт коды латинских клавиш; если на устройстве русская раскладка,
+// печатаются русские буквы с тех же клавиш. Возвращаем их в латиницу по позиции клавиши.
+const RU2EN = {
+  'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ъ':']',
+  'ф':'a','ы':'s','в':'d','а':'f','п':'g','р':'h','о':'j','л':'k','д':'l','ж':';','э':"'",
+  'я':'z','ч':'x','с':'c','м':'v','и':'b','т':'n','ь':'m','б':',','ю':'.',
+  'Й':'Q','Ц':'W','У':'E','К':'R','Е':'T','Н':'Y','Г':'U','Ш':'I','Щ':'O','З':'P','Х':'[','Ъ':']',
+  'Ф':'A','Ы':'S','В':'D','А':'F','П':'G','Р':'H','О':'J','Л':'K','Д':'L','Ж':';','Э':"'",
+  'Я':'Z','Ч':'X','С':'C','М':'V','И':'B','Т':'N','Ь':'M','Б':',','Ю':'.'
+};
+function convertRuToEn(str){
+  let out='';
+  for(const ch of str){ out += (RU2EN[ch] !== undefined ? RU2EN[ch] : ch); }
+  return out.toUpperCase();  // треки латиницей в верхнем регистре
+}
+document.getElementById('manualInput').addEventListener('input',function(e){
+  const converted = convertRuToEn(this.value);
+  if(converted !== this.value){
+    const pos = this.selectionStart;
+    this.value = converted;
+    try { this.setSelectionRange(pos, pos); } catch(_){}
+  }
+});
 document.getElementById('manualInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualSearch()}});
 document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&document.getElementById('appScreen').style.display!=='none')document.getElementById('manualInput').focus()});
 
