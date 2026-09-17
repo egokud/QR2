@@ -238,6 +238,9 @@ body.dark .pe-item.multi{background:#2a2010}
 .pe-track{font-family:monospace;font-size:13px;color:#4a5260;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.dark .pe-track{color:#c4b8f0}
 .pe-wh{font-size:15px;color:#6C4DB8;font-weight:500;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pe-wh-input{border:1px solid transparent;background:transparent;border-radius:6px;padding:2px 6px;width:100%;box-sizing:border-box;cursor:text;font-family:inherit;outline:none;transition:all 0.15s}
+.pe-wh-input:hover{border-color:#e0d8ff;background:#faf9ff}
+.pe-wh-input:focus{border-color:#6C4DB8;background:#fff}
 .pe-qty{background:#F5A623;color:#fff;font-size:12px;font-weight:600;padding:1px 7px;border-radius:9px;margin-left:5px;font-family:sans-serif;vertical-align:middle}
 .pe-prices{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
 .pe-price-field{display:flex;flex-direction:column;gap:1px}
@@ -1163,7 +1166,7 @@ function renderPriceEditor() {
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
         <div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>
-        ${byWh ? '' : `<div class="pe-wh">${r.wh || '— без склада —'}</div>`}
+        ${byWh ? '' : `<input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" onclick="event.stopPropagation()">`}
       </div>
       <div class="pe-prices">
         <label class="pe-price-field"><span>Закупка ¥</span><input type="number" step="0.01" inputmode="decimal" class="buy" data-idx="${r.idx}" value="${r.buy}" placeholder="—" onchange="onEditBuy(this)"></label>
@@ -1183,6 +1186,15 @@ function renderPriceEditor() {
       wrap.appendChild(img);
     } else { wrap.innerHTML = '<span class="pe-img-ph">📦</span>'; }
   });
+}
+
+async function onEditClientName(input) {
+  const idx = parseInt(input.dataset.idx);
+  if (idx<0 || idx>=TABLE.length) return;
+  TABLE[idx][1] = input.value.trim();  // склад/клиент в TABLE[idx][1]
+  await savePriceAt(idx);
+  // если сортируем по складам — перерисуем чтобы товар перескочил к новому клиенту
+  if (peSortMode === 'warehouse') renderPriceEditor();
 }
 
 async function onEditBuy(input) {
@@ -1210,9 +1222,11 @@ async function savePriceAt(idx) {
   if (!data[idx]) return;
   if (Array.isArray(data[idx])) {
     // старый формат-массив [t,w,img,p,pc,q]
+    data[idx][1] = String(TABLE[idx][1]||'');  // склад/клиент
     data[idx][3] = String(TABLE[idx][3]||'');
     data[idx][4] = String(TABLE[idx][4]||'');
   } else {
+    data[idx].w = String(TABLE[idx][1]||'');   // склад/клиент
     data[idx].p = String(TABLE[idx][3]||'');
     data[idx].pc = String(TABLE[idx][4]||'');
   }
