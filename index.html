@@ -514,7 +514,7 @@ body.dark .profile-card div{color:#c4b8f0}
 <!-- MAIN APP -->
 <div id="modeSelectScreen" class="hide" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;box-sizing:border-box">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-    <div style="width:38px;height:38px;border-radius:9px;background:#6C4DB8;display:flex;align-items:center;justify-content:center"><i class="ti ti-box" style="color:#fff;font-size:21px"></i></div>
+    <img src="/icons/icon-192x192.png" width="38" height="38" alt="Piksta" style="border-radius:9px">
     <span style="font-size:23px;font-weight:500;color:#1a1a2e">Piksta</span>
   </div>
   <p style="font-size:15px;color:#6b7280;margin:0 0 32px" id="modeSelectHi">Куда переходим?</p>
@@ -525,16 +525,18 @@ body.dark .profile-card div{color:#c4b8f0}
       <div style="display:inline-block;background:#eef2ff;color:#6C4DB8;font-size:11px;font-weight:500;padding:3px 10px;border-radius:10px;margin-bottom:10px">для телефона</div>
       <div style="font-size:13px;color:#6b7280;line-height:1.5">Приёмка на складе. Сканируете пистолетом, проставляете вес</div>
     </div>
-    <div onclick="chooseMode('cabinet')" style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:28px 20px;text-align:center;box-shadow:0 1px 3px rgba(16,24,40,0.1);cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor='#6C4DB8'" onmouseout="this.style.borderColor='#e5e7eb'">
-      <div style="width:64px;height:64px;border-radius:16px;background:#eef2ff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px"><i class="ti ti-layout-dashboard" style="color:#6C4DB8;font-size:32px"></i></div>
-      <div style="font-size:19px;font-weight:500;color:#1a1a2e;margin-bottom:6px">Кабинет</div>
-      <div style="display:inline-block;background:#eef2ff;color:#6C4DB8;font-size:11px;font-weight:500;padding:3px 10px;border-radius:10px;margin-bottom:10px">для компьютера</div>
-      <div style="font-size:13px;color:#6b7280;line-height:1.5">Приходы, клиенты, цены, расчёты и аналитика. Основная работа</div>
+    <div style="background:#fafafb;border:1px solid #e5e7eb;border-radius:14px;padding:28px 20px;text-align:center;box-shadow:0 1px 3px rgba(16,24,40,0.06);opacity:0.75;cursor:not-allowed;position:relative">
+      <div style="width:64px;height:64px;border-radius:16px;background:#eef2ff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px"><i class="ti ti-layout-dashboard" style="color:#9aa0ab;font-size:32px"></i></div>
+      <div style="font-size:19px;font-weight:500;color:#6b7280;margin-bottom:6px">Кабинет</div>
+      <div style="display:inline-block;background:#eef2ff;color:#9aa0ab;font-size:11px;font-weight:500;padding:3px 10px;border-radius:10px;margin-bottom:10px">для компьютера</div>
+      <div style="font-size:13px;color:#9aa0ab;line-height:1.5">Приходы, клиенты, цены, расчёты и аналитика. Основная работа</div>
+      <div style="margin-top:12px;display:inline-block;background:#fef3c7;color:#b45309;font-size:12px;font-weight:600;padding:4px 12px;border-radius:10px;"><i class="ti ti-tool" style="font-size:13px;vertical-align:-2px"></i> В разработке</div>
     </div>
   </div>
   <label style="display:flex;align-items:center;gap:8px;margin-top:26px;font-size:13px;color:#6b7280;cursor:pointer">
     <input type="checkbox" id="rememberMode" style="width:15px;height:15px;accent-color:#6C4DB8"> Запомнить выбор
   </label>
+  <button onclick="doLogout()" style="margin-top:24px;display:flex;align-items:center;gap:6px;background:none;border:1px solid #d5d8dd;border-radius:10px;padding:10px 20px;font-size:14px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
 </div>
 
 <div id="appScreen" class="hide" style="padding:0 16px;">
@@ -684,6 +686,23 @@ body.dark .profile-card div{color:#c4b8f0}
         </select>
       </div>
       <div id="currencyMsg" class="profile-msg" style="display:none"></div>
+    </div>
+
+    <div class="profile-card">
+      <h3><i class="ti ti-puzzle" aria-hidden="true" style="font-size:14px;margin-right:4px;"></i> Расширение для импорта</h3>
+      <div style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:12px;">
+        Расширение Chrome для импорта треков из Pinduoduo прямо в приход. Установите один раз — и импортируйте заказы в один клик.
+      </div>
+      <a href="https://github.com/egokud/QR2/raw/main/piksta-extension.zip" download style="display:flex;align-items:center;justify-content:center;gap:8px;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:500;text-decoration:none;margin-bottom:10px;">
+        <i class="ti ti-download" style="font-size:18px;"></i> Скачать расширение
+      </a>
+      <div style="font-size:12px;color:#9aa0ab;line-height:1.6;">
+        <b style="color:#6b7280;">Как установить:</b><br>
+        1. Скачайте и распакуйте архив<br>
+        2. Откройте <span style="font-family:monospace;color:#6C4DB8;">chrome://extensions</span><br>
+        3. Включите «Режим разработчика» (справа вверху)<br>
+        4. «Загрузить распакованное» → выберите папку
+      </div>
     </div>
 
     <div class="profile-card">
