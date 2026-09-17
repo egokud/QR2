@@ -517,24 +517,26 @@ body.dark .profile-card div{color:#c4b8f0}
     <img src="/icons/icon-192x192.png" width="38" height="38" alt="Piksta" style="border-radius:9px">
     <span style="font-size:23px;font-weight:500;color:#1a1a2e">Piksta</span>
   </div>
-  <p style="font-size:15px;color:#6b7280;margin:0 0 32px" id="modeSelectHi">Куда переходим?</p>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;width:100%;max-width:560px">
-    <div onclick="chooseMode('scanner')" style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:28px 20px;text-align:center;box-shadow:0 1px 3px rgba(16,24,40,0.1);cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor='#6C4DB8'" onmouseout="this.style.borderColor='#e5e7eb'">
-      <div style="width:64px;height:64px;border-radius:16px;background:#eef2ff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px"><i class="ti ti-scan" style="color:#6C4DB8;font-size:32px"></i></div>
-      <div style="font-size:19px;font-weight:500;color:#1a1a2e;margin-bottom:6px">Сканер</div>
-      <div style="display:inline-block;background:#eef2ff;color:#6C4DB8;font-size:11px;font-weight:500;padding:3px 10px;border-radius:10px;margin-bottom:10px">для телефона</div>
-      <div style="font-size:13px;color:#6b7280;line-height:1.5">Приёмка на складе. Сканируете пистолетом, проставляете вес</div>
+  <p style="font-size:16px;color:#4a5260;margin:0 0 28px" id="modeSelectHi">Куда переходим?</p>
+  <div style="display:flex;flex-direction:column;gap:16px;width:100%;max-width:440px">
+    <div onclick="chooseMode('scanner')" style="background:#fff;border:1.5px solid #e5e7eb;border-radius:16px;padding:20px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:16px" onmouseover="this.style.borderColor='#6C4DB8'" onmouseout="this.style.borderColor='#e5e7eb'">
+      <div style="width:60px;height:60px;border-radius:14px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-device-mobile" style="color:#6C4DB8;font-size:32px"></i></div>
+      <div style="text-align:left;flex:1">
+        <div style="font-size:20px;font-weight:600;color:#1a1a2e;margin-bottom:4px">Мобильная версия</div>
+        <div style="font-size:15px;color:#4a5260;line-height:1.45">Приёмка на складе. Сканируйте пистолетом, проставляйте вес</div>
+      </div>
+      <i class="ti ti-chevron-right" style="color:#c5c8ce;font-size:24px;flex-shrink:0"></i>
     </div>
-    <div style="background:#fafafb;border:1px solid #e5e7eb;border-radius:14px;padding:28px 20px;text-align:center;box-shadow:0 1px 3px rgba(16,24,40,0.06);opacity:0.75;cursor:not-allowed;position:relative">
-      <div style="width:64px;height:64px;border-radius:16px;background:#eef2ff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px"><i class="ti ti-layout-dashboard" style="color:#9aa0ab;font-size:32px"></i></div>
-      <div style="font-size:19px;font-weight:500;color:#6b7280;margin-bottom:6px">Кабинет</div>
-      <div style="display:inline-block;background:#eef2ff;color:#9aa0ab;font-size:11px;font-weight:500;padding:3px 10px;border-radius:10px;margin-bottom:10px">для компьютера</div>
-      <div style="font-size:13px;color:#9aa0ab;line-height:1.5">Приходы, клиенты, цены, расчёты и аналитика. Основная работа</div>
-      <div style="margin-top:12px;display:inline-block;background:#fef3c7;color:#b45309;font-size:12px;font-weight:600;padding:4px 12px;border-radius:10px;"><i class="ti ti-tool" style="font-size:13px;vertical-align:-2px"></i> В разработке</div>
+    <div style="background:#fafafb;border:1.5px solid #e5e7eb;border-radius:16px;padding:20px;cursor:not-allowed;display:flex;align-items:center;gap:16px;opacity:0.85">
+      <div style="width:60px;height:60px;border-radius:14px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-layout-dashboard" style="color:#9aa0ab;font-size:32px"></i></div>
+      <div style="text-align:left;flex:1">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:20px;font-weight:600;color:#6b7280">Кабинет</span><span style="background:#fef3c7;color:#b45309;font-size:12px;font-weight:600;padding:3px 10px;border-radius:8px">В разработке</span></div>
+        <div style="font-size:15px;color:#8a919e;line-height:1.45">Компьютер. Приходы, клиенты, цены, расчёты и аналитика</div>
+      </div>
     </div>
   </div>
-  <label style="display:flex;align-items:center;gap:8px;margin-top:26px;font-size:13px;color:#6b7280;cursor:pointer">
-    <input type="checkbox" id="rememberMode" style="width:15px;height:15px;accent-color:#6C4DB8"> Запомнить выбор
+  <label style="display:flex;align-items:center;gap:8px;margin-top:24px;font-size:15px;color:#4a5260;cursor:pointer">
+    <input type="checkbox" id="rememberMode" style="width:17px;height:17px;accent-color:#6C4DB8"> Запомнить выбор
   </label>
   <button onclick="doLogout()" style="margin-top:24px;display:flex;align-items:center;gap:6px;background:none;border:1px solid #d5d8dd;border-radius:10px;padding:10px 20px;font-size:14px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
 </div>
