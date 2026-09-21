@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f8fa;min-height:100vh;max-width:640px;margin:0 auto}
@@ -833,6 +834,17 @@ body.dark .profile-card div{color:#c4b8f0}
 </div>
 
 <!-- Upload modal -->
+<div class="upload-modal" id="cargoResultModal">
+  <div class="upload-card" style="max-width:440px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+      <div><div style="font-size:17px;font-weight:600;color:#1a1a2e"><i class="ti ti-arrows-diff" style="color:#6C4DB8;margin-right:6px"></i>Сверка с карго</div></div>
+      <button onclick="closeCargoResult()" style="background:none;border:none;color:#9aa0ab;cursor:pointer;font-size:20px;padding:0"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="cargoResultBody"></div>
+    <button id="cargoApplyBtn" onclick="applyCargoCompare()" style="width:100%;margin-top:20px;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:500;cursor:pointer">Применить сверку</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="uploadModal">
   <div class="modal-card">
     <h3><i class="ti ti-upload" style="font-size:16px;margin-right:4px"></i> Загрузить партию</h3>
@@ -1182,9 +1194,15 @@ function renderPriceEditor() {
   }
 
   const list = document.getElementById('peList');
+  // Предупреждение о незаполненных ценах (напр. после сверки с карго — товары другого маркетплейса без цен)
+  const emptyPrices = TABLE.filter(r => !String(r[3]||'').trim()).length;
+  let warnHtml = '';
+  if (emptyPrices > 0) {
+    warnHtml = `<div style="background:#fffaeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#b45309;line-height:1.5"><i class="ti ti-alert-triangle" style="margin-right:4px"></i> Не заполнены цены у <b>${emptyPrices}</b> товаров. Для достоверного отчёта заполните закупочные цены.</div>`;
+  }
   const byWh = peSortMode === 'warehouse';
   let lastWh = null;
-  list.innerHTML = items.map(r => {
+  list.innerHTML = warnHtml + items.map(r => {
     let header = '';
     // В режиме "По складам" — заголовок клиента перед сменой группы
     if (byWh) {
@@ -1693,6 +1711,7 @@ function openShipMenu(id, ev) {
     <button onclick="pickShipment('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
     <button onclick="pickShipment('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
     <button onclick="pickShipment('${id}');resetAll();closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
+    <button onclick="pickShipment('${id}').then(()=>openCargoCompare('${id}'));closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
     <button onclick="pickShipment('${id}');deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
   // позиционируем меню под шестерёнкой
   const rect = ev.currentTarget.getBoundingClientRect();
@@ -1817,6 +1836,132 @@ async function uploadCSV() {
   };
   reader.readAsText(file);
 }
+
+// ============ СВЕРКА С КАРГО ============
+// Скрытый input для файла карго
+let cargoCompareShipId = null;
+
+function openCargoCompare(shipId) {
+  cargoCompareShipId = shipId;
+  let inp = document.getElementById('cargoFileInput');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file';
+    inp.id = 'cargoFileInput';
+    inp.accept = '.xlsx,.xls';
+    inp.style.display = 'none';
+    inp.addEventListener('change', handleCargoFile);
+    document.body.appendChild(inp);
+  }
+  inp.value = '';
+  inp.click();
+}
+
+// Нормализация трека: нижний регистр + убрать суффиксы после первого дефиса
+function normTrack(t) {
+  return String(t || '').toLowerCase().trim().split('-')[0];
+}
+
+async function handleCargoFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(ev) {
+    try {
+      // читаем xlsx через SheetJS
+      const wb = XLSX.read(ev.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      // треки в колонке B (индекс 1)
+      const cargoTracks = [];
+      for (const r of rows) {
+        const b = r[1];
+        if (b && String(b).trim()) cargoTracks.push(String(b).trim());
+      }
+      if (cargoTracks.length === 0) { alert('В файле карго не найдено треков (колонка B пуста)'); return; }
+      // нормализованное множество карго
+      const cargoNorm = new Set(cargoTracks.map(normTrack));
+
+      // текущий приход
+      const doc = await shipmentsRef().doc(cargoCompareShipId).get();
+      if (!doc.exists) { alert('Приход не найден'); return; }
+      const shipData = doc.data().data || [];
+      // нормализуем товары прихода в объекты
+      const items = shipData.map(r => Array.isArray(r) ? {t:r[0],w:r[1]||'',img:r[2]||'',p:r[3]||'',pc:r[4]||'',q:r[5]||'1'} : r);
+      const shipNorm = new Set(items.map(it => normTrack(it.t)));
+
+      // ПРАВИЛО 1: в приходе НЕТ в карго → недоехали → в новый приход
+      const notInCargo = items.filter(it => !cargoNorm.has(normTrack(it.t)));
+      // остаются в текущем: те что есть в карго
+      const staying = items.filter(it => cargoNorm.has(normTrack(it.t)));
+      // ПРАВИЛО 2: в карго НЕТ в приходе → другой маркетплейс → в конец текущего блоком
+      const notInShip = cargoTracks.filter(t => !shipNorm.has(normTrack(t)));
+
+      // Показываем итоговое окно сверки
+      showCargoResult(notInCargo, staying, notInShip, cargoTracks.length);
+    } catch(err) {
+      alert('Ошибка чтения файла карго: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Результат сверки — окно с итогами и подтверждением
+let cargoResult = null;
+function showCargoResult(notInCargo, staying, notInShip, cargoTotal) {
+  cargoResult = { notInCargo, staying, notInShip };
+  const modal = document.getElementById('cargoResultModal');
+  const body = document.getElementById('cargoResultBody');
+  body.innerHTML = `
+    <div style="font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.6">Файл карго: <b>${cargoTotal}</b> треков. Приход: <b>${staying.length + notInCargo.length}</b> товаров.</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="background:#ecfdf3;border:1px solid #a7f3d0;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#22a05c;margin-bottom:2px"><i class="ti ti-check"></i> Совпали: ${staying.length}</div><div style="font-size:12px;color:#6b7280">Остаются в этом приходе</div></div>
+      <div style="background:#fffaeb;border:1px solid #fde68a;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#b45309;margin-bottom:2px"><i class="ti ti-arrow-right"></i> Не доехали: ${notInCargo.length}</div><div style="font-size:12px;color:#6b7280">Нет в карго → переедут в НОВЫЙ приход (со всеми данными)</div></div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#2563a8;margin-bottom:2px"><i class="ti ti-plus"></i> Другой маркетплейс: ${notInShip.length}</div><div style="font-size:12px;color:#6b7280">Есть в карго, нет в приходе → добавятся в конец блоком (цены вручную)</div></div>
+    </div>
+    ${notInCargo.length > 0 ? '<div style="margin-top:16px"><div style="font-size:12px;color:#9aa0ab;margin-bottom:6px">Название нового прихода (для не доехавших):</div><input id="cargoNewShipName" placeholder="Партия ' + new Date().toLocaleDateString('ru') + '" style="width:100%;border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:14px;outline:none;box-sizing:border-box"></div>' : ''}
+  `;
+  modal.classList.add('show');
+}
+
+async function applyCargoCompare() {
+  if (!cargoResult) return;
+  const { notInCargo, staying, notInShip } = cargoResult;
+  const btn = document.getElementById('cargoApplyBtn');
+  btn.disabled = true; btn.textContent = 'Применяю...';
+  try {
+    // 1. Текущий приход = совпавшие + новые с другого маркетплейса (блоком в конец, только трек)
+    const newItemsForShip = notInShip.map(t => ({ t: t, w:'', img:'', p:'', pc:'', q:'1' }));
+    const updatedCurrent = [...staying, ...newItemsForShip];
+    await shipmentsRef().doc(cargoCompareShipId).update({ data: updatedCurrent });
+
+    // 2. Не доехавшие → новый приход (со всеми данными)
+    if (notInCargo.length > 0) {
+      const name = (document.getElementById('cargoNewShipName')?.value || '').trim() || ('Партия ' + new Date().toLocaleDateString('ru'));
+      let newRates = { ...DEFAULT_RATES };
+      try {
+        const curDoc = await shipmentsRef().doc(cargoCompareShipId).get();
+        if (curDoc.exists && curDoc.data().rates) newRates = { ...DEFAULT_RATES, ...curDoc.data().rates };
+      } catch(e) {}
+      await shipmentsRef().add({ name, data: notInCargo, rates: newRates, status: "forming", created: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+
+    closeCargoResult();
+    await loadShipmentData(cargoCompareShipId);
+    await loadShipments();
+    await updateShipmentStats();
+    let msg = 'Сверка выполнена!\n';
+    msg += '• Совпало: ' + staying.length + '\n';
+    if (notInCargo.length) msg += '• Не доехали (в новый приход): ' + notInCargo.length + '\n';
+    if (notInShip.length) msg += '• С другого маркетплейса (в конец): ' + notInShip.length;
+    alert(msg);
+  } catch(err) {
+    alert('Ошибка применения: ' + err.message);
+  }
+  btn.disabled = false; btn.textContent = 'Применить сверку';
+}
+
+function closeCargoResult() { document.getElementById('cargoResultModal').classList.remove('show'); cargoResult = null; }
 
 // ============ SHIPMENT STATS ============
 async function updateShipmentStats() {
