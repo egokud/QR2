@@ -207,18 +207,20 @@ body.dark .weigh-screen{background:#0f0e1a}
 .weigh-tare input{width:100%;border:1.5px solid #ffc107;border-radius:8px;padding:10px;font-size:18px;font-weight:700;outline:none;box-sizing:border-box;color:#1a1a2e}
 body.dark .weigh-tare{background:#2a2010}
 body.dark .weigh-tare input{background:#1a1735;color:#e0d8ff}
-.weigh-client{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 4px rgba(108,77,184,0.06)}
+.weigh-client{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;box-shadow:0 1px 3px rgba(16,24,40,0.08)}
 .weigh-client.filled{border:2px solid #6C4DB8}
 body.dark .weigh-client{background:#1e1b35}
-.weigh-client-name{flex:1;font-size:15px;font-weight:600;color:#1a1a2e}
+.weigh-client-left{flex:1;min-width:0}
+.weigh-client-name{font-size:16px;font-weight:600;color:#1a1a2e;margin-bottom:8px}
 body.dark .weigh-client-name{color:#e0d8ff}
-.weigh-client-count{font-size:11px;color:#999;font-weight:400}
-.weigh-client input{width:110px;border:1.5px solid #e0d8ff;border-radius:8px;padding:8px;font-size:16px;font-weight:700;text-align:center;outline:none;color:#6C4DB8}
+.weigh-client-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.weigh-client input{width:88px;border:1px solid #d5d8dd;border-radius:8px;padding:9px;font-size:16px;font-weight:600;text-align:center;outline:none;color:#6C4DB8}
 .weigh-client input:focus{border-color:#6C4DB8}
+.weigh-client.incl input{opacity:0.4;background:#f7f8fa;border-color:#e5e7eb}
 body.dark .weigh-client input{background:#2a2545;color:#8b7fd4}
-.weigh-client-row{display:flex;align-items:center;gap:8px}
-.weigh-incl-label{display:flex;align-items:center;gap:6px;font-size:12px;color:#6b7280;margin-top:8px;cursor:pointer}
-.weigh-incl-label input{width:15px;height:15px;accent-color:#6C4DB8}
+.weigh-incl-label{display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;cursor:pointer}
+.weigh-client.incl .weigh-incl-label{color:#6C4DB8;font-weight:500}
+.weigh-incl-label input{width:18px;height:18px;accent-color:#6C4DB8;flex-shrink:0}
 .weigh-unit{font-size:12px;color:#999;margin-left:4px}
 .calc-screen{display:none;position:fixed;inset:0;background:#f7f8fa;z-index:200;flex-direction:column}
 .calc-screen.show{display:flex}
@@ -843,14 +845,14 @@ body.dark .profile-card div{color:#c4b8f0}
 </div>
 
 <!-- Upload modal -->
-<div class="upload-modal" id="cargoResultModal">
-  <div class="upload-card" style="max-width:440px">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
-      <div><div style="font-size:17px;font-weight:600;color:#1a1a2e"><i class="ti ti-arrows-diff" style="color:#6C4DB8;margin-right:6px"></i>Сверка с карго</div></div>
-      <button onclick="closeCargoResult()" style="background:none;border:none;color:#9aa0ab;cursor:pointer;font-size:20px;padding:0"><i class="ti ti-x"></i></button>
-    </div>
+<div class="weigh-screen" id="cargoResultModal">
+  <div class="weigh-header">
+    <button class="weigh-back" onclick="closeCargoResult()"><i class="ti ti-x"></i></button>
+    <span class="weigh-title"><i class="ti ti-arrows-diff" style="color:#6C4DB8;margin-right:4px"></i>Сверка с карго</span>
+    <button class="weigh-done" id="cargoApplyBtn" onclick="applyCargoCompare()">Применить сверку</button>
+  </div>
+  <div class="weigh-body">
     <div id="cargoResultBody"></div>
-    <button id="cargoApplyBtn" onclick="applyCargoCompare()" style="width:100%;margin-top:20px;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:500;cursor:pointer">Применить сверку</button>
   </div>
 </div>
 
@@ -1481,13 +1483,15 @@ function renderWeighList() {
   list.innerHTML = names.map(name => {
     const w = currentWeights[name] || '';
     const incl = !!currentPriceInclWeight[name];
-    return `<div class="weigh-client ${w ? 'filled' : ''}" id="wc-${encodeURIComponent(name)}">
-      <div class="weigh-client-row">
-        <div class="weigh-client-name">${name} <span class="weigh-client-count">${counts[name]} поз.</span></div>
-        <input type="number" step="50" inputmode="numeric" placeholder="0" value="${w ? Math.round(w*1000) : ''}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)" ${incl ? 'disabled style="opacity:0.4"' : ''}>
+    return `<div class="weigh-client ${w ? 'filled' : ''} ${incl ? 'incl' : ''}" id="wc-${encodeURIComponent(name)}">
+      <div class="weigh-client-left">
+        <div class="weigh-client-name">${name}</div>
+        <label class="weigh-incl-label"><input type="checkbox" ${incl ? 'checked' : ''} data-name="${encodeURIComponent(name)}" onchange="onInclWeightChange(this)"> вес включён в цену</label>
+      </div>
+      <div class="weigh-client-right">
+        <input type="number" step="50" inputmode="numeric" placeholder="0" value="${w ? Math.round(w*1000) : ''}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)" ${incl ? 'disabled' : ''}>
         <span class="weigh-unit">г</span>
       </div>
-      <label class="weigh-incl-label"><input type="checkbox" ${incl ? 'checked' : ''} data-name="${encodeURIComponent(name)}" onchange="onInclWeightChange(this)"> вес включён в цену (доставка не берётся)</label>
     </div>`;
   }).join('');
 }
@@ -1817,10 +1821,27 @@ async function pickShipment(id) {
 
 // Открыть меню действий для конкретного прихода (шестерёнка)
 let shipMenuTargetId = null;
+async function renameShipment(id) {
+  const ship = allShipments.find(s => s.id === id);
+  const oldName = ship ? ship.name : '';
+  const newName = prompt('Новое название прихода:', oldName);
+  if (newName === null) return;  // отмена
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed === oldName) return;  // пусто или не изменилось
+  try {
+    await shipmentsRef().doc(id).update({ name: trimmed });
+    await loadShipments();
+    await updateShipmentStats();
+  } catch(e) {
+    alert('Не удалось переименовать: ' + e.message);
+  }
+}
+
 function openShipMenu(id, ev) {
   shipMenuTargetId = id;
   const menu = document.getElementById('shipMenu');
   menu.innerHTML = `
+    <button onclick="renameShipment('${id}');closeShipMenu()"><i class="ti ti-pencil" aria-hidden="true"></i> Переименовать</button>
     <button onclick="loadForAction('${id}').then(()=>openPriceEditor());closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
     <button onclick="loadForAction('${id}').then(()=>openWeighing());closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
     <button onclick="loadForAction('${id}').then(()=>openCalc());closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
