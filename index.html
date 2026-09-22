@@ -1848,7 +1848,7 @@ function openShipMenu(id, ev) {
     <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
     <button onclick="loadForAction('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
     <button onclick="loadForAction('${id}').then(()=>resetAll());closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
-    <button onclick="loadForAction('${id}').then(()=>openCargoCompare('${id}'));closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
+    <button onclick="openCargoCompare('${id}');closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
     <button onclick="loadForAction('${id}').then(()=>deleteShipment());closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
   // позиционируем меню под шестерёнкой
   const rect = ev.currentTarget.getBoundingClientRect();
@@ -1995,7 +1995,7 @@ function openCargoCompare(shipId) {
     document.body.appendChild(inp);
   }
   inp.value = '';
-  inp.click();
+  inp.click();  // СИНХРОННО в жесте клика — Safari разрешает открыть выбор файла только так
 }
 
 // Нормализация трека: нижний регистр + убрать суффиксы после первого дефиса
@@ -2006,6 +2006,9 @@ function normTrack(t) {
 async function handleCargoFile(e) {
   const file = e.target.files[0];
   if (!file) return;
+  // Загружаем данные нужного прихода ПОСЛЕ выбора файла (раньше это делал loadForAction до клика,
+  // но Safari блокировал открытие файла после await — теперь грузим тут)
+  try { await loadForAction(cargoCompareShipId); } catch(err) {}
   const reader = new FileReader();
   reader.onload = async function(ev) {
     try {
