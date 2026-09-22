@@ -900,6 +900,7 @@ let TABLE = [];
 let scanned = {};
 let scanHistory = [];
 let activeShipmentId = null;
+let editingShipmentId = null;  // приход который редактируем через действия/шестерёнку (независим от активного для сканирования)
 // Курсы текущего прихода (раздел Клиенты). Дефолты если приходов ещё не было.
 const DEFAULT_RATES = { clientRate: 0.60, buyRate: 0.46, shipClient: 20, shipCargo: 15 };
 let currentRates = { ...DEFAULT_RATES };
@@ -1113,12 +1114,12 @@ function shipmentsRef() { return db.collection('users').doc(currentUser.uid).col
 // Сохранить курсы текущего прихода в Firebase
 async function saveRates() {
   if (!activeShipmentId) return;
-  await shipmentsRef().doc(activeShipmentId).update({ rates: currentRates });
+  await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ rates: currentRates });
 }
 
 async function saveWeights() {
   if (!activeShipmentId) return;
-  await shipmentsRef().doc(activeShipmentId).update({ weights: currentWeights, tare: currentTare, priceInclWeight: currentPriceInclWeight });
+  await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ weights: currentWeights, tare: currentTare, priceInclWeight: currentPriceInclWeight });
 }
 
 async function saveOwners() {
@@ -1144,6 +1145,7 @@ function openPriceEditor() {
 }
 function closePriceEditor() {
   document.getElementById('priceEditScreen').classList.remove('show');
+  restoreActiveEditing();
 }
 
 let peExactWh = null;
@@ -1470,6 +1472,7 @@ function openWeighing() {
 
 function closeWeighing() {
   document.getElementById('weighScreen').classList.remove('show');
+  restoreActiveEditing();
 }
 
 function renderWeighList() {
@@ -1602,6 +1605,7 @@ function openCalc() {
 
 function closeCalc() {
   document.getElementById('calcScreen').classList.remove('show');
+  restoreActiveEditing();
 }
 
 function renderCalc() {
@@ -1708,7 +1712,7 @@ function onDepartedChange() {
 function onCargoWeightChange() {
   const grams = parseFloat(document.getElementById('cargoWeightInput').value) || 0;
   currentCargoWeight = grams / 1000;  // храним в кг, вводим в граммах
-  if (activeShipmentId) shipmentsRef().doc(activeShipmentId).update({ cargoWeight: currentCargoWeight });
+  if (editingShipmentId || activeShipmentId) shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ cargoWeight: currentCargoWeight });
 }
 function scannedRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('scanned').doc(shipId); }
 function historyRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('history').doc(shipId || activeShipmentId); }
@@ -1790,10 +1794,24 @@ function renderShipmentCards() {
 }
 
 // Выбрать приход активным (тап на плашку)
+// Загрузить данные прихода для ДЕЙСТВИЯ (взвешивание/цены/расчёт/курсы) из шестерёнки — БЕЗ смены активного прихода
+// После действий из шестерёнки НЕ активного прихода — вернуть данные активного (для сканирования)
+async function restoreActiveEditing() {
+  if (editingShipmentId && activeShipmentId && editingShipmentId !== activeShipmentId) {
+    await loadShipmentData(activeShipmentId);  // перегружаем данные активного обратно
+  }
+  editingShipmentId = activeShipmentId;
+}
+
+async function loadForAction(id) {
+  editingShipmentId = id;
+  await loadShipmentData(id, true);  // true = не менять activeShipmentId
+}
+
 async function pickShipment(id) {
   if (id === activeShipmentId) return;
   document.getElementById('shipmentSelect').value = id;
-  await loadShipmentData(id);
+  await loadShipmentData(id);  // меняет и активный, и editing
   renderShipmentCards();
 }
 
@@ -1803,14 +1821,14 @@ function openShipMenu(id, ev) {
   shipMenuTargetId = id;
   const menu = document.getElementById('shipMenu');
   menu.innerHTML = `
-    <button onclick="pickShipment('${id}');openPriceEditor();closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
-    <button onclick="pickShipment('${id}');openWeighing();closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
-    <button onclick="pickShipment('${id}');openCalc();closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
-    <button onclick="pickShipment('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
-    <button onclick="pickShipment('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
-    <button onclick="pickShipment('${id}');resetAll();closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
-    <button onclick="pickShipment('${id}').then(()=>openCargoCompare('${id}'));closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
-    <button onclick="pickShipment('${id}');deleteShipment();closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
+    <button onclick="loadForAction('${id}').then(()=>openPriceEditor());closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
+    <button onclick="loadForAction('${id}').then(()=>openWeighing());closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
+    <button onclick="loadForAction('${id}').then(()=>openCalc());closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
+    <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
+    <button onclick="loadForAction('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
+    <button onclick="loadForAction('${id}').then(()=>resetAll());closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
+    <button onclick="loadForAction('${id}').then(()=>openCargoCompare('${id}'));closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
+    <button onclick="loadForAction('${id}').then(()=>deleteShipment());closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
   // позиционируем меню под шестерёнкой
   const rect = ev.currentTarget.getBoundingClientRect();
   menu.style.top = (rect.bottom + 4) + 'px';
@@ -1848,8 +1866,9 @@ async function setStatus(id, key) {
   try { await shipmentsRef().doc(id).update({ status: key }); } catch(e) {}
 }
 
-async function loadShipmentData(id) {
-  activeShipmentId = id;
+async function loadShipmentData(id, keepActive) {
+  if (!keepActive) activeShipmentId = id;
+  editingShipmentId = id;  // редактируемый приход = тот что грузим
   // Проверяем статус кэша картинок для нового прихода (зелёный если уже загружены)
   const cacheBtn = document.getElementById('btnCacheImages');
   if (cacheBtn) { cacheBtn.classList.remove('caching'); }
@@ -1883,13 +1902,15 @@ async function switchShipment() {
 }
 
 async function deleteShipment() {
-  if (!activeShipmentId) return;
-  const sel = document.getElementById('shipmentSelect');
-  const text = sel.options[sel.selectedIndex]?.text || '';
+  const delId = editingShipmentId || activeShipmentId;
+  if (!delId) return;
+  const ship = allShipments.find(s => s.id === delId);
+  const text = ship ? ship.name : 'приход';
   if (!confirm('Удалить "' + text + '"?')) return;
-  await shipmentsRef().doc(activeShipmentId).delete();
-  await scannedRef(activeShipmentId).delete().catch(() => {});
-  activeShipmentId = null;
+  await shipmentsRef().doc(delId).delete();
+  await scannedRef(delId).delete().catch(() => {});
+  if (activeShipmentId === delId) activeShipmentId = null;  // если удалили активный — сбросим
+  editingShipmentId = null;
   await loadShipments();
   await updateShipmentStats();
 }
