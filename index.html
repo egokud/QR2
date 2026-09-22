@@ -216,6 +216,9 @@ body.dark .weigh-client-name{color:#e0d8ff}
 .weigh-client input{width:110px;border:1.5px solid #e0d8ff;border-radius:8px;padding:8px;font-size:16px;font-weight:700;text-align:center;outline:none;color:#6C4DB8}
 .weigh-client input:focus{border-color:#6C4DB8}
 body.dark .weigh-client input{background:#2a2545;color:#8b7fd4}
+.weigh-client-row{display:flex;align-items:center;gap:8px}
+.weigh-incl-label{display:flex;align-items:center;gap:6px;font-size:12px;color:#6b7280;margin-top:8px;cursor:pointer}
+.weigh-incl-label input{width:15px;height:15px;accent-color:#6C4DB8}
 .weigh-unit{font-size:12px;color:#999;margin-left:4px}
 .calc-screen{display:none;position:fixed;inset:0;background:#f7f8fa;z-index:200;flex-direction:column}
 .calc-screen.show{display:flex}
@@ -242,6 +245,12 @@ body.dark .pe-track{color:#c4b8f0}
 .pe-wh-input{border:1px solid transparent;background:transparent;border-radius:6px;padding:2px 6px;width:100%;box-sizing:border-box;cursor:text;font-family:inherit;outline:none;transition:all 0.15s}
 .pe-wh-input:hover{border-color:#e0d8ff;background:#faf9ff}
 .pe-wh-input:focus{border-color:#6C4DB8;background:#fff}
+.pe-client-hints{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e0d8ff;border-radius:8px;box-shadow:0 4px 12px rgba(16,24,40,0.12);z-index:100;max-height:220px;overflow-y:auto;margin-top:2px}
+body.dark .pe-client-hints{background:#1e1b35;border-color:rgba(255,255,255,0.12)}
+.pe-client-hint{padding:8px 12px;font-size:14px;color:#1a1a2e;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pe-client-hint:hover{background:#eef2ff;color:#6C4DB8}
+body.dark .pe-client-hint{color:#e0d8ff}
+body.dark .pe-client-hint:hover{background:#2a2545}
 .pe-qty{background:#F5A623;color:#fff;font-size:12px;font-weight:600;padding:1px 7px;border-radius:9px;margin-left:5px;font-family:sans-serif;vertical-align:middle}
 .pe-prices{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
 .pe-price-field{display:flex;flex-direction:column;gap:1px}
@@ -896,6 +905,7 @@ const DEFAULT_RATES = { clientRate: 0.60, buyRate: 0.46, shipClient: 20, shipCar
 let currentRates = { ...DEFAULT_RATES };
 let currentWeights = {};      // { "Егор": 3.2, "Вероника": 1.8, ... } вес по клиентам
 let currentOwners = {};       // { "Я": true } клиенты помеченные "это владелец" (затраты, не доход)
+let currentPriceInclWeight = {};  // { "Карина": true } клиенты у кого вес ВКЛЮЧЁН в цену (доставку не берём с клиента, но карго-себест вычитаем из прибыли)
 let currentTare = 0;          // вес тары (коробки)
 let currentCargoWeight = 0;   // вес от карго (Этап 5)
 let shipmentDeparted = false; // галочка "выехала" (Этап 5)
@@ -1108,7 +1118,7 @@ async function saveRates() {
 
 async function saveWeights() {
   if (!activeShipmentId) return;
-  await shipmentsRef().doc(activeShipmentId).update({ weights: currentWeights, tare: currentTare });
+  await shipmentsRef().doc(activeShipmentId).update({ weights: currentWeights, tare: currentTare, priceInclWeight: currentPriceInclWeight });
 }
 
 async function saveOwners() {
@@ -1217,7 +1227,7 @@ function renderPriceEditor() {
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
         <div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>
-        ${byWh ? '' : `<input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" onclick="event.stopPropagation()">`}
+        ${byWh ? '' : `<div style="position:relative"><input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" oninput="showClientHints(this)" onfocus="showClientHints(this)" onblur="hideClientHints(this)" onclick="event.stopPropagation()" autocomplete="off"></div>`}
       </div>
       <div class="pe-prices">
         <label class="pe-price-field"><span>Закупка ¥</span><input type="number" step="0.01" inputmode="decimal" class="buy" data-idx="${r.idx}" value="${r.buy}" placeholder="—" onchange="onEditBuy(this)"></label>
@@ -1239,10 +1249,65 @@ function renderPriceEditor() {
   });
 }
 
+// Подсказки клиентов в редакторе цен (как в расширении) — список существующих клиентов прихода
+function getUniqueClients() {
+  const canon = {};
+  for (const r of TABLE) {
+    const wh = (r[1] || '').trim();
+    if (wh) { const low = wh.toLowerCase(); if (!(low in canon)) canon[low] = wh; }
+  }
+  return Object.values(canon).sort((a,b)=>a.localeCompare(b,'ru'));
+}
+
+function showClientHints(input) {
+  const q = (input.value || '').toLowerCase().trim();
+  const all = getUniqueClients();
+  // если поле пустое — показываем всех клиентов, иначе фильтруем по вхождению
+  let list = q ? all.filter(n => n.toLowerCase().includes(q) && n.toLowerCase() !== q) : all;
+  list = list.slice(0, 8);
+  let box = input.parentElement.querySelector('.pe-client-hints');
+  if (!list.length) { if (box) box.remove(); return; }
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'pe-client-hints';
+    input.parentElement.appendChild(box);
+  }
+  box.innerHTML = list.map(n => `<div class="pe-client-hint" onmousedown="pickClientHint(this,${input.dataset.idx})" data-name="${n.replace(/"/g,'&quot;')}">${n}</div>`).join('');
+}
+
+function hideClientHints(input) {
+  setTimeout(() => { const box = input.parentElement.querySelector('.pe-client-hints'); if (box) box.remove(); }, 150);
+}
+
+function pickClientHint(el, idx) {
+  const name = el.dataset.name;
+  const input = el.parentElement.parentElement.querySelector('.pe-wh-input');
+  if (input) { input.value = name; onEditClientName(input); }
+  const box = el.parentElement; if (box) box.remove();
+}
+
+// Вариант Б: подтянуть имя клиента к уже существующему написанию (сравнение без учёта регистра)
+// "Марина (marinn07)" → "Марина (Marinn07)" если такой уже есть в приходе
+function resolveClientName(name) {
+  const clean = (name || '').trim();
+  if (!clean) return clean;
+  const low = clean.toLowerCase();
+  // ищем среди существующих клиентов прихода совпадение по lowercase
+  for (const r of TABLE) {
+    const existing = (r[1] || '').trim();
+    if (existing && existing.toLowerCase() === low && existing !== clean) {
+      return existing;  // возвращаем УЖЕ существующее написание
+    }
+  }
+  return clean;  // новое имя — оставляем как ввёл
+}
+
 async function onEditClientName(input) {
   const idx = parseInt(input.dataset.idx);
   if (idx<0 || idx>=TABLE.length) return;
-  TABLE[idx][1] = input.value.trim();  // склад/клиент в TABLE[idx][1]
+  const resolved = resolveClientName(input.value);
+  TABLE[idx][1] = resolved;  // склад/клиент в TABLE[idx][1] (подтянут к существующему написанию)
+  if (input.value.trim() !== resolved) input.value = resolved;  // покажем исправленное написание в поле
   await savePriceAt(idx);
   // если сортируем по складам — перерисуем чтобы товар перескочил к новому клиенту
   if (peSortMode === 'warehouse') renderPriceEditor();
@@ -1377,18 +1442,21 @@ function exportCalcPDF() {
 // ============ ВЗВЕШИВАНИЕ (Этап 2) ============
 // Уникальные клиенты прихода (склады). Сборные "Алеся и Яна" разбиваем на части.
 function getClientsInShipment() {
-  const set = new Set();
-  const counts = {};  // клиент -> число позиций
+  const canon = {};   // lowercase -> каноническое написание (первое встреченное)
+  const counts = {};  // каноническое имя -> число позиций
   for (const r of TABLE) {
     const wh = r[1] || '';
     const parts = splitWarehouses(wh);
     if (!parts.length) continue;
     for (const p of parts) {
-      set.add(p);
-      counts[p] = (counts[p] || 0) + 1;
+      const low = p.toLowerCase();
+      if (!(low in canon)) canon[low] = p;  // первое написание становится каноническим
+      const name = canon[low];
+      counts[name] = (counts[name] || 0) + 1;
     }
   }
-  return { names: [...set].sort((a,b)=>a.localeCompare(b,'ru')), counts };
+  const names = Object.values(canon).sort((a,b)=>a.localeCompare(b,'ru'));
+  return { names, counts };
 }
 
 function openWeighing() {
@@ -1409,10 +1477,14 @@ function renderWeighList() {
   const list = document.getElementById('weighList');
   list.innerHTML = names.map(name => {
     const w = currentWeights[name] || '';
+    const incl = !!currentPriceInclWeight[name];
     return `<div class="weigh-client ${w ? 'filled' : ''}" id="wc-${encodeURIComponent(name)}">
-      <div class="weigh-client-name">${name} <span class="weigh-client-count">${counts[name]} поз.</span></div>
-      <input type="number" step="50" inputmode="numeric" placeholder="0" value="${w ? Math.round(w*1000) : ''}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)">
-      <span class="weigh-unit">г</span>
+      <div class="weigh-client-row">
+        <div class="weigh-client-name">${name} <span class="weigh-client-count">${counts[name]} поз.</span></div>
+        <input type="number" step="50" inputmode="numeric" placeholder="0" value="${w ? Math.round(w*1000) : ''}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)" ${incl ? 'disabled style="opacity:0.4"' : ''}>
+        <span class="weigh-unit">г</span>
+      </div>
+      <label class="weigh-incl-label"><input type="checkbox" ${incl ? 'checked' : ''} data-name="${encodeURIComponent(name)}" onchange="onInclWeightChange(this)"> вес включён в цену (доставка не берётся)</label>
     </div>`;
   }).join('');
 }
@@ -1428,6 +1500,15 @@ function onWeightChange(input) {
   saveWeights();
 }
 
+// Галочка "вес включён в цену" у клиента (при взвешивании)
+function onInclWeightChange(input) {
+  const name = decodeURIComponent(input.dataset.name);
+  if (input.checked) currentPriceInclWeight[name] = true;
+  else delete currentPriceInclWeight[name];
+  saveWeights();
+  renderWeighList();  // перерисуем чтобы поле веса стало disabled/enabled
+}
+
 function onTareChange() {
   const grams = parseFloat(document.getElementById('tareInput').value) || 0;
   currentTare = grams / 1000;  // храним в кг, вводим в граммах
@@ -1439,6 +1520,9 @@ function onTareChange() {
 function computeClientCalc() {
   const { names, counts } = getClientsInShipment();
   const r = currentRates;
+  // канонич. написание клиента по lowercase (чтобы Карина/карина считались одним)
+  const canon = {};
+  for (const n of names) canon[n.toLowerCase()] = n;
 
   // Собираем по клиентам: сумма закупки (юани), сумма цены клиента (юани)
   const buyYuan = {};   // клиент -> Σ цена закупки
@@ -1450,8 +1534,9 @@ function computeClientCalc() {
     const buyPrice = parseFloat(row[3]) || 0;         // цена закупки (r[3])
     const cliPrice = parseFloat(row[4]) || buyPrice;  // цена клиента (r[4]); если нет — = закупке
     for (const p of parts) {
-      buyYuan[p] = (buyYuan[p] || 0) + buyPrice / parts.length;      // сборный: делим
-      clientYuan[p] = (clientYuan[p] || 0) + cliPrice / parts.length;
+      const name = canon[p.toLowerCase()] || p;  // приводим к каноническому написанию
+      buyYuan[name] = (buyYuan[name] || 0) + buyPrice / parts.length;      // сборный: делим
+      clientYuan[name] = (clientYuan[name] || 0) + cliPrice / parts.length;
     }
   }
 
@@ -1479,11 +1564,16 @@ function computeClientCalc() {
     const shipCost = shipWeight * r.shipCargo;                    // доставка себестоимость в BYN
 
     const isOwner = !!currentOwners[name];
+    const inclWeight = !!currentPriceInclWeight[name];  // вес включён в цену: доставку с клиента не берём, но карго-себест вычитаем
     let due, profit;
     if (isOwner) {
       // Клиент "это я" (владелец): дохода нет, товары+доставка по СЕБЕСТОИМОСТИ = затраты (минус)
       due = 0;
       profit = -(goodsCost + shipCost);  // вычитается из общей прибыли
+    } else if (inclWeight) {
+      // Вес включён в фикс-цену: клиент платит только за товар (без доставки), но карго-доставка съедает прибыль
+      due = goodsClient;                                     // клиент должен = только фикс-цена товара
+      profit = (goodsClient - goodsCost) - shipCost;         // прибыль = наценка на товар МИНУС себест карго-доставки
     } else {
       due = goodsClient + shipClient;                        // клиент должен
       profit = (goodsClient - goodsCost) + (shipClient - shipCost); // прибыль
@@ -1517,10 +1607,18 @@ function closeCalc() {
 function renderCalc() {
   const { clients, grandDue, grandProfit, ourWeight, tareTotal } = computeClientCalc();
   const totalWeight = ourWeight + tareTotal;
+  const r = currentRates;
+  // Ориентировочная прибыль С ДОСТАВКОЙ (когда известен вес карго, но развески по клиентам ещё нет).
+  // Считаем по ОБЩЕМУ весу карго: доход с доставки минус себестоимость карго. Курсы — этого прихода.
+  const cargoW = currentCargoWeight || 0;
+  const shipProfit = cargoW * ((r.shipClient || 0) - (r.shipCargo || 0));  // прибыль с доставки по общему весу
+  const estProfit = grandProfit + shipProfit;  // ориентир = прибыль товаров + прибыль доставки
+  const showEst = cargoW > 0;  // показываем только если есть вес карго
 
   document.getElementById('calcGrand').innerHTML = `
     <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)}<span class="cur">BYN</span></span></div>
-    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль</span><span class="calc-grand-val profit">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
+    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль <span style="color:#9aa0ab;font-size:11px">(без доставки)</span></span><span class="calc-grand-val profit">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
+    ${showEst ? `<div class="calc-grand-row"><span class="calc-grand-label">Ориентировочно с доставкой <span style="color:#9aa0ab;font-size:11px">(по весу карго)</span></span><span class="calc-grand-val" style="color:#6C4DB8">~${estProfit.toFixed(0)}<span class="cur">BYN</span></span></div>` : ''}
     <div class="calc-grand-divider"></div>
     <div class="calc-grand-row"><span class="calc-grand-label">Общий вес</span><span class="calc-grand-val">${totalWeight.toFixed(2)}<span class="cur">кг</span></span></div>
     <div class="calc-grand-row"><span class="calc-grand-label">Вес тары</span><span class="calc-grand-val">${tareTotal.toFixed(2)}<span class="cur">кг</span></span></div>`;
@@ -1762,6 +1860,7 @@ async function loadShipmentData(id) {
   currentWeights = (doc.exists && doc.data().weights) ? { ...doc.data().weights } : {};
   currentTare = (doc.exists && doc.data().tare) ? doc.data().tare : 0;
   currentOwners = (doc.exists && doc.data().owners) ? { ...doc.data().owners } : {};
+  currentPriceInclWeight = (doc.exists && doc.data().priceInclWeight) ? { ...doc.data().priceInclWeight } : {};
   currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
   shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
   // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
