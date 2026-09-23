@@ -1633,7 +1633,8 @@ function computeClientCalc() {
 }
 
 function openCalc() {
-  closeWeighing();
+  // просто скрываем экран взвешивания БЕЗ restoreActiveEditing — остаёмся на том же приходе (editingShipmentId не сбрасываем)
+  document.getElementById('weighScreen').classList.remove('show');
   if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
   renderCalc();
   document.getElementById('calcScreen').classList.add('show');
