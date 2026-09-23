@@ -288,6 +288,10 @@ body.dark .calc-row.total{border-color:rgba(255,255,255,0.1);color:#e0d8ff}
 .owner-chk{font-size:11px;font-weight:400;color:#999;margin-left:8px;cursor:pointer;white-space:nowrap}
 .owner-chk input{vertical-align:middle;margin-right:2px}
 .calc-client.owner{border:2px solid #e24b4a;background:#fef2f2}
+.calc-disc{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f0f1f4}
+.calc-disc-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;cursor:pointer}
+.calc-disc-item input{width:17px;height:17px;accent-color:#6C4DB8;flex-shrink:0}
+body.dark .calc-disc{border-color:rgba(255,255,255,0.08)}
 body.dark .calc-client.owner{background:#2a1518;border-color:#e24b4a}
 .owner-cost{color:#e24b4a!important}
 .overlay-card{background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:380px;text-align:center;animation:popIn .2s ease}
@@ -910,6 +914,8 @@ let currentRates = { ...DEFAULT_RATES };
 let currentWeights = {};      // { "Егор": 3.2, "Вероника": 1.8, ... } вес по клиентам
 let currentOwners = {};       // { "Я": true } клиенты помеченные "это владелец" (затраты, не доход)
 let currentPriceInclWeight = {};  // { "Карина": true } клиенты у кого вес ВКЛЮЧЁН в цену (доставку не берём с клиента, но карго-себест вычитаем из прибыли)
+let currentCostGoods = {};  // { "Егор": true } клиенты у кого ТОВАРЫ по себестоимости (без наценки)
+let currentCostShip = {};   // { "Егор": true } клиенты у кого ДОСТАВКА по себестоимости (без наценки)
 let currentTare = 0;          // вес тары (коробки)
 let currentCargoWeight = 0;   // вес от карго (Этап 5)
 let shipmentDeparted = false; // галочка "выехала" (Этап 5)
@@ -1127,12 +1133,26 @@ async function saveWeights() {
 
 async function saveOwners() {
   if (!activeShipmentId) return;
-  await shipmentsRef().doc(activeShipmentId).update({ owners: currentOwners });
+  await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ owners: currentOwners, costGoods: currentCostGoods, costShip: currentCostShip });
 }
 
 function toggleOwner(name) {
   if (currentOwners[name]) delete currentOwners[name];
   else currentOwners[name] = true;
+  saveOwners();
+  renderCalc();
+}
+
+function toggleCostGoods(name) {
+  if (currentCostGoods[name]) delete currentCostGoods[name];
+  else currentCostGoods[name] = true;
+  saveOwners();
+  renderCalc();
+}
+
+function toggleCostShip(name) {
+  if (currentCostShip[name]) delete currentCostShip[name];
+  else currentCostShip[name] = true;
   saveOwners();
   renderCalc();
 }
@@ -1573,11 +1593,22 @@ function computeClientCalc() {
 
     const isOwner = !!currentOwners[name];
     const inclWeight = !!currentPriceInclWeight[name];  // вес включён в цену: доставку с клиента не берём, но карго-себест вычитаем
+    const costGoods = !!currentCostGoods[name];  // товары по себестоимости (без наценки)
+    const costShip = !!currentCostShip[name];    // доставка по себестоимости (без наценки)
     let due, profit;
     if (isOwner) {
       // Клиент "это я" (владелец): дохода нет, товары+доставка по СЕБЕСТОИМОСТИ = затраты (минус)
       due = 0;
       profit = -(goodsCost + shipCost);  // вычитается из общей прибыли
+    } else if (costGoods || costShip) {
+      // Индивидуальная скидка: товары и/или доставка по СЕБЕСТОИМОСТИ (клиент платит, но без наценки на это)
+      const goodsPart = costGoods ? goodsCost : goodsClient;  // если товары по себест — берём себестоимость
+      const shipPart = costShip ? shipCost : shipClient;      // если доставка по себест — берём себестоимость
+      due = goodsPart + shipPart;  // клиент должен = (товар по себест или клиент) + (доставка по себест или клиент)
+      // прибыль = наценка только с того что НЕ по себестоимости
+      const goodsProfit = costGoods ? 0 : (goodsClient - goodsCost);
+      const shipProfit = costShip ? 0 : (shipClient - shipCost);
+      profit = goodsProfit + shipProfit;
     } else if (inclWeight) {
       // Вес включён в фикс-цену: клиент платит только за товар (без доставки), но карго-доставка съедает прибыль
       due = goodsClient;                                     // клиент должен = только фикс-цена товара
@@ -1634,6 +1665,8 @@ function renderCalc() {
 
   document.getElementById('calcList').innerHTML = clients.map(c => {
     const ownerChk = `<label class="owner-chk"><input type="checkbox" ${c.isOwner?'checked':''} onchange="toggleOwner('${c.name.replace(/'/g,"\\'")}')"> это я</label>`;
+    const nm = c.name.replace(/'/g,"\\'");
+    const discChk = c.isOwner ? '' : `<div class="calc-disc"><label class="calc-disc-item"><input type="checkbox" ${currentCostGoods[c.name]?'checked':''} onchange="toggleCostGoods('${nm}')"> товары по себестоимости</label><label class="calc-disc-item"><input type="checkbox" ${currentCostShip[c.name]?'checked':''} onchange="toggleCostShip('${nm}')"> доставка по себестоимости</label></div>`;
     if (c.isOwner) {
       // Владелец — затраты (красным)
       return `<div class="calc-client owner">
@@ -1657,9 +1690,11 @@ function renderCalc() {
       <div class="calc-rows">
         <div class="calc-row"><span>Товар (${c.count} поз., ¥${c.yuan.toFixed(2)})</span><span>${c.goodsClient.toFixed(0)} BYN</span></div>
         <div class="calc-row"><span>Доставка (товар ${(c.weight*1000).toFixed(0)} г → с тарой ${(c.shipWeight*1000).toFixed(0)} г)</span><span>${c.shipClient.toFixed(0)} BYN</span></div>
+        ${currentCostGoods[c.name]||currentCostShip[c.name] ? `<div class="calc-row" style="color:#6C4DB8;font-size:12px"><span>${currentCostGoods[c.name]?'товары по себест.':''}${currentCostGoods[c.name]&&currentCostShip[c.name]?' + ':''}${currentCostShip[c.name]?'доставка по себест.':''} (без наценки)</span><span></span></div>` : ''}
         <div class="calc-row total"><span>Клиент должен</span><span>${c.due.toFixed(0)} BYN</span></div>
         <div class="calc-row profit"><span>Твоя прибыль</span><span>${c.profit.toFixed(0)} BYN</span></div>
       </div>
+      ${discChk}
     </div>`;
   }).join('');
 }
@@ -1903,6 +1938,8 @@ async function loadShipmentData(id, keepActive) {
   currentTare = (doc.exists && doc.data().tare) ? doc.data().tare : 0;
   currentOwners = (doc.exists && doc.data().owners) ? { ...doc.data().owners } : {};
   currentPriceInclWeight = (doc.exists && doc.data().priceInclWeight) ? { ...doc.data().priceInclWeight } : {};
+  currentCostGoods = (doc.exists && doc.data().costGoods) ? { ...doc.data().costGoods } : {};
+  currentCostShip = (doc.exists && doc.data().costShip) ? { ...doc.data().costShip } : {};
   currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
   shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
   // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
