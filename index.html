@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f8fa;min-height:100vh;max-width:640px;margin:0 auto}
@@ -1848,6 +1849,7 @@ function openShipMenu(id, ev) {
     <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
     <button onclick="loadForAction('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
     <button onclick="loadForAction('${id}').then(()=>resetAll());closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
+    <button onclick="exportForInventory('${id}');closeShipMenu()"><i class="ti ti-file-export" aria-hidden="true"></i> Выгрузить для описи</button>
     <button onclick="openCargoCompare('${id}');closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
     <button onclick="loadForAction('${id}').then(()=>deleteShipment());closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
   // позиционируем меню под шестерёнкой
@@ -1976,6 +1978,69 @@ async function uploadCSV() {
     }
   };
   reader.readAsText(file);
+}
+
+// ============ ВЫГРУЗКА ДЛЯ ОПИСИ ============
+// Скачивает картинки товаров прихода (имя файла = трек), пакует в ZIP + таблицу CSV
+async function exportForInventory(shipId) {
+  if (typeof JSZip === 'undefined') { alert('Библиотека архивации не загрузилась, обновите страницу'); return; }
+  // берём данные прихода
+  let doc;
+  try { doc = await fsGet('users/' + savedUid + '/shipments/' + shipId); }
+  catch(e) { alert('Не удалось загрузить приход'); return; }
+  if (!doc.exists) { alert('Приход не найден'); return; }
+  const d = doc.data();
+  const shipName = d.name || 'приход';
+  const rows = (d.data || []).map(r => Array.isArray(r) ? {t:r[0],w:r[1]||'',img:r[2]||'',p:r[3]||'',pc:r[4]||'',q:r[5]||'1'} : r);
+  if (!rows.length) { alert('В приходе нет товаров'); return; }
+
+  // индикатор прогресса
+  const prog = document.createElement('div');
+  prog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  prog.innerHTML = '<div style="background:#fff;border-radius:14px;padding:24px 32px;text-align:center;min-width:260px"><div style="font-size:16px;font-weight:600;color:#1a1a2e;margin-bottom:12px">Выгрузка для описи</div><div id="expProgText" style="font-size:14px;color:#6b7280">Скачиваю картинки...</div><div style="height:8px;background:#f0f1f4;border-radius:4px;margin-top:14px;overflow:hidden"><div id="expProgBar" style="height:100%;width:0%;background:#6C4DB8;transition:width 0.2s"></div></div></div>';
+  document.body.appendChild(prog);
+  const setProg = (txt, pct) => { const t=document.getElementById('expProgText'); const b=document.getElementById('expProgBar'); if(t)t.textContent=txt; if(b)b.style.width=pct+'%'; };
+
+  const zip = new JSZip();
+  const imgFolder = zip.folder('картинки');
+  // таблица CSV: трек, клиент, цена закупки, цена клиента, кол-во, есть_картинка
+  let csv = 'Трек;Клиент;Цена закупки;Цена клиента;Кол-во;Картинка\n';
+  let imgOk = 0, imgFail = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const track = (r.t || 'item' + i).replace(/[\/:*?"<>|]/g, '_');  // безопасное имя файла
+    let hasImg = 'нет';
+    if (r.img && r.img.startsWith('http')) {
+      try {
+        // качаем через свой прокси (обходит CORS Pinduoduo)
+        const proxyUrl = '/api/img?url=' + encodeURIComponent(r.img);
+        const resp = await fetch(proxyUrl);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          imgFolder.file(track + '.jpg', blob);
+          hasImg = 'да';
+          imgOk++;
+        } else { imgFail++; }
+      } catch(e) { imgFail++; }
+    }
+    csv += [r.t, r.w, r.p, r.pc, r.q, hasImg].map(x => '"' + String(x||'').replace(/"/g,'""') + '"').join(';') + '\n';
+    setProg('Картинок: ' + (i+1) + ' из ' + rows.length, Math.round((i+1)/rows.length*100));
+  }
+
+  // добавляем таблицу (с BOM для кириллицы в Excel)
+  zip.file('таблица.csv', '\ufeff' + csv);
+  setProg('Упаковываю архив...', 100);
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'опись_' + shipName.replace(/[\/:*?"<>|]/g, '_') + '.zip';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  prog.remove();
+  alert('Выгрузка готова!\nКартинок скачано: ' + imgOk + (imgFail ? '\nБез картинки: ' + imgFail : '') + '\nВсего товаров: ' + rows.length);
 }
 
 // ============ СВЕРКА С КАРГО ============
