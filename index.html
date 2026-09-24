@@ -806,6 +806,11 @@ body.dark .profile-card div{color:#c4b8f0}
       <label>Вес тары (коробки), г</label>
       <input type="number" step="50" inputmode="numeric" id="tareInput" placeholder="0" onchange="onTareChange()">
     </div>
+    <div class="weigh-tare" style="background:#ecfdf3">
+      <label style="color:#22a05c">Общий вес товаров клиентов, г</label>
+      <div id="clientsWeightTotal" style="font-size:20px;font-weight:700;color:#1a1a2e;padding:8px 0">0</div>
+      <div id="clientsWeightWarn" style="font-size:12px;color:#b45309;margin-top:4px;display:none"><i class="ti ti-alert-triangle"></i> Взвешены не все клиенты</div>
+    </div>
     <div class="weigh-list" id="weighList"></div>
   </div>
 </div>
@@ -1491,6 +1496,7 @@ function openWeighing() {
   const cw = document.getElementById('cargoWeightInput'); if (cw) cw.value = currentCargoWeight ? Math.round(currentCargoWeight*1000) : '';
   const dep = document.getElementById('departedChk'); if (dep) dep.checked = !!shipmentDeparted;
   document.getElementById('weighScreen').classList.add('show');
+  updateClientsWeightTotal();
 }
 
 function closeWeighing() {
@@ -1525,7 +1531,37 @@ function onWeightChange(input) {
   else delete currentWeights[name];
   const card = document.getElementById('wc-' + encodeURIComponent(name));
   if (card) card.classList.toggle('filled', val > 0);
+  updateClientsWeightTotal();
   saveWeights();
+}
+
+// Общий вес товаров клиентов (сумма взвешенных) + предупреждение если взвешены не все
+function updateClientsWeightTotal() {
+  const { names } = getClientsInShipment();
+  let total = 0, weighed = 0, needWeigh = 0;
+  for (const n of names) {
+    // клиенты с галочкой "вес включён в цену" не требуют взвешивания
+    if (currentPriceInclWeight[n]) continue;
+    needWeigh++;
+    const w = currentWeights[n] || 0;
+    if (w > 0) { total += w; weighed++; }
+  }
+  const el = document.getElementById('clientsWeightTotal');
+  const warn = document.getElementById('clientsWeightWarn');
+  const allWeighed = (weighed >= needWeigh) && needWeigh > 0;
+  if (el) el.textContent = Math.round(total * 1000).toLocaleString('ru') + ' г';
+  if (warn) warn.style.display = allWeighed ? 'none' : 'block';
+
+  // АВТОРАСЧЁТ ТАРЫ: если все клиенты взвешены и есть вес карго → тара = карго − товары клиентов
+  if (allWeighed && currentCargoWeight > 0) {
+    const tare = currentCargoWeight - total;  // в кг
+    if (tare >= 0) {
+      currentTare = tare;
+      const tareInp = document.getElementById('tareInput');
+      if (tareInp) tareInp.value = Math.round(tare * 1000);
+      saveWeights();
+    }
+  }
 }
 
 // Галочка "вес включён в цену" у клиента (при взвешивании)
@@ -1535,6 +1571,7 @@ function onInclWeightChange(input) {
   else delete currentPriceInclWeight[name];
   saveWeights();
   renderWeighList();  // перерисуем чтобы поле веса стало disabled/enabled
+  updateClientsWeightTotal();
 }
 
 function onTareChange() {
