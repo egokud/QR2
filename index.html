@@ -1690,13 +1690,21 @@ function renderCalc() {
   // Считаем по ОБЩЕМУ весу карго: доход с доставки минус себестоимость карго. Курсы — этого прихода.
   const cargoW = currentCargoWeight || 0;
   const shipProfit = cargoW * ((r.shipClient || 0) - (r.shipCargo || 0));  // прибыль с доставки по общему весу
-  const estProfit = grandProfit + shipProfit;  // ориентир = прибыль товаров + прибыль доставки
+  const estProfit = grandProfit + shipProfit;  // всего прибыль = прибыль товаров + прибыль доставки
   const showEst = cargoW > 0;  // показываем только если есть вес карго
+  // все ли клиенты взвешены? (для точности: если все — прибыль точная зелёная, иначе ~ фиолетовая)
+  const { names: allNames } = getClientsInShipment();
+  let needW = 0, doneW = 0;
+  for (const n of allNames) { if (currentPriceInclWeight[n]) continue; needW++; if ((currentWeights[n]||0) > 0) doneW++; }
+  const allWeighed = needW > 0 && doneW >= needW;
 
+  const totalColor = allWeighed ? '#22a05c' : '#6C4DB8';  // зелёный если точно, фиолетовый если приблизительно
+  const totalPrefix = allWeighed ? '' : '~';
   document.getElementById('calcGrand').innerHTML = `
     <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)}<span class="cur">BYN</span></span></div>
-    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль <span style="color:#9aa0ab;font-size:11px">(без доставки)</span></span><span class="calc-grand-val profit">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
-    ${showEst ? `<div class="calc-grand-row"><span class="calc-grand-label">Ориентировочно с доставкой <span style="color:#9aa0ab;font-size:11px">(по весу карго)</span></span><span class="calc-grand-val" style="color:#6C4DB8">~${estProfit.toFixed(0)}<span class="cur">BYN</span></span></div>` : ''}
+    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль без доставки</span><span class="calc-grand-val" style="color:#6C4DB8;font-size:18px">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
+    ${showEst ? `<div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль с доставки карго</span><span class="calc-grand-val" style="color:#6C4DB8;font-size:18px">${shipProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
+    <div class="calc-grand-row" style="margin-top:2px"><span class="calc-grand-label" style="font-weight:600;color:#1a1a2e">Всего прибыль</span><span class="calc-grand-val" style="color:${totalColor}">${totalPrefix}${estProfit.toFixed(0)}<span class="cur">BYN</span></span></div>` : ''}
     <div class="calc-grand-divider"></div>
     <div class="calc-grand-row"><span class="calc-grand-label">Общий вес</span><span class="calc-grand-val">${totalWeight.toFixed(2)}<span class="cur">кг</span></span></div>
     <div class="calc-grand-row"><span class="calc-grand-label">Вес тары</span><span class="calc-grand-val">${tareTotal.toFixed(2)}<span class="cur">кг</span></span></div>`;
