@@ -727,8 +727,14 @@ function computeClientCalc() {
       profit = (goodsClient - goodsCost) + (shipClient - shipCost); // прибыль
     }
 
+    // Ручная корректировка задолженности: итог клиента заменяется, прибыль меняется на разницу
+    const dueCalc = due;
+    const ov = currentDueOverride[name];
+    const dueEdited = !isOwner && ov !== undefined && ov !== null;
+    if (dueEdited) { profit += ov - due; due = ov; }
+
     return {
-      name, count: counts[name], isOwner,
+      name, count: counts[name], isOwner, dueCalc, dueEdited,
       yuan: clientYuan[name] || 0,
       weight: w, tareShare, shipWeight,
       goodsClient, shipClient, goodsCost, shipCost, due, profit,
@@ -1043,6 +1049,9 @@ async function setStatus(id, key) {
   try { await shipmentsRef().doc(id).update({ status: key }); } catch(e) {}
 }
 
+// Ручная корректировка задолженности клиента в приходе: { "Олеся": 60 }
+let currentDueOverride = {};
+
 async function loadShipmentData(id, keepActive) {
   if (!keepActive) activeShipmentId = id;
   editingShipmentId = id;  // редактируемый приход = тот что грузим
@@ -1061,6 +1070,7 @@ async function loadShipmentData(id, keepActive) {
   currentCostShip = (doc.exists && doc.data().costShip) ? { ...doc.data().costShip } : {};
   currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
   shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
+  currentDueOverride = (doc.exists && doc.data().dueOverride) ? { ...doc.data().dueOverride } : {};
   // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
 
   // Demo mode: limit to 5 tracks
