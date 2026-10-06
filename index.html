@@ -469,6 +469,66 @@ body.dark .profile-card div{color:#c4b8f0}
   .reg-check input { width: 16px; height: 16px; margin-top: 1px; flex-shrink: 0; }
   .reg-check a { color: #6C4DB8; }
   body.dark .reg-check { color: #a89de0; }
+
+/* ============ CABINET (desktop) ============ */
+.cabinet-screen{display:none;position:fixed;inset:0;background:#f7f8fa;z-index:50;flex-direction:row}
+.cabinet-screen.show{display:flex}
+.cab-sidebar{width:230px;background:#fff;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.cab-sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 18px 16px}
+.cab-sidebar-logo img{border-radius:9px}
+.cab-sidebar-logo span{font-size:18px;font-weight:600;color:#1a1a2e}
+.cab-nav{flex:1;padding:8px 10px}
+.cab-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500;color:#5f6470;transition:all 0.15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.cab-nav-item:hover{background:#f7f8fa;color:#1a1a2e}
+.cab-nav-item.active{background:#f0ecf9;color:#6C4DB8;font-weight:600}
+.cab-nav-item i{font-size:20px;width:24px;text-align:center;flex-shrink:0}
+.cab-nav-divider{height:1px;background:#e5e7eb;margin:10px 12px}
+.cab-nav-badge{font-size:10px;font-weight:700;background:#6C4DB8;color:#fff;padding:2px 7px;border-radius:6px;margin-left:auto}
+.cab-sidebar-bottom{padding:14px 18px;border-top:1px solid #e5e7eb}
+.cab-sidebar-user{font-size:13px;font-weight:600;color:#1a1a2e}
+.cab-sidebar-role{font-size:11px;color:#9aa0ab;margin-top:2px}
+.cab-sidebar-logout{display:flex;align-items:center;gap:6px;margin-top:12px;background:none;border:1px solid #d5d8dd;border-radius:8px;padding:8px 14px;font-size:13px;color:#5f6470;cursor:pointer;font-weight:500;width:100%}
+.cab-sidebar-logout:hover{background:#f7f8fa}
+.cab-main{flex:1;overflow-y:auto;padding:28px 32px}
+.cab-main-title{font-size:22px;font-weight:600;color:#1a1a2e;margin-bottom:20px}
+/* Обзор */
+.cab-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.cab-stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 16px;display:flex;flex-direction:column;gap:4px}
+.cab-stat-val{font-size:26px;font-weight:700;color:#1a1a2e}
+.cab-stat-val.green{color:#16a34a}
+.cab-stat-label{font-size:13px;color:#9aa0ab}
+.cab-table-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:24px}
+.cab-table-title{font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:14px}
+.cab-table{width:100%;border-collapse:collapse;font-size:13px}
+.cab-table th{text-align:left;padding:8px 10px;color:#9aa0ab;font-weight:500;font-size:12px;border-bottom:1px solid #e5e7eb}
+.cab-table td{padding:10px 10px;color:#1a1a2e;border-bottom:1px solid #f3f4f6}
+.cab-table tr:last-child td{border-bottom:none}
+.cab-table .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.cab-table .val-green{color:#16a34a;font-weight:600}
+.cab-table .val-red{color:#dc2626;font-weight:600}
+.cab-table .val-purple{color:#6C4DB8;font-weight:600}
+/* Заглушка */
+.cab-stub{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:#9aa0ab}
+.cab-stub i{font-size:56px;margin-bottom:16px;color:#d5d8dd}
+.cab-stub-title{font-size:20px;font-weight:600;color:#5f6470;margin-bottom:6px}
+.cab-stub-text{font-size:14px}
+/* Cabinet responsive for smaller screens */
+@media(max-width:900px){
+  .cab-sidebar{width:200px}
+  .cab-stats{grid-template-columns:repeat(2,1fr)}
+  .cab-main{padding:20px 18px}
+}
+@media(max-width:640px){
+  .cabinet-screen.show{flex-direction:column}
+  .cab-sidebar{width:100%;border-right:none;border-bottom:1px solid #e5e7eb;flex-direction:row;overflow-x:auto;overflow-y:hidden;flex-shrink:0}
+  .cab-sidebar-logo{display:none}
+  .cab-nav{display:flex;flex-direction:row;padding:6px 10px;gap:4px;flex:1;overflow-x:auto}
+  .cab-nav-item{white-space:nowrap;padding:8px 12px;font-size:13px}
+  .cab-nav-divider{display:none}
+  .cab-sidebar-bottom{display:none}
+  .cab-stats{grid-template-columns:1fr 1fr}
+  .cab-main{padding:16px}
+}
 </style>
 </head>
 <body>
@@ -544,18 +604,48 @@ body.dark .profile-card div{color:#c4b8f0}
       </div>
       <i class="ti ti-chevron-right" style="color:#c5c8ce;font-size:24px;flex-shrink:0"></i>
     </div>
-    <div style="background:#fafafb;border:1.5px solid #e5e7eb;border-radius:16px;padding:20px;cursor:not-allowed;display:flex;align-items:center;gap:16px;opacity:0.85">
-      <div style="width:60px;height:60px;border-radius:14px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-layout-dashboard" style="color:#9aa0ab;font-size:32px"></i></div>
+    <div onclick="chooseMode('cabinet')" style="background:#fff;border:1.5px solid #e5e7eb;border-radius:16px;padding:20px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all 0.15s" onmouseover="this.style.borderColor='#6C4DB8'" onmouseout="this.style.borderColor='#e5e7eb'">
+      <div style="width:60px;height:60px;border-radius:14px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-layout-dashboard" style="color:#6C4DB8;font-size:32px"></i></div>
       <div style="text-align:left;flex:1">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:20px;font-weight:600;color:#6b7280">Кабинет</span><span style="background:#fef3c7;color:#b45309;font-size:12px;font-weight:600;padding:3px 10px;border-radius:8px">В разработке</span></div>
-        <div style="font-size:15px;color:#8a919e;line-height:1.45">Компьютер. Приходы, клиенты, цены, расчёты и аналитика</div>
+        <div style="font-size:20px;font-weight:600;color:#1a1a2e;margin-bottom:4px">Кабинет</div>
+        <div style="font-size:15px;color:#4a5260;line-height:1.45">Компьютер. Приходы, клиенты, цены, расчёты и аналитика</div>
       </div>
+      <i class="ti ti-chevron-right" style="color:#c5c8ce;font-size:24px;flex-shrink:0"></i>
     </div>
   </div>
   <label style="display:flex;align-items:center;gap:8px;margin-top:24px;font-size:15px;color:#4a5260;cursor:pointer">
     <input type="checkbox" id="rememberMode" style="width:17px;height:17px;accent-color:#6C4DB8"> Запомнить выбор
   </label>
   <button onclick="doLogout()" style="margin-top:24px;display:flex;align-items:center;gap:6px;background:none;border:1px solid #d5d8dd;border-radius:10px;padding:10px 20px;font-size:14px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
+</div>
+
+<!-- CABINET SCREEN (desktop) -->
+<div id="cabinetScreen" class="cabinet-screen">
+  <div class="cab-sidebar">
+    <div class="cab-sidebar-logo">
+      <img src="/icons/icon-72x72.png" width="32" height="32" alt="Piksta">
+      <span>Piksta</span>
+    </div>
+    <div class="cab-nav" id="cabNav">
+      <button class="cab-nav-item active" data-section="overview" onclick="cabNav('overview')"><i class="ti ti-chart-dots-3"></i> Обзор</button>
+      <button class="cab-nav-item" data-section="shipments" onclick="cabNav('shipments')"><i class="ti ti-package"></i> Приходы</button>
+      <button class="cab-nav-item" data-section="clients" onclick="cabNav('clients')"><i class="ti ti-users"></i> Клиенты</button>
+      <button class="cab-nav-item" data-section="prices" onclick="cabNav('prices')"><i class="ti ti-currency-yuan"></i> Цены</button>
+      <button class="cab-nav-item" data-section="calc" onclick="cabNav('calc')"><i class="ti ti-calculator"></i> Расчёты</button>
+      <button class="cab-nav-item" data-section="analytics" onclick="cabNav('analytics')"><i class="ti ti-chart-bar"></i> Аналитика</button>
+      <button class="cab-nav-item" data-section="settings" onclick="cabNav('settings')"><i class="ti ti-settings"></i> Настройки</button>
+      <div class="cab-nav-divider" id="cabAdminDivider" style="display:none"></div>
+      <button class="cab-nav-item" data-section="admin" onclick="cabNav('admin')" id="cabAdminBtn" style="display:none"><i class="ti ti-shield-lock"></i> Админ <span class="cab-nav-badge">ADMIN</span></button>
+    </div>
+    <div class="cab-sidebar-bottom">
+      <div class="cab-sidebar-user" id="cabUserName">—</div>
+      <div class="cab-sidebar-role" id="cabUserRole">—</div>
+      <button class="cab-sidebar-logout" onclick="exitCabinet()"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
+    </div>
+  </div>
+  <div class="cab-main" id="cabMain">
+    <!-- Секции рендерятся динамически -->
+  </div>
 </div>
 
 <div id="appScreen" class="hide" style="padding:0 16px;">
@@ -1050,12 +1140,282 @@ function chooseMode(mode) {
 function enterMode(mode) {
   document.getElementById('modeSelectScreen').classList.add('hide');
   if (mode === 'cabinet') {
-    // Кабинет пока заглушка — покажем сообщение, но откроем тот же appScreen (широкий сделаем следующим этапом)
-    document.getElementById('appScreen').classList.remove('hide');
-    // TODO: широкий десктопный Кабинет
+    document.getElementById('cabinetScreen').classList.add('show');
+    openCabinet();
   } else {
     document.getElementById('appScreen').classList.remove('hide');
   }
+}
+
+// ============ CABINET ============
+let cabCurrentSection = 'overview';
+let cabShipmentsCache = []; // кэш приходов для кабинета
+
+function exitCabinet() {
+  document.getElementById('cabinetScreen').classList.remove('show');
+  localStorage.removeItem('piksta_mode');
+  document.getElementById('modeSelectScreen').classList.remove('hide');
+  const hi = document.getElementById('modeSelectHi');
+  if (hi) hi.textContent = 'Куда переходим, ' + (userProfile.name ? userProfile.name.split(' ')[0] : '') + '?';
+}
+
+async function openCabinet() {
+  // Показать админ-кнопку только для egokud
+  const isAdmin = userProfile && userProfile.role === 'admin';
+  document.getElementById('cabAdminBtn').style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('cabAdminDivider').style.display = isAdmin ? 'block' : 'none';
+  // Имя и роль в сайдбаре
+  document.getElementById('cabUserName').textContent = userProfile.name || currentUser.email;
+  document.getElementById('cabUserRole').textContent = isAdmin ? 'Администратор' : 'Пользователь';
+  // Загружаем данные и показываем Обзор
+  await loadCabinetData();
+  cabNav('overview');
+}
+
+async function loadCabinetData() {
+  try {
+    const docs = await fsList('users/' + savedUid + '/shipments');
+    cabShipmentsCache = docs.map(d => ({ id: d.id, ...d.data() }));
+    cabShipmentsCache.sort((a, b) => {
+      const ta = a.created ? new Date(a.created).getTime() : 0;
+      const tb = b.created ? new Date(b.created).getTime() : 0;
+      return tb - ta;
+    });
+  } catch (e) { cabShipmentsCache = []; }
+}
+
+function cabNav(section) {
+  cabCurrentSection = section;
+  // Подсветка активного пункта
+  document.querySelectorAll('#cabNav .cab-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.section === section);
+  });
+  const main = document.getElementById('cabMain');
+  if (section === 'overview') {
+    renderCabOverview(main);
+  } else {
+    renderCabStub(main, section);
+  }
+}
+
+function renderCabStub(container, section) {
+  const names = {
+    shipments: 'Приходы', clients: 'Клиенты', prices: 'Цены',
+    calc: 'Расчёты', analytics: 'Аналитика', settings: 'Настройки', admin: 'Администрирование'
+  };
+  const icons = {
+    shipments: 'ti-package', clients: 'ti-users', prices: 'ti-currency-yuan',
+    calc: 'ti-calculator', analytics: 'ti-chart-bar', settings: 'ti-settings', admin: 'ti-shield-lock'
+  };
+  container.innerHTML = `
+    <div class="cab-stub">
+      <i class="ti ${icons[section] || 'ti-dots'}"></i>
+      <div class="cab-stub-title">${names[section] || section}</div>
+      <div class="cab-stub-text">Скоро</div>
+    </div>`;
+}
+
+function renderCabOverview(container) {
+  const ships = cabShipmentsCache;
+  // Считаем статистику
+  const activeShips = ships.filter(s => s.status !== 'done').length;
+  const totalClients = new Set();
+  let grandDue = 0;
+  let grandProfit = 0;
+  const shipSummaries = [];
+
+  for (const ship of ships) {
+    const data = ship.data || [];
+    const rates = ship.rates ? { ...DEFAULT_RATES, ...ship.rates } : { ...DEFAULT_RATES };
+    const weights = ship.weights || {};
+    const owners = ship.owners || {};
+    const priceInclWeight = ship.priceInclWeight || {};
+    const costGoods = ship.costGoods || {};
+    const costShip = ship.costShip || {};
+    const tare = ship.tare || 0;
+    const cargoWeight = ship.cargoWeight || 0;
+
+    // Собираем клиентов
+    const clientsSet = new Set();
+    const buyYuan = {};
+    const clientYuanMap = {};
+    for (const row of data) {
+      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'];
+      const wh = r[1] || '';
+      if (wh) {
+        const parts = wh.split(/\s*и\s*/i);
+        for (const p of parts) {
+          const name = p.trim();
+          if (name) {
+            clientsSet.add(name);
+            totalClients.add(name);
+            const buy = parseFloat(r[3]) || 0;
+            const cli = parseFloat(r[4]) || buy;
+            buyYuan[name] = (buyYuan[name] || 0) + buy / parts.length;
+            clientYuanMap[name] = (clientYuanMap[name] || 0) + cli / parts.length;
+          }
+        }
+      }
+    }
+
+    // Считаем due и profit по клиентам (как computeClientCalc)
+    let totalW = 0;
+    const cNames = Array.from(clientsSet);
+    for (const n of cNames) totalW += (weights[n] || 0);
+    const effectiveTare = Math.max(tare || 0, (cargoWeight || 0) - totalW);
+
+    let shipDue = 0, shipProfit = 0;
+    for (const name of cNames) {
+      const w = weights[name] || 0;
+      const tareShare = totalW > 0 ? (w / totalW) * effectiveTare : 0;
+      const shipWeight = w > 0 ? Math.ceil((w + tareShare) * 20) / 20 : 0;
+      const goodsClient = (clientYuanMap[name] || 0) * rates.clientRate;
+      const goodsCost = (buyYuan[name] || 0) * rates.buyRate;
+      const shipCli = shipWeight * rates.shipClient;
+      const shipCo = shipWeight * rates.shipCargo;
+      const isOwner = !!owners[name];
+      const inclW = !!priceInclWeight[name];
+      const cGoods = !!costGoods[name];
+      const cShip = !!costShip[name];
+      let due, profit;
+      if (isOwner) { due = 0; profit = -(goodsCost + shipCo); }
+      else if (cGoods || cShip) {
+        const gp = cGoods ? goodsCost : goodsClient;
+        const sp = cShip ? shipCo : shipCli;
+        due = gp + sp;
+        profit = (cGoods ? 0 : goodsClient - goodsCost) + (cShip ? 0 : shipCli - shipCo);
+      } else if (inclW) { due = goodsClient; profit = (goodsClient - goodsCost) - shipCo; }
+      else { due = goodsClient + shipCli; profit = (goodsClient - goodsCost) + (shipCli - shipCo); }
+      shipDue += due;
+      shipProfit += profit;
+    }
+    grandDue += shipDue;
+    grandProfit += shipProfit;
+
+    const st = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
+    shipSummaries.push({
+      name: ship.name || 'Без названия',
+      count: data.length,
+      clients: cNames.length,
+      status: st.label,
+      statusColor: st.color,
+      due: shipDue,
+      profit: shipProfit,
+      isDone: ship.status === 'done'
+    });
+  }
+
+  // Клиенты с задолженностью (по всем приходам)
+  const clientDebt = {};
+  for (const ship of ships) {
+    if (ship.status === 'done') continue;
+    const data = ship.data || [];
+    const rates = ship.rates ? { ...DEFAULT_RATES, ...ship.rates } : { ...DEFAULT_RATES };
+    const weights = ship.weights || {};
+    const owners = ship.owners || {};
+    const priceInclWeight = ship.priceInclWeight || {};
+    const costGoods = ship.costGoods || {};
+    const costShip = ship.costShip || {};
+    const tare = ship.tare || 0;
+    const cargoWeight = ship.cargoWeight || 0;
+    const buyY = {}, cliY = {};
+    const cSet = new Set();
+    for (const row of data) {
+      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'];
+      const wh = r[1] || '';
+      if (wh) {
+        const parts = wh.split(/\s*и\s*/i);
+        for (const p of parts) {
+          const name = p.trim();
+          if (name) {
+            cSet.add(name);
+            const buy = parseFloat(r[3]) || 0;
+            const cli = parseFloat(r[4]) || buy;
+            buyY[name] = (buyY[name] || 0) + buy / parts.length;
+            cliY[name] = (cliY[name] || 0) + cli / parts.length;
+          }
+        }
+      }
+    }
+    let totalW = 0;
+    const cNames = Array.from(cSet);
+    for (const n of cNames) totalW += (weights[n] || 0);
+    const effTare = Math.max(tare || 0, (cargoWeight || 0) - totalW);
+    for (const name of cNames) {
+      if (owners[name]) continue;
+      const w = weights[name] || 0;
+      const ts = totalW > 0 ? (w / totalW) * effTare : 0;
+      const sw = w > 0 ? Math.ceil((w + ts) * 20) / 20 : 0;
+      const gc = (cliY[name] || 0) * rates.clientRate;
+      const gCo = (buyY[name] || 0) * rates.buyRate;
+      const sc = sw * rates.shipClient;
+      const sCo = sw * rates.shipCargo;
+      const cG = !!costGoods[name]; const cS = !!costShip[name]; const iW = !!priceInclWeight[name];
+      let due;
+      if (cG || cS) { due = (cG ? gCo : gc) + (cS ? sCo : sc); }
+      else if (iW) { due = gc; }
+      else { due = gc + sc; }
+      clientDebt[name] = (clientDebt[name] || 0) + due;
+    }
+  }
+  const topDebtors = Object.entries(clientDebt).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Рендер
+  const fmt = (v) => v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+  container.innerHTML = `
+    <div class="cab-main-title">Обзор</div>
+    <div class="cab-stats">
+      <div class="cab-stat-card">
+        <div class="cab-stat-val">${activeShips}</div>
+        <div class="cab-stat-label">Активных приходов</div>
+      </div>
+      <div class="cab-stat-card">
+        <div class="cab-stat-val val-purple" style="color:#6C4DB8">${fmt(grandDue)} <span style="font-size:14px;font-weight:400;opacity:0.7">BYN</span></div>
+        <div class="cab-stat-label">Клиенты должны</div>
+      </div>
+      <div class="cab-stat-card">
+        <div class="cab-stat-val green">${fmt(grandProfit)} <span style="font-size:14px;font-weight:400;opacity:0.7">BYN</span></div>
+        <div class="cab-stat-label">Прибыль (все приходы)</div>
+      </div>
+      <div class="cab-stat-card">
+        <div class="cab-stat-val">${totalClients.size}</div>
+        <div class="cab-stat-label">Всего клиентов</div>
+      </div>
+    </div>
+
+    <div class="cab-table-wrap">
+      <div class="cab-table-title">Приходы</div>
+      <table class="cab-table">
+        <thead><tr><th>Название</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны BYN</th><th>Прибыль BYN</th></tr></thead>
+        <tbody>
+          ${shipSummaries.length === 0 ? '<tr><td colspan="6" style="text-align:center;color:#9aa0ab;padding:20px">Нет приходов</td></tr>' :
+            shipSummaries.map(s => `<tr style="${s.isDone ? 'opacity:0.55' : ''}">
+              <td style="font-weight:500">${s.name}</td>
+              <td>${s.count}</td>
+              <td>${s.clients}</td>
+              <td><span class="status-dot" style="background:${s.statusColor}"></span>${s.status}</td>
+              <td class="val-purple">${fmt(s.due)}</td>
+              <td class="${s.profit >= 0 ? 'val-green' : 'val-red'}">${s.profit >= 0 ? '+' : ''}${fmt(s.profit)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    ${topDebtors.length > 0 ? `
+    <div class="cab-table-wrap">
+      <div class="cab-table-title">Топ клиентов по задолженности</div>
+      <table class="cab-table">
+        <thead><tr><th>Клиент</th><th>Должен BYN</th></tr></thead>
+        <tbody>
+          ${topDebtors.map(([name, debt]) => `<tr>
+            <td style="font-weight:500">${name}</td>
+            <td class="val-purple">${fmt(debt)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
+  `;
 }
 
 async function showApp() {
