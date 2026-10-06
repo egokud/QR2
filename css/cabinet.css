@@ -26,9 +26,12 @@
 .cab-stat-val{font-size:28px;font-weight:700;color:#1a1a2e}
 .cab-stat-val.green{color:#16a34a}
 .cab-stat-label{font-size:14px;color:#6b7280}
-.cab-table-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:24px}
+.cab-table-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:24px;overflow-x:auto}
 .cab-table-title{font-size:16px;font-weight:600;color:#1a1a2e;margin-bottom:14px}
 .cab-table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.45}
+/* Ячейки таблиц кабинета не переносятся: при узком окне таблица шире и прокручивается внутри белой рамки */
+.cab-table th,.cab-table td{white-space:nowrap}
+.cab-table{background:#fff}
 .cab-table th{text-align:left;padding:9px 10px;color:#6b7280;font-weight:600;font-size:13px;border-bottom:2px solid #dfe2e7}
 .cab-table td{padding:11px 10px;color:#1a1a2e;border-bottom:1px solid #dfe2e7}
 .cab-table tr:last-child td{border-bottom:none}
