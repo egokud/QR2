@@ -816,13 +816,11 @@ function cabRenderClientCard(container, name) {
     const date = cabShipDateStr(ship);
     const sst = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const inp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:92px;box-sizing:border-box';
-    const paidHtml = c.isOwner ? '<span style="font-size:13px;color:#dc2626">свой склад</span>'
-      : `<div onclick="event.stopPropagation()" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:nowrap;cursor:default">
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Итого<input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></label>
-          <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Оплачено<input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></label>
-          <div style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280;min-width:70px">Остаток<b style="font-size:14px;line-height:30px;white-space:nowrap;color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b></div>
-          <label style="padding-bottom:5px;display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')" style="width:16px;height:16px;cursor:pointer">${cabPayBadge(c.payStatus)}</label>
-        </div>`;
+    const paidHtml = c.isOwner ? '<div onclick="event.stopPropagation()" style="grid-column:5/9;font-size:13px;color:#dc2626;cursor:default">свой склад</div>'
+      : `<div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></div>
+        <div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></div>
+        <b onclick="event.stopPropagation()" style="justify-self:end;font-size:14px;cursor:default;color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b>
+        <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')" style="width:16px;height:16px;margin:0;cursor:pointer">${cabPayBadge(c.payStatus)}</label>`;
     let items = '';
     if (open) {
       const rows = (ship.data || []).map(row => Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'])
@@ -839,15 +837,15 @@ function cabRenderClientCard(container, name) {
         <table class="cab-table"><thead><tr><th></th><th>Трек-код</th><th>Цена клиента</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="color:#6b7280">Нет товаров</td></tr>'}</tbody></table>
       </div>`;
     }
-    return `<div style="border:1px solid #dfe2e7;border-radius:10px;margin-bottom:10px;background:#fff">
-      <div onclick="cabToggleClientShip('${ship.id}')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;cursor:pointer;flex-wrap:nowrap">
+    return `<div class="cab-cship">
+      <div onclick="cabToggleClientShip('${ship.id}')" class="cab-cship-row" style="cursor:pointer">
         <i class="ti ti-chevron-${open ? 'down' : 'right'}" style="color:#6b7280"></i>
-        <div style="font-weight:600;min-width:180px">${ship.name || 'Без названия'}${date ? ` <span style="font-weight:400;color:#6b7280;font-size:13px">· ${date}</span>` : ''}</div>
+        <div style="font-weight:600">${ship.name || 'Без названия'}${date ? ` <span style="font-weight:400;color:#6b7280;font-size:13px">· ${date}</span>` : ''}</div>
         <span style="font-size:13px;color:#4a5260"><span class="status-dot" style="background:${sst.color}"></span>${sst.label}</span>
-        <span style="font-size:14px">${c.items} поз.</span>
-        <div style="flex-basis:100%;padding-left:28px">${paidHtml}</div>
+        <span style="font-size:14px;justify-self:end">${c.items} поз.</span>
+        ${paidHtml}
       </div>
-      ${open ? `<div style="padding:0 14px 10px;overflow-x:auto">${items}</div>` : ''}
+      ${open ? `<div style="grid-column:1/-1;padding:0 14px 10px;overflow-x:auto">${items}</div>` : ''}
     </div>`;
   }).join('');
 
@@ -871,7 +869,14 @@ function cabRenderClientCard(container, name) {
       <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt2(m.totalDue)}</div><div class="cab-stat-label">Всего за всё время, BYN</div></div>
     </div>
     <div class="cab-table-title">Приходы клиента</div>
-    ${shipsHtml}`;
+    <div style="overflow-x:auto;padding-bottom:2px">
+      <div class="cab-cships">
+        <div class="cab-cship cab-cship-head"><div class="cab-cship-row">
+          <span></span><span>Приход</span><span>Статус</span><span style="justify-self:end">Позиций</span><span>Итого, BYN</span><span>Оплачено, BYN</span><span style="justify-self:end">Остаток</span><span>Оплата</span>
+        </div></div>
+        ${shipsHtml}
+      </div>
+    </div>`;
 }
 
 // Правило клиента на будущее: сначала «замораживаем» текущие значения во ВСЕХ существующих приходах,
