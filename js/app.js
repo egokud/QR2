@@ -211,22 +211,19 @@ async function saveOwners() {
 }
 
 function toggleOwner(name) {
-  if (currentOwners[name]) delete currentOwners[name];
-  else currentOwners[name] = true;
+  currentOwners[name] = !currentOwners[name];  // явное значение (true/false) для этого прихода — перекрывает правило из карточки клиента
   saveOwners();
   renderCalc();
 }
 
 function toggleCostGoods(name) {
-  if (currentCostGoods[name]) delete currentCostGoods[name];
-  else currentCostGoods[name] = true;
+  currentCostGoods[name] = !currentCostGoods[name];  // явное значение (true/false) для этого прихода — перекрывает правило из карточки клиента
   saveOwners();
   renderCalc();
 }
 
 function toggleCostShip(name) {
-  if (currentCostShip[name]) delete currentCostShip[name];
-  else currentCostShip[name] = true;
+  currentCostShip[name] = !currentCostShip[name];  // явное значение (true/false) для этого прихода — перекрывает правило из карточки клиента
   saveOwners();
   renderCalc();
 }
@@ -1049,6 +1046,27 @@ async function setStatus(id, key) {
   try { await shipmentsRef().doc(id).update({ status: key }); } catch(e) {}
 }
 
+// ПРАВИЛА КЛИЕНТА из карточки клиента (кабинет): userProfile.clientRules = { "имя в нижнем регистре": { owner, costGoods, costShip } }
+// Действуют на приходы, где для клиента нет своего явного значения. При смене правила кабинет «замораживает»
+// текущие значения во всех существующих приходах, поэтому правило влияет только на следующие приходы.
+function clientRule(kind, name) {
+  const rules = userProfile && userProfile.clientRules;
+  const r = rules && rules[String(name || '').toLowerCase()];
+  return r ? r[kind] : undefined;
+}
+function applyClientRules() {
+  if (!userProfile || !userProfile.clientRules) return;
+  const { names } = getClientsInShipment();
+  for (const n of names) {
+    for (const [kind, map] of [['owner', currentOwners], ['costGoods', currentCostGoods], ['costShip', currentCostShip]]) {
+      if (!Object.prototype.hasOwnProperty.call(map, n)) {
+        const v = clientRule(kind, n);
+        if (v !== undefined) map[n] = !!v;
+      }
+    }
+  }
+}
+
 // Ручная корректировка задолженности клиента в приходе: { "Олеся": 60 }
 let currentDueOverride = {};
 
@@ -1071,6 +1089,7 @@ async function loadShipmentData(id, keepActive) {
   currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
   shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
   currentDueOverride = (doc.exists && doc.data().dueOverride) ? { ...doc.data().dueOverride } : {};
+  applyClientRules();
   // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
 
   // Demo mode: limit to 5 tracks
