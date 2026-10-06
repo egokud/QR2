@@ -69,13 +69,17 @@ function cabGetClientsFromShipment(ship) {
 
   const clientsSet = new Set();
   const buyYuan = {}, clientYuanMap = {}, itemCount = {};
+  const canonName = {};
   for (const row of data) {
     const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'];
-    const wh = r[1] || '';
-    if (wh) {
-      const parts = wh.split(/\s*и\s*/i);
+    // Делим склад так же, как мобильная версия: только по союзу « и » между словами.
+    // Раньше делилось по любой букве «и» внутри имени — отсюда фейковые клиенты из одной-двух букв.
+    const parts = splitWarehouses(r[1] || '');
+    if (parts.length) {
       for (const p of parts) {
-        const name = p.trim();
+        const low = p.toLowerCase();
+        if (!(low in canonName)) canonName[low] = p;  // первое написание — каноническое (как в мобильной)
+        const name = canonName[low];
         if (name) {
           clientsSet.add(name);
           const buy = parseFloat(r[3]) || 0;
