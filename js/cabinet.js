@@ -33,6 +33,7 @@ async function loadCabinetData() {
 }
 
 function cabNav(section) {
+  if (cabShipId) { cabShipId = null; restoreActiveEditing(); }
   cabCurrentSection = section;
   document.querySelectorAll('#cabNav .cab-nav-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.section === section);
@@ -240,7 +241,7 @@ function renderCabShipments(container) {
     const isDone = ship.status === 'done';
     const departed = ship.departed ? '<i class="ti ti-truck" style="color:#3cb371;font-size:14px" title="Выехала"></i>' : '';
     return `<tr class="cab-ship-row" data-status="${isDone ? 'done' : 'active'}" style="${isDone ? 'opacity:0.55' : ''}">
-      <td style="font-weight:500">${ship.name || 'Без названия'}</td>
+      <td style="font-weight:500">${isDone ? (ship.name || 'Без названия') : `<a href="#" onclick="cabOpenShip('${ship.id}');return false" style="color:#6C4DB8;text-decoration:none">${ship.name || 'Без названия'}</a>`}</td>
       <td>${date}</td>
       <td>${(ship.data || []).length}</td>
       <td>${clients.length}</td>
@@ -268,6 +269,237 @@ function cabFilterShipments(filter, btn) {
     const st = row.dataset.status;
     row.style.display = (filter === 'all' || filter === st) ? '' : 'none';
   });
+}
+
+// ============ ПРИХОД: ОТКРЫТИЕ В КАБИНЕТЕ ============
+let cabShipId = null;
+let cabShipTab = 'items';
+const cabInp = 'padding:6px 8px;border:1px solid #d5d8dd;border-radius:6px;font-size:13px;box-sizing:border-box';
+
+async function cabOpenShip(id) {
+  if (!activeShipmentId) activeShipmentId = id;
+  cabShipId = id;
+  cabShipTab = 'items';
+  document.getElementById('cabMain').innerHTML = '<div class="cab-main-title">Загрузка…</div>';
+  await loadShipmentData(id, true);
+  cabRenderShip();
+}
+
+async function cabCloseShip() {
+  cabShipId = null;
+  await restoreActiveEditing();
+  await loadCabinetData();
+  cabNav('shipments');
+}
+
+function cabShipTabSet(t) { cabShipTab = t; cabRenderShip(); }
+
+function cabRenderShip() {
+  const ship = cabShipmentsCache.find(s => s.id === cabShipId) || {};
+  const calc = computeClientCalc();
+  const order = ['forming','transit','warehouse','sorted','done'];
+  const opts = order.map(k => `<option value="${k}" ${(ship.status || 'forming') === k ? 'selected' : ''}>${SHIP_STATUSES[k].label}</option>`).join('');
+  const tabs = [['items','Товары и цены'],['weigh','Взвешивание'],['calc','Расчёт'],['rates','Курсы']]
+    .map(([k, l]) => `<button class="cab-filter-btn ${cabShipTab === k ? 'active' : ''}" onclick="cabShipTabSet('${k}')">${l}</button>`).join('');
+  let body = '';
+  if (cabShipTab === 'items') body = cabShipItemsHtml();
+  else if (cabShipTab === 'weigh') body = cabShipWeighHtml();
+  else if (cabShipTab === 'calc') body = cabShipCalcHtml(calc);
+  else body = cabShipRatesHtml();
+  document.getElementById('cabMain').innerHTML = `
+    <a href="#" onclick="cabCloseShip();return false" style="display:inline-flex;align-items:center;gap:4px;color:#6C4DB8;text-decoration:none;font-size:13px;margin-bottom:10px"><i class="ti ti-arrow-left"></i> Все приходы</a>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <div class="cab-main-title" style="margin:0">${ship.name || 'Без названия'}</div>
+      <button onclick="cabRenameShip()" title="Переименовать" style="border:none;background:none;color:#9aa0ab;cursor:pointer;font-size:16px"><i class="ti ti-pencil"></i></button>
+      <select onchange="cabSetStatus(this.value)" style="${cabInp};margin-left:auto">${opts}</select>
+    </div>
+    <div class="cab-stats" style="grid-template-columns:repeat(5,1fr)">
+      <div class="cab-stat-card"><div class="cab-stat-val">${TABLE.length}</div><div class="cab-stat-label">Позиций</div></div>
+      <div class="cab-stat-card"><div class="cab-stat-val">${calc.clients.length}</div><div class="cab-stat-label">Клиентов</div></div>
+      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt2(calc.ourWeight)}</div><div class="cab-stat-label">Вес клиентов, кг</div></div>
+      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt(calc.grandDue)}</div><div class="cab-stat-label">Должны, BYN</div></div>
+      <div class="cab-stat-card"><div class="cab-stat-val ${calc.grandProfit >= 0 ? 'green' : ''}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt(calc.grandProfit)}</div><div class="cab-stat-label">Прибыль, BYN</div></div>
+    </div>
+    <div class="cab-filter-row">${tabs}</div>
+    ${body}`;
+}
+
+async function cabSetStatus(key) {
+  const ship = cabShipmentsCache.find(s => s.id === cabShipId);
+  if (ship) ship.status = key;
+  const s2 = (typeof allShipments !== 'undefined') ? allShipments.find(s => s.id === cabShipId) : null;
+  if (s2) s2.status = key;
+  try { await shipmentsRef().doc(cabShipId).update({ status: key }); } catch (e) { alert('Не удалось сохранить статус'); }
+  if (typeof renderShipmentCards === 'function') renderShipmentCards();
+}
+
+async function cabRenameShip() {
+  await renameShipment(cabShipId);
+  await loadCabinetData();
+  cabRenderShip();
+}
+
+// ---- Товары и цены ----
+function cabShipItemsHtml() {
+  const rows = TABLE.map((r, i) => {
+    const qty = parseInt(r[5]) || 1;
+    const img = r[2] ? `<img src="${r[2]}" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
+    return `<tr class="cab-item-row" data-q="${((r[0] || '') + ' ' + (r[1] || '')).toLowerCase()}">
+      <td style="width:52px">${img}</td>
+      <td style="font-family:monospace;font-size:12px;color:#4a5260">${r[0] || ''}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:11px;font-weight:700">×${qty}</span>` : ''}</td>
+      <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
+      <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
+      <td><input data-idx="${i}" value="${r[4] || ''}" onchange="cabEditCell(this,4)" inputmode="decimal" placeholder="${r[3] || '—'}" style="${cabInp};width:80px;color:#6C4DB8"></td>
+    </tr>`;
+  }).join('');
+  return `<div class="cab-table-wrap">
+    <input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку или клиенту" style="${cabInp};width:100%;max-width:340px;margin-bottom:12px">
+    <table class="cab-table">
+      <thead><tr><th></th><th>Трек</th><th>Клиент</th><th>Закупка ¥</th><th>Клиент ¥</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#9aa0ab;padding:20px">Нет товаров</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+function cabFilterItems(q) {
+  const s = q.trim().toLowerCase();
+  document.querySelectorAll('.cab-item-row').forEach(tr => {
+    tr.style.display = (!s || tr.dataset.q.includes(s)) ? '' : 'none';
+  });
+}
+
+async function cabEditCell(inp, col) {
+  const idx = parseInt(inp.dataset.idx);
+  if (!TABLE[idx]) return;
+  let v = inp.value.trim();
+  if (col === 1) { v = resolveClientName(v); inp.value = v; }
+  TABLE[idx][col] = v;
+  try {
+    const ref = shipmentsRef().doc(cabShipId);
+    const doc = await ref.get();
+    if (!doc.exists) return;
+    const data = doc.data().data;
+    if (!data[idx]) return;
+    if (Array.isArray(data[idx])) data[idx][col] = String(v);
+    else data[idx][col === 1 ? 'w' : col === 3 ? 'p' : 'pc'] = String(v);
+    await ref.update({ data });
+    inp.style.borderColor = '#3cb371';
+    setTimeout(() => { inp.style.borderColor = '#d5d8dd'; }, 800);
+  } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+}
+
+// ---- Взвешивание ----
+function cabShipWeighHtml() {
+  const { names, counts } = getClientsInShipment();
+  const rows = names.map(n => {
+    const enc = encodeURIComponent(n);
+    const g = currentWeights[n] ? Math.round(currentWeights[n] * 1000) : '';
+    const incl = !!currentPriceInclWeight[n];
+    return `<tr>
+      <td style="font-weight:500">${n}</td>
+      <td>${counts[n]}</td>
+      <td><input data-name="${enc}" value="${g}" onchange="cabSetWeight(this)" inputmode="numeric" placeholder="граммы" ${incl ? 'disabled' : ''} style="${cabInp};width:110px"></td>
+      <td><label style="font-size:12px;color:#5f6470;display:flex;align-items:center;gap:6px"><input type="checkbox" data-name="${enc}" ${incl ? 'checked' : ''} onchange="cabSetIncl(this)"> вес в цене</label></td>
+    </tr>`;
+  }).join('');
+  return `<div class="cab-table-wrap">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+      <label style="font-size:12px;color:#5f6470">Вес от карго, г<br><input value="${currentCargoWeight ? Math.round(currentCargoWeight * 1000) : ''}" onchange="cabSetCargo(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
+      <label style="font-size:12px;color:#5f6470">Вес тары, г<br><input value="${currentTare ? Math.round(currentTare * 1000) : ''}" onchange="cabSetTare(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
+      <label style="font-size:13px;color:#1a1a2e;display:flex;align-items:center;gap:6px;padding-bottom:6px"><input type="checkbox" ${shipmentDeparted ? 'checked' : ''} onchange="cabSetDeparted(this)"> Отправка выехала в карго</label>
+    </div>
+    <table class="cab-table">
+      <thead><tr><th>Клиент</th><th>Позиций</th><th>Вес, г</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#9aa0ab;padding:20px">Нет клиентов</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+function cabSetWeight(inp) {
+  const n = decodeURIComponent(inp.dataset.name);
+  const kg = (parseFloat(inp.value) || 0) / 1000;
+  if (kg > 0) currentWeights[n] = kg; else delete currentWeights[n];
+  saveWeights();
+}
+
+function cabSetIncl(inp) {
+  const n = decodeURIComponent(inp.dataset.name);
+  if (inp.checked) currentPriceInclWeight[n] = true; else delete currentPriceInclWeight[n];
+  saveWeights();
+  cabRenderShip();
+}
+
+function cabSetTare(inp) {
+  currentTare = (parseFloat(inp.value) || 0) / 1000;
+  saveWeights();
+}
+
+function cabSetCargo(inp) {
+  currentCargoWeight = (parseFloat(inp.value) || 0) / 1000;
+  shipmentsRef().doc(cabShipId).update({ cargoWeight: currentCargoWeight });
+}
+
+async function cabSetDeparted(inp) {
+  shipmentDeparted = inp.checked;
+  const key = shipmentDeparted ? 'transit' : 'forming';
+  await shipmentsRef().doc(cabShipId).update({ departed: shipmentDeparted });
+  await cabSetStatus(key);
+  cabRenderShip();
+}
+
+// ---- Расчёт ----
+function cabShipCalcHtml(calc) {
+  const rows = calc.clients.map(c => `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
+      <td style="font-weight:500">${c.name}${c.noWeight ? ' <span title="Вес не указан" style="color:#f59e0b">⚠</span>' : ''}</td>
+      <td>${c.count}</td>
+      <td>${cabFmt2(c.yuan)}</td>
+      <td>${cabFmt2(c.shipWeight)}</td>
+      <td>${cabFmt2(c.goodsClient)}</td>
+      <td>${cabFmt2(c.shipClient)}</td>
+      <td class="val-purple">${c.isOwner ? '—' : cabFmt2(c.due)}</td>
+      <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}">${c.profit >= 0 ? '+' : ''}${cabFmt2(c.profit)}</td>
+      <td><label style="font-size:12px;color:#5f6470;display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" ${c.isOwner ? 'checked' : ''} data-name="${encodeURIComponent(c.name)}" onchange="cabToggleOwner(this)"> это я</label></td>
+    </tr>`).join('');
+  return `<div class="cab-table-wrap">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button onclick="cabShipPDF()" style="background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>
+    </div>
+    <table class="cab-table">
+      <thead><tr><th>Клиент</th><th>Поз.</th><th>Товар ¥</th><th>Вес с тарой, кг</th><th>Товар BYN</th><th>Доставка BYN</th><th>Должен BYN</th><th>Прибыль BYN</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#9aa0ab;padding:20px">Нет клиентов</td></tr>'}</tbody>
+      <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="5">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td></td></tr></tfoot>
+    </table>
+  </div>`;
+}
+
+function cabToggleOwner(inp) {
+  const n = decodeURIComponent(inp.dataset.name);
+  if (currentOwners[n]) delete currentOwners[n]; else currentOwners[n] = true;
+  saveOwners();
+  cabRenderShip();
+}
+
+function cabShipPDF() {
+  const sel = document.getElementById('shipmentSelect');
+  const old = sel ? sel.value : null;
+  if (sel) sel.value = cabShipId;
+  exportCalcPDF();
+  if (sel) sel.value = old;
+}
+
+// ---- Курсы ----
+function cabShipRatesHtml() {
+  const f = [['clientRate','Курс клиента, BYN за ¥'],['buyRate','Курс закупки, BYN за ¥'],['shipClient','Доставка клиенту, BYN/кг'],['shipCargo','Доставка карго, BYN/кг']];
+  return `<div class="cab-table-wrap" style="max-width:520px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      ${f.map(([k, l]) => `<label style="font-size:12px;color:#5f6470">${l}<br><input value="${currentRates[k]}" onchange="cabSetRate('${k}',this)" inputmode="decimal" style="${cabInp};width:100%;margin-top:4px"></label>`).join('')}
+    </div>
+  </div>`;
+}
+
+function cabSetRate(key, inp) {
+  currentRates[key] = parseFloat(String(inp.value).replace(',', '.')) || 0;
+  saveRates();
 }
 
 // ============ КЛИЕНТЫ ============
