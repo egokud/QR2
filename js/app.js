@@ -185,6 +185,7 @@ async function showApp() {
 
   applyTheme();
   await loadShipments();
+  startShipmentsSync();
   await loadHistory();
   renderHistory();
   renderAdminPanel();
@@ -427,28 +428,34 @@ async function onEditClient(input) {
 
 // Сохраняем цену конкретного трека обратно в приход (точечно, не трогая остальное)
 async function savePriceAt(idx) {
-  if (!activeShipmentId || idx < 0 || idx >= TABLE.length) return;
-  const doc = await shipmentsRef().doc(activeShipmentId).get();
-  if (!doc.exists) return;
-  const data = doc.data().data;
-  if (!data[idx]) return;
-  if (Array.isArray(data[idx])) {
-    // старый формат-массив [t,w,img,p,pc,q]
-    data[idx][1] = String(TABLE[idx][1]||'');  // склад/клиент
-    data[idx][3] = String(TABLE[idx][3]||'');
-    data[idx][4] = String(TABLE[idx][4]||'');
-  } else {
-    data[idx].w = String(TABLE[idx][1]||'');   // склад/клиент
-    data[idx].p = String(TABLE[idx][3]||'');
-    data[idx].pc = String(TABLE[idx][4]||'');
-  }
-  await shipmentsRef().doc(activeShipmentId).update({ data });
+  const shipId = editingShipmentId || activeShipmentId;  // пишем в тот приход, который сейчас редактируем
+  if (!shipId || idx < 0 || idx >= TABLE.length) return;
+  const ref = shipmentsRef().doc(shipId);
+  // Транзакция: читаем свежий массив и меняем только одну строку — правки с другого устройства не затираются
+  await db.runTransaction(async t => {
+    const doc = await t.get(ref);
+    if (!doc.exists) return;
+    const data = doc.data().data;
+    if (!data || !data[idx]) return;
+    if (Array.isArray(data[idx])) {
+      // старый формат-массив [t,w,img,p,pc,q]
+      data[idx][1] = String(TABLE[idx][1]||'');  // склад/клиент
+      data[idx][3] = String(TABLE[idx][3]||'');
+      data[idx][4] = String(TABLE[idx][4]||'');
+    } else {
+      data[idx].w = String(TABLE[idx][1]||'');   // склад/клиент
+      data[idx].p = String(TABLE[idx][3]||'');
+      data[idx].pc = String(TABLE[idx][4]||'');
+    }
+    t.update(ref, { data });
+  });
 }
 
 // ============ ВЫГРУЗКА ОТЧЁТА В PDF (через печать, табличный вид) ============
 function exportCalcPDF() {
   const { clients, grandDue, grandProfit, ourWeight, tareTotal } = computeClientCalc();
-  const shipName = document.getElementById('shipmentSelect').selectedOptions[0]?.text || 'Приход';
+  const editShip = (typeof allShipments !== 'undefined') ? allShipments.find(x => x.id === (editingShipmentId || activeShipmentId)) : null;
+  const shipName = (editShip && editShip.name) || document.getElementById('shipmentSelect').selectedOptions[0]?.text || 'Приход';
   const totalWeight = (ourWeight + tareTotal);
   const dateStr = new Date().toLocaleDateString('ru-RU');
   // ВСЕГО ПРИБЫЛЬ = прибыль товаров + прибыль доставки по весу карго
@@ -859,13 +866,14 @@ function onRateChange() {
 
 function onDepartedChange() {
   shipmentDeparted = document.getElementById('departedChk').checked;
-  if (!activeShipmentId) return;
+  const shipId = editingShipmentId || activeShipmentId;  // приход, который сейчас открыт, а не активный для сканирования
+  if (!shipId) return;
   // Галочка "выехала" автоматически меняет статус: вкл → В дороге (transit), выкл → Формируется
   const newStatus = shipmentDeparted ? 'transit' : 'forming';
   const upd = { departed: shipmentDeparted, status: newStatus };
-  shipmentsRef().doc(activeShipmentId).update(upd);
+  shipmentsRef().doc(shipId).update(upd);
   // обновим кэш и плашки
-  const s = allShipments.find(x => x.id === activeShipmentId);
+  const s = allShipments.find(x => x.id === shipId);
   if (s) s.status = newStatus;
   if (typeof renderShipmentCards === 'function') renderShipmentCards();
 }
@@ -1070,6 +1078,25 @@ function applyClientRules() {
 // Ручная корректировка задолженности клиента в приходе: { "Олеся": 60 }
 let currentDueOverride = {};
 
+// Разложить данные документа прихода по глобальным переменным (используется при загрузке и при живой синхронизации)
+function applyShipDoc(d) {
+  d = d || {};
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1']);
+  currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
+  currentWeights = d.weights ? { ...d.weights } : {};
+  currentTare = d.tare || 0;
+  currentOwners = d.owners ? { ...d.owners } : {};
+  currentPriceInclWeight = d.priceInclWeight ? { ...d.priceInclWeight } : {};
+  currentCostGoods = d.costGoods ? { ...d.costGoods } : {};
+  currentCostShip = d.costShip ? { ...d.costShip } : {};
+  currentCargoWeight = d.cargoWeight || 0;
+  shipmentDeparted = d.departed || false;
+  currentDueOverride = d.dueOverride ? { ...d.dueOverride } : {};
+  applyClientRules();
+  // Demo mode: limit to 5 tracks
+  if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
+}
+
 async function loadShipmentData(id, keepActive) {
   if (!keepActive) activeShipmentId = id;
   editingShipmentId = id;  // редактируемый приход = тот что грузим
@@ -1078,22 +1105,7 @@ async function loadShipmentData(id, keepActive) {
   if (cacheBtn) { cacheBtn.classList.remove('caching'); }
   let doc;
   try { doc = await fsGet('users/' + savedUid + '/shipments/' + id); } catch(e) { doc = { exists: false, data:()=>({}) }; }
-  const raw = doc.exists ? (doc.data().data || []) : []; TABLE = raw.map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1']);
-  currentRates = (doc.exists && doc.data().rates) ? { ...DEFAULT_RATES, ...doc.data().rates } : { ...DEFAULT_RATES };
-  currentWeights = (doc.exists && doc.data().weights) ? { ...doc.data().weights } : {};
-  currentTare = (doc.exists && doc.data().tare) ? doc.data().tare : 0;
-  currentOwners = (doc.exists && doc.data().owners) ? { ...doc.data().owners } : {};
-  currentPriceInclWeight = (doc.exists && doc.data().priceInclWeight) ? { ...doc.data().priceInclWeight } : {};
-  currentCostGoods = (doc.exists && doc.data().costGoods) ? { ...doc.data().costGoods } : {};
-  currentCostShip = (doc.exists && doc.data().costShip) ? { ...doc.data().costShip } : {};
-  currentCargoWeight = (doc.exists && doc.data().cargoWeight) ? doc.data().cargoWeight : 0;
-  shipmentDeparted = (doc.exists && doc.data().departed) ? doc.data().departed : false;
-  currentDueOverride = (doc.exists && doc.data().dueOverride) ? { ...doc.data().dueOverride } : {};
-  applyClientRules();
-  // Если строка курсов открыта — подтягиваем цифры нового прихода автоматически
-
-  // Demo mode: limit to 5 tracks
-  if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
+  applyShipDoc(doc.exists ? doc.data() : {});
   let scDoc;
   try { scDoc = await fsGet('users/' + savedUid + '/scanned/' + id); } catch(e) { scDoc = { exists: false }; }
   scanned = scDoc.exists ? (scDoc.data().items || {}) : {};
@@ -1860,7 +1872,10 @@ function showUnscanned() {
 // ============ RESET / EXPORT ============
 async function resetAll() {
   if(!confirm('Сбросить все отметки?'))return;
-  scanned={}; await saveScanned(); updateStats(); document.getElementById('resultBlock').innerHTML='';
+  const shipId = editingShipmentId || activeShipmentId;  // сбрасываем отметки именно открытого прихода
+  scanned={};
+  await scannedRef(shipId).set({ items: {} });
+  updateStats(); document.getElementById('resultBlock').innerHTML='';
 }
 function exportScanned() {
   const rows=TABLE.map((r,i)=>({t:r[0],w:r[1],d:!!scanned[i]})).filter(r=>r.d).map(r=>r.t+','+r.w).join('\n');
@@ -1983,6 +1998,59 @@ async function adminToggleBlock(uid,block) {
   await db.collection('users').doc(uid).update({blocked:block});
   renderAdminPanel();
 }
+
+// ============ ЖИВАЯ СИНХРОНИЗАЦИЯ (мобильная ↔ десктоп) ============
+// Подписка onSnapshot на users/{uid}/shipments: правка с другого устройства сразу появляется здесь.
+let shipSyncUnsub = null;
+let shipSyncPending = false;
+function snapDocToObj(d) {
+  const o = d.data() || {};
+  for (const k in o) if (o[k] && typeof o[k].toDate === 'function') o[k] = o[k].toDate();
+  return o;
+}
+function syncIsTyping() {
+  const a = document.activeElement;
+  return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox';
+}
+function isShownEl(id) { const e = document.getElementById(id); return !!e && e.classList.contains('show'); }
+function startShipmentsSync() {
+  if (shipSyncUnsub || !currentUser) return;
+  let first = true;
+  try {
+    shipSyncUnsub = shipmentsRef().onSnapshot(snap => {
+      if (first) { first = false; return; }               // первый снимок = то, что уже загружено
+      if (snap.metadata.hasPendingWrites) return;          // наше собственное изменение — уже на экране
+      const list = snap.docs.map(d => ({ id: d.id, ...snapDocToObj(d) }));
+      list.sort((a, b) => (b.created ? new Date(b.created).getTime() : 0) - (a.created ? new Date(a.created).getTime() : 0));
+      allShipments = list;
+      const sel = document.getElementById('shipmentSelect');
+      if (sel) { const v = sel.value; sel.innerHTML = list.map(x => `<option value="${x.id}">${x.name} (${(x.data || []).length})</option>`).join(''); sel.value = v; }
+      if (typeof cabShipmentsCache !== 'undefined') cabShipmentsCache = list.map(x => ({ ...x }));
+      const openId = editingShipmentId || activeShipmentId;
+      const changedOpen = snap.docChanges().some(c => c.doc.id === openId && c.type === 'modified');
+      if (changedOpen) { const cur = list.find(x => x.id === openId); if (cur) applyShipDoc(cur); }
+      syncRefreshScreens();
+    }, err => console.warn('shipments sync:', err.message));
+  } catch (e) { console.warn('shipments sync start:', e.message); }
+}
+// Перерисовать открытые экраны. Если пользователь сейчас печатает в поле — отложить до выхода из поля.
+function syncRefreshScreens() {
+  if (syncIsTyping()) { shipSyncPending = true; return; }
+  shipSyncPending = false;
+  try { renderShipmentCards(); } catch (e) {}
+  try { updateStats(); } catch (e) {}
+  if (isShownEl('calcScreen')) renderCalc();
+  if (isShownEl('weighScreen')) {
+    renderWeighList();
+    const ti = document.getElementById('tareInput'); if (ti) ti.value = currentTare ? Math.round(currentTare * 1000) : '';
+    const cw = document.getElementById('cargoWeightInput'); if (cw) cw.value = currentCargoWeight ? Math.round(currentCargoWeight * 1000) : '';
+    const dep = document.getElementById('departedChk'); if (dep) dep.checked = !!shipmentDeparted;
+    updateClientsWeightTotal();
+  }
+  if (isShownEl('priceEditScreen')) renderPriceEditor();
+  if (isShownEl('cabinetScreen') && typeof cabRerender === 'function') cabRerender();
+}
+document.addEventListener('focusout', () => { if (shipSyncPending) setTimeout(() => { if (!syncIsTyping()) syncRefreshScreens(); }, 50); });
 
 // ============ PWA ============
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});

@@ -58,6 +58,54 @@ function cabNav(section) {
 }
 
 // ============ УТИЛИТЫ ============
+// ОПЛАТЫ клиента по приходу: ship.payments[имя] = { paid: сумма, at: дата }. Итог к оплате = due (с учётом ручной правки dueOverride).
+// Старая отметка ship.paid[имя] = true считается полной оплатой.
+const CAB_PAY_ST = {
+  none: { label: 'Не оплачено', color: '#dc2626', bg: '#fee2e2' },
+  part: { label: 'Частично',    color: '#b45309', bg: '#fef3c7' },
+  full: { label: 'Оплачено',    color: '#16a34a', bg: '#dcfce7' }
+};
+function cabPayInfo(payments, legacyPaid, name, due, isOwner) {
+  const p = (payments || {})[name];
+  const paid = p && typeof p.paid === 'number' ? p.paid : ((legacyPaid || {})[name] ? due : 0);
+  const rest = Math.max(0, Math.round((due - paid) * 100) / 100);
+  const status = isOwner ? 'owner' : (due <= 0.004 || paid >= due - 0.004) ? 'full' : paid > 0.004 ? 'part' : 'none';
+  return { paid, rest, status };
+}
+function cabPayBadge(st) {
+  const x = CAB_PAY_ST[st];
+  return x ? `<span style="font-size:13px;background:${x.bg};color:${x.color};padding:3px 8px;border-radius:5px;font-weight:600;white-space:nowrap">${x.label}</span>` : '';
+}
+// Атомарная запись одного поля-карты по имени клиента (транзакция + FieldPath: правки других клиентов и с других устройств не затираются)
+async function cabTxMapField(shipId, field, name, value) {
+  const ref = shipmentsRef().doc(shipId);
+  const fp = new firebase.firestore.FieldPath(field, name);
+  await db.runTransaction(async t => {
+    const doc = await t.get(ref);
+    if (!doc.exists) throw new Error('приход не найден');
+    t.update(ref, fp, value === null ? firebase.firestore.FieldValue.delete() : value);
+  });
+  const ship = cabShipmentsCache.find(x => x.id === shipId);
+  if (ship) {
+    const m = { ...(ship[field] || {}) };
+    if (value === null) delete m[name]; else m[name] = value;
+    ship[field] = m;
+  }
+  if (shipId === (editingShipmentId || activeShipmentId) && field === 'dueOverride' && typeof currentDueOverride !== 'undefined') {
+    if (value === null) delete currentDueOverride[name]; else currentDueOverride[name] = value;
+  }
+}
+async function cabSavePayment(shipId, name, amount) {
+  await cabTxMapField(shipId, 'payments', name, { paid: Math.round(amount * 100) / 100, at: new Date().toISOString() });
+}
+// Перерисовать текущий экран кабинета (для живой синхронизации), не сбрасывая открытую карточку клиента
+function cabRerender() {
+  const main = document.getElementById('cabMain');
+  if (!main) return;
+  if (cabShipId) { cabRenderShip(); return; }
+  const r = { overview: renderCabOverview, shipments: renderCabShipments, clients: renderCabClients, prices: renderCabPrices, calc: renderCabCalc, analytics: renderCabAnalytics }[cabCurrentSection];
+  if (r) r(main);
+}
 // Дата отправки из названия прихода: «Отправка 21-22.09.26» → 21.09.2026. Нет даты → null
 function cabShipDate(ship) {
   const m = String((ship && ship.name) || '').match(/(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\.(\d{1,2})(?:\.(\d{2,4}))?/);
@@ -152,7 +200,8 @@ function cabGetClientsFromShipment(ship) {
     result.push({
       name, items: itemCount[name] || 0, weight: w, shipWeight,
       buyYuan: buyYuan[name] || 0, clientYuan: clientYuanMap[name] || 0,
-      due, profit, isOwner, dueCalc, dueEdited, costGoodsOn: cGoods, costShipOn: cShip, paid: !!(ship.paid || {})[name],
+      due, profit, isOwner, dueCalc, dueEdited, costGoodsOn: cGoods, costShipOn: cShip,
+      ...(() => { const pi = cabPayInfo(ship.payments, ship.paid, name, due, isOwner); return { payPaid: pi.paid, payRest: pi.rest, payStatus: pi.status, paid: pi.status === 'full' }; })(),
       goodsClient, goodsCost, shipCli, shipCo
     });
   }
@@ -456,13 +505,15 @@ async function cabEditCell(inp, col) {
   TABLE[idx][col] = v;
   try {
     const ref = shipmentsRef().doc(cabShipId);
-    const doc = await ref.get();
-    if (!doc.exists) return;
-    const data = doc.data().data;
-    if (!data[idx]) return;
-    if (Array.isArray(data[idx])) data[idx][col] = String(v);
-    else data[idx][col === 1 ? 'w' : col === 3 ? 'p' : 'pc'] = String(v);
-    await ref.update({ data });
+    await db.runTransaction(async t => {
+      const doc = await t.get(ref);
+      if (!doc.exists) return;
+      const data = doc.data().data;
+      if (!data || !data[idx]) return;
+      if (Array.isArray(data[idx])) data[idx][col] = String(v);
+      else data[idx][col === 1 ? 'w' : col === 3 ? 'p' : 'pc'] = String(v);
+      t.update(ref, { data });
+    });
     inp.style.borderColor = '#3cb371';
     setTimeout(() => { inp.style.borderColor = '#d5d8dd'; }, 800);
   } catch (e) { alert('Не удалось сохранить: ' + e.message); }
@@ -530,7 +581,14 @@ async function cabSetDeparted(inp) {
 // ---- Расчёт ----
 function cabShipCalcHtml(calc) {
   const chk = (field, c, label) => `<label style="font-size:14px;color:#4a5260;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer"><input type="checkbox" ${field[c.name] ? 'checked' : ''} data-name="${encodeURIComponent(c.name)}" onchange="cabToggleCost(this,'${field === currentCostGoods ? 'goods' : 'ship'}')"> ${label}</label>`;
+  const shipC = cabShipmentsCache.find(s => s.id === cabShipId) || {};
+  const pinp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:86px;box-sizing:border-box';
   const rows = calc.clients.map(c => {
+    const pi = cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, c.isOwner);
+    const payCells = c.isOwner ? '<td>—</td><td>—</td><td></td>'
+      : `<td><input value="${pi.paid ? pi.paid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}',this.value)" inputmode="decimal" style="${pinp}"></td>
+         <td style="font-weight:600;color:${pi.rest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(pi.rest)}</td>
+         <td><div style="display:flex;align-items:center;gap:6px">${cabPayBadge(pi.status)}<input type="checkbox" title="Полностью оплачено" ${pi.status === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}', this.checked ? '${c.due.toFixed(2)}' : '0')"></div></td>`;
     const dueCell = c.isOwner ? '—'
       : `<a href="#" onclick="cabEditDue('${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) + '. Нажмите, чтобы изменить' : 'Нажмите, чтобы изменить задолженность'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:14px;color:#f59e0b" title="Исправлено вручную"></i>' : ''}`;
     return `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
@@ -542,6 +600,7 @@ function cabShipCalcHtml(calc) {
       <td>${cabFmt2(c.shipClient)}</td>
       <td class="val-purple">${dueCell}</td>
       <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}">${c.profit >= 0 ? '+' : ''}${cabFmt2(c.profit)}</td>
+      ${payCells}
       <td><div style="display:flex;flex-direction:column;gap:3px">${chk(currentCostGoods, c, 'Товар по себест.')}${chk(currentCostShip, c, 'Доставка по себест.')}</div></td>
     </tr>`;
   }).join('');
@@ -550,9 +609,9 @@ function cabShipCalcHtml(calc) {
       <button onclick="cabShipPDF()" style="background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>
     </div>
     <table class="cab-table">
-      <thead><tr><th>Клиент</th><th>Поз.</th><th>Товар ¥</th><th>Вес с тарой, кг</th><th>Товар BYN</th><th>Доставка BYN</th><th>Должен BYN</th><th>Прибыль BYN</th><th>По себестоимости</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
-      <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="5">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td></td></tr></tfoot>
+      <thead><tr><th>Клиент</th><th>Поз.</th><th>Товар ¥</th><th>Вес с тарой, кг</th><th>Товар BYN</th><th>Доставка BYN</th><th>Должен BYN</th><th>Прибыль BYN</th><th>Оплачено</th><th>Остаток</th><th>Оплата</th><th>По себестоимости</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="12" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
+      <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="5">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td></td><td style="color:#dc2626">${cabFmt2(calc.clients.reduce((n, c) => n + (c.isOwner ? 0 : cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, false).rest), 0))}</td><td></td><td></td></tr></tfoot>
     </table>
   </div>`;
 }
@@ -573,17 +632,13 @@ async function cabEditDue(encName) {
   const v = prompt('Новая сумма задолженности, BYN' + (c ? ' (по расчёту: ' + c.dueCalc.toFixed(2) + ')' : '') + '.\nОставьте пустым, чтобы вернуть расчётную.', cur);
   if (v === null) return;
   const t = v.trim().replace(',', '.');
-  if (t === '') delete currentDueOverride[n];
-  else {
+  let val = null;
+  if (t !== '') {
     const num = parseFloat(t);
     if (isNaN(num) || num < 0) { alert('Введите сумму числом'); return; }
-    currentDueOverride[n] = Math.round(num * 100) / 100;
+    val = Math.round(num * 100) / 100;
   }
-  try {
-    await shipmentsRef().doc(cabShipId).update({ dueOverride: currentDueOverride });
-    const ship = cabShipmentsCache.find(s => s.id === cabShipId);
-    if (ship) ship.dueOverride = { ...currentDueOverride };
-  } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+  try { await cabTxMapField(cabShipId, 'dueOverride', n, val); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
   cabRenderShip();
 }
 
@@ -646,7 +701,7 @@ function cabClientsSummary() {
       m.totalProfit += c.profit;
       m.totalWeight += c.weight;
       if (c.isOwner) m.isOwner = true;
-      if (!c.isOwner && !c.paid && c.due > 0) m.unpaidDue += c.due;
+      if (!c.isOwner) m.unpaidDue += c.payRest;
     }
   }
   const list = Object.values(map);
@@ -759,9 +814,15 @@ function cabRenderClientCard(container, name) {
     const open = cabClientShipOpen.has(ship.id);
     const date = cabShipDateStr(ship);
     const sst = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
+    const inp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:92px;box-sizing:border-box';
     const paidHtml = c.isOwner ? '<span style="font-size:13px;color:#dc2626">свой склад</span>'
-      : `<label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;white-space:nowrap;color:${c.paid ? '#16a34a' : '#dc2626'};font-weight:600">
-          <input type="checkbox" ${c.paid ? 'checked' : ''} onchange="cabSetPaid('${ship.id}','${enc}',this.checked)"> ${c.paid ? 'Оплачено' : 'Не оплачено'}</label>`;
+      : `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:default">
+          <label style="font-size:13px;color:#6b7280">Итого <input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></label>
+          <label style="font-size:13px;color:#6b7280">Оплачено <input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></label>
+          <span style="font-size:13px;color:#6b7280">Остаток <b style="color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b></span>
+          ${cabPayBadge(c.payStatus)}
+          <label title="Отметить полностью оплаченным" style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')"> всё</label>
+        </div>`;
     let items = '';
     if (open) {
       const rows = (ship.data || []).map(row => Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'])
@@ -784,7 +845,7 @@ function cabRenderClientCard(container, name) {
         <div style="font-weight:600;min-width:180px">${ship.name || 'Без названия'}${date ? ` <span style="font-weight:400;color:#6b7280;font-size:13px">· ${date}</span>` : ''}</div>
         <span style="font-size:13px;color:#4a5260"><span class="status-dot" style="background:${sst.color}"></span>${sst.label}</span>
         <span style="font-size:14px">${c.items} поз.</span>
-        <span style="font-size:14px;color:#6C4DB8;font-weight:600;margin-left:auto">${c.isOwner ? '—' : cabFmt2(c.due) + ' BYN'}</span>
+        <span style="margin-left:auto"></span>
         ${paidHtml}
       </div>
       ${open ? `<div style="padding:0 14px 10px">${items}</div>` : ''}
@@ -847,21 +908,28 @@ async function cabSetClientRule(encName, kind, on) {
   renderCabClients(document.getElementById('cabMain'));
 }
 
-// Отметка «Клиент рассчитался» по конкретному приходу: ship.paid = { "Имя": true }
-async function cabSetPaid(shipId, encName, on) {
-  const name = decodeURIComponent(encName);
-  const ship = cabShipmentsCache.find(s => s.id === shipId);
-  if (!ship) return;
-  const { clients } = cabGetClientsFromShipment(ship);
-  const c = clients.find(x => x.name.toLowerCase() === name.toLowerCase());
-  const key = c ? c.name : name;
-  const paid = { ...(ship.paid || {}) };
-  if (on) paid[key] = true; else delete paid[key];
-  try {
-    await shipmentsRef().doc(shipId).update({ paid });
-    ship.paid = paid;
-  } catch (e) { alert('Не удалось сохранить: ' + e.message); }
-  renderCabClients(document.getElementById('cabMain'));
+// Карточка клиента: инлайн-правка итога и внесение оплаты (частичной или полной)
+function cabClientKey(ship, name) {
+  const c = cabGetClientsFromShipment(ship).clients.find(x => x.name.toLowerCase() === name.toLowerCase());
+  return c ? c.name : name;
+}
+async function cabCardSetDue(shipId, encName, val) {
+  const ship = cabShipmentsCache.find(s => s.id === shipId); if (!ship) return;
+  const key = cabClientKey(ship, decodeURIComponent(encName));
+  const t = String(val).trim().replace(',', '.');
+  let v = null;
+  if (t !== '') { v = parseFloat(t); if (isNaN(v) || v < 0) { alert('Введите сумму числом'); return; } v = Math.round(v * 100) / 100; }
+  try { await cabTxMapField(shipId, 'dueOverride', key, v); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+  cabRerender();
+}
+async function cabCardSetPaid(shipId, encName, val) {
+  const ship = cabShipmentsCache.find(s => s.id === shipId); if (!ship) return;
+  const key = cabClientKey(ship, decodeURIComponent(encName));
+  const t = String(val).trim().replace(',', '.');
+  const v = t === '' ? 0 : parseFloat(t);
+  if (isNaN(v) || v < 0) { alert('Введите сумму числом'); return; }
+  try { await cabSavePayment(shipId, key, v); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+  cabRerender();
 }
 
 // ============ ЦЕНЫ ============
@@ -1000,18 +1068,13 @@ async function cabEditTotal(shipId, encName) {
   const v = prompt('Новая итоговая сумма, BYN (по расчёту: ' + c.dueCalc.toFixed(2) + ').\nОставьте пустым, чтобы вернуть расчётную.', c.due.toFixed(2));
   if (v === null) return;
   const t = v.trim().replace(',', '.');
-  const ov = { ...(ship.dueOverride || {}) };
-  if (t === '') delete ov[name];
-  else {
+  let val = null;
+  if (t !== '') {
     const num = parseFloat(t);
     if (isNaN(num) || num < 0) { alert('Введите сумму числом'); return; }
-    ov[name] = Math.round(num * 100) / 100;
+    val = Math.round(num * 100) / 100;
   }
-  try {
-    await shipmentsRef().doc(shipId).update({ dueOverride: ov });
-    ship.dueOverride = ov;
-    if (shipId === (editingShipmentId || activeShipmentId) && typeof currentDueOverride !== 'undefined') currentDueOverride = { ...ov };
-  } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+  try { await cabTxMapField(shipId, 'dueOverride', name, val); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
   renderCabCalc(document.getElementById('cabMain'));
 }
 
