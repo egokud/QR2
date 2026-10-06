@@ -186,12 +186,12 @@ function renderCabOverview(container) {
     <div class="cab-main-title">Обзор</div>
     <div class="cab-stats">
       <div class="cab-stat-card">
-        <div class="cab-stat-val">${activeShips}</div>
-        <div class="cab-stat-label">Активных приходов</div>
+        <div class="cab-stat-val">${ships.length}</div>
+        <div class="cab-stat-label">Всего приходов</div><div style="font-size:12px;color:#5f6470;margin-top:2px">В пути: ${ships.filter(s=>s.status==='transit').length} · Формируется: ${ships.filter(s=>!s.status||s.status==='forming').length}</div>
       </div>
       <div class="cab-stat-card">
-        <div class="cab-stat-val val-purple" style="color:#6C4DB8">${cabFmt(grandDue)} <span style="font-size:14px;font-weight:400;opacity:0.7">BYN</span></div>
-        <div class="cab-stat-label">Клиенты должны</div>
+        <div class="cab-stat-val">${ships.filter(s=>s.status==='sorted'||s.status==='done').reduce((n,s)=>n+(s.data||[]).length,0)}</div>
+        <div class="cab-stat-label">Привезено всего товаров</div>
       </div>
       <div class="cab-stat-card">
         <div class="cab-stat-val green">${cabFmt(grandProfit)} <span style="font-size:14px;font-weight:400;opacity:0.7">BYN</span></div>
