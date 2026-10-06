@@ -131,7 +131,7 @@
     <div class="cab-sidebar-bottom">
       <div class="cab-sidebar-user" id="cabUserName">—</div>
       <div class="cab-sidebar-role" id="cabUserRole">—</div>
-      <button class="cab-sidebar-logout" onclick="document.getElementById('cabinetScreen').classList.remove('show');enterMode('scanner')"><i class="ti ti-device-mobile" style="font-size:16px"></i> Перейти в мобильную версию</button>
+      <button class="cab-sidebar-logout" onclick="if(cabShipId){cabShipId=null;restoreActiveEditing();}document.getElementById('cabinetScreen').classList.remove('show');enterMode('scanner')"><i class="ti ti-device-mobile" style="font-size:16px"></i> Перейти в мобильную версию</button>
       <button class="cab-sidebar-logout" onclick="exitCabinet()"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
     </div>
   </div>
