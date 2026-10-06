@@ -184,18 +184,14 @@ function renderCabOverview(container) {
 
   container.innerHTML = `
     <div class="cab-main-title">Обзор</div>
-    <div class="cab-stats">
+    <div class="cab-stats" style="grid-template-columns:repeat(3,1fr)">
       <div class="cab-stat-card">
         <div class="cab-stat-val">${ships.length}</div>
-        <div class="cab-stat-label">Всего приходов</div><div style="font-size:12px;color:#5f6470;margin-top:2px">В пути: ${ships.filter(s=>s.status==='transit').length} · Формируется: ${ships.filter(s=>!s.status||s.status==='forming').length}</div>
+        <div class="cab-stat-label">Всего приходов</div>
       </div>
       <div class="cab-stat-card">
         <div class="cab-stat-val">${ships.filter(s=>s.status==='sorted'||s.status==='done').reduce((n,s)=>n+(s.data||[]).length,0)}</div>
         <div class="cab-stat-label">Привезено всего товаров</div>
-      </div>
-      <div class="cab-stat-card">
-        <div class="cab-stat-val green">${cabFmt(grandProfit)} <span style="font-size:14px;font-weight:400;opacity:0.7">BYN</span></div>
-        <div class="cab-stat-label">Прибыль (все приходы)</div>
       </div>
       <div class="cab-stat-card">
         <div class="cab-stat-val">${totalClients.size}</div>
@@ -221,19 +217,6 @@ function renderCabOverview(container) {
       </table>
     </div>
 
-    ${topDebtors.length > 0 ? `
-    <div class="cab-table-wrap">
-      <div class="cab-table-title">Топ клиентов по задолженности</div>
-      <table class="cab-table">
-        <thead><tr><th>Клиент</th><th>Должен BYN</th></tr></thead>
-        <tbody>
-          ${topDebtors.map(([name, debt]) => `<tr>
-            <td style="font-weight:500">${name}</td>
-            <td class="val-purple">${cabFmt(debt)}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>` : ''}
   `;
 }
 
