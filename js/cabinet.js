@@ -586,9 +586,9 @@ function cabShipCalcHtml(calc) {
   const rows = calc.clients.map(c => {
     const pi = cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, c.isOwner);
     const payCells = c.isOwner ? '<td>—</td><td>—</td><td></td>'
-      : `<td><input value="${pi.paid ? pi.paid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}',this.value)" inputmode="decimal" style="${pinp}"></td>
-         <td style="font-weight:600;color:${pi.rest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(pi.rest)}</td>
-         <td><div style="display:flex;align-items:center;gap:6px">${cabPayBadge(pi.status)}<input type="checkbox" title="Полностью оплачено" ${pi.status === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}', this.checked ? '${c.due.toFixed(2)}' : '0')"></div></td>`;
+      : `<td style="font-weight:600;color:${pi.rest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(pi.rest)}</td>
+         <td><input value="${pi.paid ? pi.paid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}',this.value)" inputmode="decimal" style="${pinp}"></td>
+         <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" title="Полностью оплачено" ${pi.status === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}', this.checked ? '${c.due.toFixed(2)}' : '0')">${cabPayBadge(pi.status)}</label></td>`;
     const dueCell = c.isOwner ? '—'
       : `<a href="#" onclick="cabEditDue('${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) + '. Нажмите, чтобы изменить' : 'Нажмите, чтобы изменить задолженность'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:14px;color:#f59e0b" title="Исправлено вручную"></i>' : ''}`;
     return `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
@@ -609,9 +609,9 @@ function cabShipCalcHtml(calc) {
       <button onclick="cabShipPDF()" style="background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>
     </div>
     <table class="cab-table">
-      <thead><tr><th>Клиент</th><th>Поз.</th><th>Товар ¥</th><th>Вес с тарой, кг</th><th>Товар BYN</th><th>Доставка BYN</th><th>Должен BYN</th><th>Прибыль BYN</th><th>Оплачено</th><th>Остаток</th><th>Оплата</th><th>По себестоимости</th></tr></thead>
+      <thead><tr><th>Клиент</th><th>Поз.</th><th>Товар ¥</th><th>Вес с тарой, кг</th><th>Товар BYN</th><th>Доставка BYN</th><th>Должен BYN</th><th>Прибыль BYN</th><th>Остаток</th><th>Оплачено</th><th>Оплата</th><th>По себестоимости</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="12" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
-      <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="5">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td></td><td style="color:#dc2626">${cabFmt2(calc.clients.reduce((n, c) => n + (c.isOwner ? 0 : cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, false).rest), 0))}</td><td></td><td></td></tr></tfoot>
+      <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="5">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td style="color:#dc2626">${cabFmt2(calc.clients.reduce((n, c) => n + (c.isOwner ? 0 : cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, false).rest), 0))}</td><td></td><td></td><td></td></tr></tfoot>
     </table>
   </div>`;
 }
