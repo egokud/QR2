@@ -404,7 +404,7 @@ function cabRenderShip() {
   else body = cabShipRatesHtml();
   document.getElementById('cabMain').innerHTML = `
     <a href="#" onclick="cabCloseShip();return false" style="display:inline-flex;align-items:center;gap:4px;color:#6C4DB8;text-decoration:none;font-size:14px;margin-bottom:10px"><i class="ti ti-arrow-left"></i> Все приходы</a>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;margin-bottom:14px">
       <div class="cab-main-title" style="margin:0">${ship.name || 'Без названия'}</div>
       <button onclick="cabRenameShip()" title="Переименовать" style="border:none;background:none;color:#6b7280;cursor:pointer;font-size:16px"><i class="ti ti-pencil"></i></button>
       <select onchange="cabSetStatus(this.value)" style="${cabInp};margin-left:auto">${opts}</select>
@@ -475,7 +475,7 @@ function cabShipItemsHtml() {
     </tr>`;
   }).join('');
   return `<div class="cab-table-wrap">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+    <div style="display:flex;gap:10px;flex-wrap:nowrap;align-items:center;margin-bottom:12px">
       <input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку или клиенту" style="${cabInp};width:100%;max-width:340px">
       <div style="display:flex;gap:6px;margin-left:auto">
         <button class="cab-filter-btn ${cabItemSort === 'track' ? 'active' : ''}" onclick="cabSetItemSort('track')">По трек-кодам</button>
@@ -534,7 +534,7 @@ function cabShipWeighHtml() {
     </tr>`;
   }).join('');
   return `<div class="cab-table-wrap">
-    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+    <div style="display:flex;gap:16px;flex-wrap:nowrap;align-items:flex-end;margin-bottom:16px">
       <label style="font-size:13px;color:#5f6470">Вес от карго, г<br><input value="${currentCargoWeight ? Math.round(currentCargoWeight * 1000) : ''}" onchange="cabSetCargo(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
       <label style="font-size:13px;color:#5f6470">Вес тары, г<br><input value="${currentTare ? Math.round(currentTare * 1000) : ''}" onchange="cabSetTare(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
       <label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px;padding-bottom:6px"><input type="checkbox" ${shipmentDeparted ? 'checked' : ''} onchange="cabSetDeparted(this)"> Отправка выехала в карго</label>
@@ -762,7 +762,7 @@ function renderCabClients(container) {
       Сверка позиций: в базе ${S.totalItemsDb} = у клиентов ${S.clientItemsSum}${S.sharedExtra ? ' − повторы общих ' + S.sharedExtra : ''}${S.noClientItems ? ' + без клиента ' + S.noClientItems : ''} ${okSum ? '✓' : '— не сходится'}
     </div>
     <div class="cab-table-wrap">
-      <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="display:flex;gap:2px;flex-wrap:nowrap;margin-bottom:10px">
         ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('forgotten', 'Забытые')}
       </div>
       <table class="cab-table">
@@ -817,7 +817,7 @@ function cabRenderClientCard(container, name) {
     const sst = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const inp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:92px;box-sizing:border-box';
     const paidHtml = c.isOwner ? '<span style="font-size:13px;color:#dc2626">свой склад</span>'
-      : `<div onclick="event.stopPropagation()" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;cursor:default">
+      : `<div onclick="event.stopPropagation()" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:nowrap;cursor:default">
           <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Итого<input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></label>
           <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Оплачено<input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></label>
           <div style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280;min-width:70px">Остаток<b style="font-size:14px;line-height:30px;white-space:nowrap;color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b></div>
@@ -840,7 +840,7 @@ function cabRenderClientCard(container, name) {
       </div>`;
     }
     return `<div style="border:1px solid #dfe2e7;border-radius:10px;margin-bottom:10px;background:#fff">
-      <div onclick="cabToggleClientShip('${ship.id}')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;cursor:pointer;flex-wrap:wrap">
+      <div onclick="cabToggleClientShip('${ship.id}')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;cursor:pointer;flex-wrap:nowrap">
         <i class="ti ti-chevron-${open ? 'down' : 'right'}" style="color:#6b7280"></i>
         <div style="font-weight:600;min-width:180px">${ship.name || 'Без названия'}${date ? ` <span style="font-weight:400;color:#6b7280;font-size:13px">· ${date}</span>` : ''}</div>
         <span style="font-size:13px;color:#4a5260"><span class="status-dot" style="background:${sst.color}"></span>${sst.label}</span>
@@ -859,7 +859,7 @@ function cabRenderClientCard(container, name) {
       ${m.isOwner ? '<span style="font-size:13px;background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:5px">свой</span>' : ''}
     </div>
     <div class="cab-table-wrap" style="padding:14px 18px">
-      <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div style="display:flex;gap:24px;flex-wrap:nowrap">
         ${ruleChk('owner', 'Это я')}${ruleChk('costGoods', 'Товар по себестоимости')}${ruleChk('costShip', 'Доставка по себестоимости')}
       </div>
       <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют начиная со следующего формирующегося прихода. Для уже созданных приходов — галочки во вкладке «Расчёт» конкретного прихода.</div>
@@ -1034,7 +1034,7 @@ function renderCabCalc(container) {
 
     blocks.push(`
       <div class="cab-table-wrap" style="${isDone ? 'opacity:0.55;' : ''}padding:14px 18px">
-        <div onclick="cabCalcToggle('${ship.id}')" style="display:flex;align-items:center;gap:14px;cursor:pointer;flex-wrap:wrap">
+        <div onclick="cabCalcToggle('${ship.id}')" style="display:flex;align-items:center;gap:14px;cursor:pointer;flex-wrap:nowrap">
           <i class="ti ti-chevron-${open ? 'down' : 'right'}" style="color:#6b7280"></i>
           <span class="status-dot" style="background:${st.color}"></span>
           <span style="font-weight:600;font-size:16px">${ship.name || 'Без названия'}</span>
@@ -1047,7 +1047,7 @@ function renderCabCalc(container) {
   }
 
   container.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:16px">
       <div class="cab-main-title" style="margin:0">Расчёты по приходам</div>
       <button class="cab-filter-btn" style="margin-left:auto" onclick="cabCalcAll(true)"><i class="ti ti-arrows-maximize"></i> Развернуть все</button>
       <button class="cab-filter-btn" onclick="cabCalcAll(false)"><i class="ti ti-arrows-minimize"></i> Свернуть все</button>
