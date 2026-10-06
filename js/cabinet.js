@@ -335,7 +335,7 @@ function renderCabShipments(container) {
     const st = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const date = ship.created ? new Date(ship.created).toLocaleDateString('ru-RU') : '—';
     const isDone = ship.status === 'done';
-    const departed = ship.departed ? '<i class="ti ti-truck" style="color:#3cb371;font-size:14px" title="Выехала"></i>' : '';
+    const departed = (ship.departed && ship.status !== 'sorted' && ship.status !== 'done') ? '<i class="ti ti-truck" style="color:#3cb371;font-size:14px" title="Выехала"></i>' : '';
     return `<tr class="cab-ship-row" data-status="${isDone ? 'done' : 'active'}" style="${isDone ? 'opacity:0.55' : ''}">
       <td style="font-weight:500">${isDone ? (ship.name || 'Без названия') : `<a href="#" onclick="cabOpenShip('${ship.id}');return false" style="color:#6C4DB8;text-decoration:none">${ship.name || 'Без названия'}</a>`}</td>
       <td>${date}</td>
@@ -586,20 +586,19 @@ function cabShipCalcHtml(calc) {
   const rows = calc.clients.map(c => {
     const pi = cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, c.isOwner);
     const payCells = c.isOwner ? '<td>—</td><td>—</td><td></td>'
-      : `<td style="font-weight:600;color:${pi.rest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(pi.rest)}</td>
+      : `<td style="font-weight:600;white-space:nowrap;color:${pi.rest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(pi.rest)}</td>
          <td><input value="${pi.paid ? pi.paid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}',this.value)" inputmode="decimal" style="${pinp}"></td>
          <td><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" title="Полностью оплачено" ${pi.status === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}', this.checked ? '${c.due.toFixed(2)}' : '0')">${cabPayBadge(pi.status)}</label></td>`;
     const dueCell = c.isOwner ? '—'
       : `<a href="#" onclick="cabEditDue('${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) + '. Нажмите, чтобы изменить' : 'Нажмите, чтобы изменить задолженность'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:14px;color:#f59e0b" title="Исправлено вручную"></i>' : ''}`;
     return `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
       <td style="font-weight:500">${c.name}${c.noWeight ? ' <span title="Вес не указан" style="color:#f59e0b">⚠</span>' : ''}</td>
-      <td>${c.count}</td>
-      <td>${cabFmt2(c.yuan)}</td>
-      <td>${cabFmt2(c.shipWeight)}</td>
-      <td>${cabFmt2(c.goodsClient)}</td>
-      <td>${cabFmt2(c.shipClient)}</td>
-      <td class="val-purple">${dueCell}</td>
-      <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}">${c.profit >= 0 ? '+' : ''}${cabFmt2(c.profit)}</td>
+      <td style="white-space:nowrap">${c.count}</td>
+      <td style="white-space:nowrap">${cabFmt2(c.shipWeight)}</td>
+      <td style="white-space:nowrap">${cabFmt2(c.goodsClient)}</td>
+      <td style="white-space:nowrap">${cabFmt2(c.shipClient)}</td>
+      <td class="val-purple" style="white-space:nowrap">${dueCell}</td>
+      <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}" style="white-space:nowrap">${c.profit >= 0 ? '+' : ''}${cabFmt2(c.profit)}</td>
       ${payCells}
       <td><div style="display:flex;flex-direction:column;gap:3px">${chk(currentCostGoods, c, 'Товар по себест.')}${chk(currentCostShip, c, 'Доставка по себест.')}</div></td>
     </tr>`;
@@ -608,11 +607,13 @@ function cabShipCalcHtml(calc) {
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
       <button onclick="cabShipPDF()" style="background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>
     </div>
-    <table class="cab-table">
-      <thead><tr><th>Клиент</th><th>Поз.</th><th>Товар ¥</th><th>Вес с тарой, кг</th><th>Товар BYN</th><th>Доставка BYN</th><th>Должен BYN</th><th>Прибыль BYN</th><th>Остаток</th><th>Оплачено</th><th>Оплата</th><th>По себестоимости</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="12" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
-      <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="5">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td style="color:#dc2626">${cabFmt2(calc.clients.reduce((n, c) => n + (c.isOwner ? 0 : cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, false).rest), 0))}</td><td></td><td></td><td></td></tr></tfoot>
+    <div style="overflow-x:auto;margin:0 -4px;padding:0 4px">
+    <table class="cab-table" style="background:#fff">
+      <thead><tr><th>Клиент</th><th>Поз.</th><th>Вес с тарой, кг</th><th>Товар BYN</th><th>Доставка BYN</th><th>Должен BYN</th><th>Прибыль BYN</th><th>Остаток</th><th>Оплачено</th><th>Оплата</th><th>По себестоимости</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="11" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
+      <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="4" style="white-space:nowrap">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple" style="white-space:nowrap">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}" style="white-space:nowrap">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td style="color:#dc2626;white-space:nowrap">${cabFmt2(calc.clients.reduce((n, c) => n + (c.isOwner ? 0 : cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, false).rest), 0))}</td><td></td><td></td><td></td></tr></tfoot>
     </table>
+    </div>
   </div>`;
 }
 
@@ -816,12 +817,11 @@ function cabRenderClientCard(container, name) {
     const sst = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const inp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:92px;box-sizing:border-box';
     const paidHtml = c.isOwner ? '<span style="font-size:13px;color:#dc2626">свой склад</span>'
-      : `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:default">
-          <label style="font-size:13px;color:#6b7280">Итого <input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></label>
-          <label style="font-size:13px;color:#6b7280">Оплачено <input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></label>
-          <span style="font-size:13px;color:#6b7280">Остаток <b style="color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b></span>
-          ${cabPayBadge(c.payStatus)}
-          <label title="Отметить полностью оплаченным" style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')"> всё</label>
+      : `<div onclick="event.stopPropagation()" style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;cursor:default">
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Итого<input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></label>
+          <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Оплачено<input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></label>
+          <div style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280;min-width:70px">Остаток<b style="font-size:14px;line-height:30px;white-space:nowrap;color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b></div>
+          <div style="padding-bottom:5px">${cabPayBadge(c.payStatus)}</div>
         </div>`;
     let items = '';
     if (open) {
@@ -845,8 +845,7 @@ function cabRenderClientCard(container, name) {
         <div style="font-weight:600;min-width:180px">${ship.name || 'Без названия'}${date ? ` <span style="font-weight:400;color:#6b7280;font-size:13px">· ${date}</span>` : ''}</div>
         <span style="font-size:13px;color:#4a5260"><span class="status-dot" style="background:${sst.color}"></span>${sst.label}</span>
         <span style="font-size:14px">${c.items} поз.</span>
-        <span style="margin-left:auto"></span>
-        ${paidHtml}
+        <div style="flex-basis:100%;padding-left:28px">${paidHtml}</div>
       </div>
       ${open ? `<div style="padding:0 14px 10px">${items}</div>` : ''}
     </div>`;
