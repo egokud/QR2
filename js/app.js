@@ -890,6 +890,7 @@ const SHIP_STATUSES = {
   forming:   { label: 'Формируется', color: '#4a90d9', text: '#2563a8' },
   transit:   { label: 'В дороге',    color: '#f5c518', text: '#b8860b' },
   warehouse: { label: 'На складе',   color: '#3cb371', text: '#2e8b57' },
+  sorted:    { label: 'Рассортирован', color: '#8b7fd4', text: '#6C4DB8' },
   done:      { label: 'Архив',       color: '#b0b4bb', text: '#9aa0ab' },
 };
 
@@ -1017,7 +1018,7 @@ function openStatusPicker(id, ev) {
   const s = allShipments.find(x => x.id === id);
   const curStatus = s ? (s.status || 'forming') : 'forming';
   const menu = document.getElementById('statusPicker');
-  const order = ['forming','transit','warehouse','done'];
+  const order = ['forming','transit','warehouse','sorted','done'];
   menu.innerHTML = order.map(key => {
     const st = SHIP_STATUSES[key];
     const isCur = key === curStatus;
