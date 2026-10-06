@@ -76,3 +76,11 @@
 @media(max-width:640px){
   .cab-settings-label{min-width:120px;font-size:12px}
 }
+
+/* Клиент → «Приходы клиента»: одна сетка на все строки (subgrid) — колонки строго друг под другом */
+.cab-cships{display:grid;grid-template-columns:34px repeat(7,max-content) minmax(0,1fr) 0;column-gap:20px;min-width:max-content}
+.cab-cship{grid-column:1/-1;display:grid;grid-template-columns:subgrid;border:1px solid #dfe2e7;border-radius:10px;margin-bottom:10px;background:#fff}
+.cab-cship-row{grid-column:1/-1;display:grid;grid-template-columns:subgrid;align-items:center;padding:10px 0}
+.cab-cship-row>:first-child{justify-self:end}
+.cab-cship-head{border-color:transparent;background:none;margin-bottom:0}
+.cab-cship-head .cab-cship-row{padding-top:0;padding-bottom:4px;font-size:12px;color:#6b7280;font-weight:600}
