@@ -138,6 +138,7 @@ async function showApp() {
     document.getElementById('modeSelectScreen').classList.remove('hide');
   }
   document.getElementById('userBadgeName').textContent = userProfile.name || currentUser.email;
+  if (userProfile.role === 'admin') { const cb = document.querySelector('.contact-banner'); if (cb) cb.style.display = 'none'; }
 
   // Check blocked
   if (userProfile.blocked) {
