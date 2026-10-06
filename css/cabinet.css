@@ -57,3 +57,17 @@
   .cab-stats{grid-template-columns:1fr 1fr}
   .cab-main{padding:16px}
 }
+/* Filter row (Приходы) */
+.cab-filter-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.cab-filter-btn{padding:7px 16px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:13px;font-weight:500;color:#5f6470;cursor:pointer;transition:all 0.15s}
+.cab-filter-btn:hover{background:#f7f8fa;color:#1a1a2e}
+.cab-filter-btn.active{background:#6C4DB8;color:#fff;border-color:#6C4DB8}
+/* Settings grid */
+.cab-settings-grid{display:flex;flex-direction:column;gap:0}
+.cab-settings-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6}
+.cab-settings-row:last-child{border-bottom:none}
+.cab-settings-label{width:180px;font-size:13px;color:#9aa0ab;flex-shrink:0}
+.cab-settings-value{font-size:14px;font-weight:500;color:#1a1a2e}
+@media(max-width:640px){
+  .cab-settings-label{width:120px;font-size:12px}
+}
