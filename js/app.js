@@ -453,9 +453,7 @@ function exportCalcPDF() {
   const dateStr = new Date().toLocaleDateString('ru-RU');
   // ВСЕГО ПРИБЫЛЬ = прибыль товаров + прибыль доставки по весу карго
   const rRep = currentRates;
-  const cargoWRep = currentCargoWeight || 0;
-  const shipProfitRep = cargoWRep * ((rRep.shipClient||0)-(rRep.shipCargo||0));
-  const totalProfit = grandProfit + shipProfitRep;
+  const totalProfit = grandProfit;  // grandProfit уже включает прибыль с доставки — второй раз не добавляем
 
   const bodyRows = clients.map(c => {
     if (c.isOwner) {
@@ -701,11 +699,12 @@ function computeClientCalc() {
     const inclWeight = !!currentPriceInclWeight[name];  // вес включён в цену: доставку с клиента не берём, но карго-себест вычитаем
     const costGoods = !!currentCostGoods[name];  // товары по себестоимости (без наценки)
     const costShip = !!currentCostShip[name];    // доставка по себестоимости (без наценки)
-    let due, profit;
+    let due, profit, profitGoods, profitShip;  // profitGoods + profitShip = profit (разбивка для итогов)
     if (isOwner) {
       // Клиент "это я" (владелец): дохода нет, товары+доставка по СЕБЕСТОИМОСТИ = затраты (минус)
       due = 0;
       profit = -(goodsCost + shipCost);  // вычитается из общей прибыли
+      profitGoods = -goodsCost; profitShip = -shipCost;
     } else if (costGoods || costShip) {
       // Индивидуальная скидка: товары и/или доставка по СЕБЕСТОИМОСТИ (клиент платит, но без наценки на это)
       const goodsPart = costGoods ? goodsCost : goodsClient;  // если товары по себест — берём себестоимость
@@ -715,23 +714,26 @@ function computeClientCalc() {
       const goodsProfit = costGoods ? 0 : (goodsClient - goodsCost);
       const shipProfit = costShip ? 0 : (shipClient - shipCost);
       profit = goodsProfit + shipProfit;
+      profitGoods = goodsProfit; profitShip = shipProfit;
     } else if (inclWeight) {
       // Вес включён в фикс-цену: клиент платит только за товар (без доставки), но карго-доставка съедает прибыль
       due = goodsClient;                                     // клиент должен = только фикс-цена товара
       profit = (goodsClient - goodsCost) - shipCost;         // прибыль = наценка на товар МИНУС себест карго-доставки
+      profitGoods = goodsClient - goodsCost; profitShip = -shipCost;
     } else {
       due = goodsClient + shipClient;                        // клиент должен
       profit = (goodsClient - goodsCost) + (shipClient - shipCost); // прибыль
+      profitGoods = goodsClient - goodsCost; profitShip = shipClient - shipCost;
     }
 
     // Ручная корректировка задолженности: итог клиента заменяется, прибыль меняется на разницу
     const dueCalc = due;
     const ov = currentDueOverride[name];
     const dueEdited = !isOwner && ov !== undefined && ov !== null;
-    if (dueEdited) { profit += ov - due; due = ov; }
+    if (dueEdited) { profit += ov - due; profitGoods += ov - due; due = ov; }  // ручная правка итога — в прибыль с товаров
 
     return {
-      name, count: counts[name], isOwner, dueCalc, dueEdited,
+      name, count: counts[name], isOwner, dueCalc, dueEdited, profitGoods, profitShip,
       yuan: clientYuan[name] || 0,
       weight: w, tareShare, shipWeight,
       goodsClient, shipClient, goodsCost, shipCost, due, profit,
@@ -761,12 +763,10 @@ function renderCalc() {
   const { clients, grandDue, grandProfit, ourWeight, tareTotal } = computeClientCalc();
   const totalWeight = ourWeight + tareTotal;
   const r = currentRates;
-  // Ориентировочная прибыль С ДОСТАВКОЙ (когда известен вес карго, но развески по клиентам ещё нет).
-  // Считаем по ОБЩЕМУ весу карго: доход с доставки минус себестоимость карго. Курсы — этого прихода.
-  const cargoW = currentCargoWeight || 0;
-  const shipProfit = cargoW * ((r.shipClient || 0) - (r.shipCargo || 0));  // прибыль с доставки по общему весу
-  const estProfit = grandProfit + shipProfit;  // всего прибыль = прибыль товаров + прибыль доставки
-  const showEst = cargoW > 0;  // показываем только если есть вес карго
+  // grandProfit УЖЕ полная прибыль (товары + доставка по каждому клиенту). Отдельно доставку по весу карго
+  // НЕ добавляем — раньше она считалась второй раз. Показываем только разбивку.
+  const profitGoodsSum = clients.reduce((s, c) => s + (c.profitGoods || 0), 0);
+  const profitShipSum = clients.reduce((s, c) => s + (c.profitShip || 0), 0);
   // все ли клиенты взвешены? (для точности: если все — прибыль точная зелёная, иначе ~ фиолетовая)
   const { names: allNames } = getClientsInShipment();
   let needW = 0, doneW = 0;
@@ -777,9 +777,9 @@ function renderCalc() {
   const totalPrefix = allWeighed ? '' : '~';
   document.getElementById('calcGrand').innerHTML = `
     <div class="calc-grand-row"><span class="calc-grand-label">Все клиенты должны</span><span class="calc-grand-val">${grandDue.toFixed(0)}<span class="cur">BYN</span></span></div>
-    <div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль без доставки</span><span class="calc-grand-val" style="color:#6C4DB8;font-size:18px">${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
-    ${showEst ? `<div class="calc-grand-row"><span class="calc-grand-label">Твоя прибыль с доставки карго</span><span class="calc-grand-val" style="color:#6C4DB8;font-size:18px">${shipProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
-    <div class="calc-grand-row" style="margin-top:2px"><span class="calc-grand-label" style="font-weight:600;color:#1a1a2e">Всего прибыль</span><span class="calc-grand-val" style="color:${totalColor}">${totalPrefix}${estProfit.toFixed(0)}<span class="cur">BYN</span></span></div>` : ''}
+    <div class="calc-grand-row"><span class="calc-grand-label">Прибыль с товаров</span><span class="calc-grand-val" style="color:#6C4DB8;font-size:18px">${profitGoodsSum.toFixed(0)}<span class="cur">BYN</span></span></div>
+    <div class="calc-grand-row"><span class="calc-grand-label">Прибыль с доставки</span><span class="calc-grand-val" style="color:#6C4DB8;font-size:18px">${profitShipSum.toFixed(0)}<span class="cur">BYN</span></span></div>
+    <div class="calc-grand-row" style="margin-top:2px"><span class="calc-grand-label" style="font-weight:600;color:#1a1a2e">Всего прибыль</span><span class="calc-grand-val" style="color:${totalColor}">${totalPrefix}${grandProfit.toFixed(0)}<span class="cur">BYN</span></span></div>
     <div class="calc-grand-divider"></div>
     <div class="calc-grand-row"><span class="calc-grand-label">Общий вес</span><span class="calc-grand-val">${totalWeight.toFixed(2)}<span class="cur">кг</span></span></div>
     <div class="calc-grand-row"><span class="calc-grand-label">Вес тары</span><span class="calc-grand-val">${tareTotal.toFixed(2)}<span class="cur">кг</span></span></div>`;
