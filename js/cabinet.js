@@ -821,7 +821,7 @@ function cabRenderClientCard(container, name) {
           <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Итого<input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></label>
           <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280">Оплачено<input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></label>
           <div style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:#6b7280;min-width:70px">Остаток<b style="font-size:14px;line-height:30px;white-space:nowrap;color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b></div>
-          <div style="padding-bottom:5px">${cabPayBadge(c.payStatus)}</div>
+          <div style="padding-bottom:5px;display:flex;align-items:center;gap:8px">${cabPayBadge(c.payStatus)}<input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')" style="width:16px;height:16px;cursor:pointer"></div>
         </div>`;
     let items = '';
     if (open) {
@@ -847,7 +847,7 @@ function cabRenderClientCard(container, name) {
         <span style="font-size:14px">${c.items} поз.</span>
         <div style="flex-basis:100%;padding-left:28px">${paidHtml}</div>
       </div>
-      ${open ? `<div style="padding:0 14px 10px">${items}</div>` : ''}
+      ${open ? `<div style="padding:0 14px 10px;overflow-x:auto">${items}</div>` : ''}
     </div>`;
   }).join('');
 
