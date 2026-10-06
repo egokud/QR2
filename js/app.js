@@ -351,7 +351,7 @@ function getUniqueClients() {
   const canon = {};
   for (const r of TABLE) {
     const wh = (r[1] || '').trim();
-    if (wh) { const low = wh.toLowerCase(); if (!(low in canon)) canon[low] = wh; }
+    if (wh) { const low = wh.toLowerCase(); canon[low] = whBetter(canon[low], wh); }
   }
   return Object.values(canon).sort((a,b)=>a.localeCompare(b,'ru'));
 }
@@ -390,13 +390,12 @@ function resolveClientName(name) {
   if (!clean) return clean;
   const low = clean.toLowerCase();
   // ищем среди существующих клиентов прихода совпадение по lowercase
+  let best = '';
   for (const r of TABLE) {
     const existing = (r[1] || '').trim();
-    if (existing && existing.toLowerCase() === low && existing !== clean) {
-      return existing;  // возвращаем УЖЕ существующее написание
-    }
+    if (existing && existing.toLowerCase() === low) best = whBetter(best, existing);
   }
-  return clean;  // новое имя — оставляем как ввёл
+  return best ? whBetter(best, clean) : clean;  // одно и то же имя без учёта регистра → написание с заглавными
 }
 
 async function onEditClientName(input) {
@@ -545,21 +544,32 @@ function exportCalcPDF() {
 
 // ============ ВЗВЕШИВАНИЕ (Этап 2) ============
 // Уникальные клиенты прихода (склады). Сборные "Алеся и Яна" разбиваем на части.
+// Склады/клиенты НЕ различаются по регистру: «Марина (marinn07)» = «Марина (Marinn07)».
+// Каноническое написание — то, где больше заглавных букв (маленькая буква исправляется на большую).
+function whCaps(s){ return (String(s).match(/[A-ZА-ЯЁ]/g) || []).length; }
+function whBetter(a, b){ return !a ? b : (whCaps(b) > whCaps(a) ? b : a); }
+function buildWhCanon(rows){
+  const canon = {};
+  for (const r of rows || []) {
+    const wh = Array.isArray(r) ? r[1] : (r && (r.w !== undefined ? r.w : r.wh));
+    for (const p of splitWarehouses(wh || '')) { const low = p.toLowerCase(); canon[low] = whBetter(canon[low], p); }
+  }
+  return canon;
+}
+
 function getClientsInShipment() {
-  const canon = {};   // lowercase -> каноническое написание (первое встреченное)
+  const canon = buildWhCanon(TABLE);   // lowercase -> каноническое написание
   const counts = {};  // каноническое имя -> число позиций
   for (const r of TABLE) {
     const wh = r[1] || '';
     const parts = splitWarehouses(wh);
     if (!parts.length) continue;
     for (const p of parts) {
-      const low = p.toLowerCase();
-      if (!(low in canon)) canon[low] = p;  // первое написание становится каноническим
-      const name = canon[low];
+      const name = canon[p.toLowerCase()];
       counts[name] = (counts[name] || 0) + 1;
     }
   }
-  const names = Object.values(canon).sort((a,b)=>a.localeCompare(b,'ru'));
+  const names = [...new Set(Object.values(canon))].sort((a,b)=>a.localeCompare(b,'ru'));
   return { names, counts };
 }
 
@@ -1721,8 +1731,9 @@ function setListSort(mode) {
 
 function computeWarehouseStats(items) {
   const groups = {};
+  const canon = buildWhCanon(TABLE.concat((items || []).map(r => [r.track, r.wh])));
   for (const r of items) {
-    const parts = splitWarehouses(r.wh);
+    const parts = splitWarehouses(r.wh).map(p => canon[p.toLowerCase()] || p);
     const price = parseFloat(r.price) || 0;
     if (!parts.length) {
       const key = '— без склада —';
@@ -1802,7 +1813,7 @@ function renderFullList() {
 
 async function editWarehouse(idx, newWh) {
   if (!activeShipmentId || idx < 0 || idx >= TABLE.length) return;
-  const clean = capitalizeWh(newWh.trim());  // авто-заглавная, союзы маленькими
+  const clean = resolveClientName(capitalizeWh(newWh.trim()));  // авто-заглавная, союзы маленькими; без учёта регистра — к существующему
   TABLE[idx][1] = clean;
   // Update in Firestore
   const doc = await shipmentsRef().doc(activeShipmentId).get();

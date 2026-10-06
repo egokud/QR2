@@ -143,7 +143,7 @@ function cabGetClientsFromShipment(ship) {
 
   const clientsSet = new Set();
   const buyYuan = {}, clientYuanMap = {}, itemCount = {};
-  const canonName = {};
+  const canonName = typeof buildWhCanon === 'function' ? buildWhCanon(data) : {};
   for (const row of data) {
     const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'];
     // Делим склад так же, как мобильная версия: только по союзу « и » между словами.
@@ -152,7 +152,7 @@ function cabGetClientsFromShipment(ship) {
     if (parts.length) {
       for (const p of parts) {
         const low = p.toLowerCase();
-        if (!(low in canonName)) canonName[low] = p;  // первое написание — каноническое (как в мобильной)
+        if (!(low in canonName)) canonName[low] = p;  // регистр не важен: каноническое — с заглавными (buildWhCanon)
         const name = canonName[low];
         if (name) {
           clientsSet.add(name);
@@ -695,6 +695,7 @@ function cabClientsSummary() {
     for (const c of clients) {
       const key = c.name.toLowerCase();
       if (!map[key]) map[key] = { name: c.name, ships: [], totalItems: 0, totalDue: 0, totalProfit: 0, totalWeight: 0, unpaidDue: 0, isOwner: false };
+      else if (typeof whBetter === 'function') map[key].name = whBetter(map[key].name, c.name);  // регистр не важен — показываем написание с заглавными
       const m = map[key];
       m.ships.push({ ship, c });
       m.totalItems += c.items;
