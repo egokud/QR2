@@ -1,1 +1,59 @@
-
+/* ============ CABINET (desktop) ============ */
+.cabinet-screen{display:none;position:fixed;inset:0;background:#f7f8fa;z-index:50;flex-direction:row}
+.cabinet-screen.show{display:flex}
+.cab-sidebar{width:230px;background:#fff;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.cab-sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 18px 16px}
+.cab-sidebar-logo img{border-radius:9px}
+.cab-sidebar-logo span{font-size:18px;font-weight:600;color:#1a1a2e}
+.cab-nav{flex:1;padding:8px 10px}
+.cab-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500;color:#5f6470;transition:all 0.15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.cab-nav-item:hover{background:#f7f8fa;color:#1a1a2e}
+.cab-nav-item.active{background:#f0ecf9;color:#6C4DB8;font-weight:600}
+.cab-nav-item i{font-size:20px;width:24px;text-align:center;flex-shrink:0}
+.cab-nav-divider{height:1px;background:#e5e7eb;margin:10px 12px}
+.cab-nav-badge{font-size:10px;font-weight:700;background:#6C4DB8;color:#fff;padding:2px 7px;border-radius:6px;margin-left:auto}
+.cab-sidebar-bottom{padding:14px 18px;border-top:1px solid #e5e7eb}
+.cab-sidebar-user{font-size:13px;font-weight:600;color:#1a1a2e}
+.cab-sidebar-role{font-size:11px;color:#9aa0ab;margin-top:2px}
+.cab-sidebar-logout{display:flex;align-items:center;gap:6px;margin-top:12px;background:none;border:1px solid #d5d8dd;border-radius:8px;padding:8px 14px;font-size:13px;color:#5f6470;cursor:pointer;font-weight:500;width:100%}
+.cab-sidebar-logout:hover{background:#f7f8fa}
+.cab-main{flex:1;overflow-y:auto;padding:28px 32px}
+.cab-main-title{font-size:22px;font-weight:600;color:#1a1a2e;margin-bottom:20px}
+/* Обзор */
+.cab-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.cab-stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 16px;display:flex;flex-direction:column;gap:4px}
+.cab-stat-val{font-size:26px;font-weight:700;color:#1a1a2e}
+.cab-stat-val.green{color:#16a34a}
+.cab-stat-label{font-size:13px;color:#9aa0ab}
+.cab-table-wrap{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:24px}
+.cab-table-title{font-size:15px;font-weight:600;color:#1a1a2e;margin-bottom:14px}
+.cab-table{width:100%;border-collapse:collapse;font-size:13px}
+.cab-table th{text-align:left;padding:8px 10px;color:#9aa0ab;font-weight:500;font-size:12px;border-bottom:1px solid #e5e7eb}
+.cab-table td{padding:10px 10px;color:#1a1a2e;border-bottom:1px solid #f3f4f6}
+.cab-table tr:last-child td{border-bottom:none}
+.cab-table .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.cab-table .val-green{color:#16a34a;font-weight:600}
+.cab-table .val-red{color:#dc2626;font-weight:600}
+.cab-table .val-purple{color:#6C4DB8;font-weight:600}
+/* Заглушка */
+.cab-stub{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:#9aa0ab}
+.cab-stub i{font-size:56px;margin-bottom:16px;color:#d5d8dd}
+.cab-stub-title{font-size:20px;font-weight:600;color:#5f6470;margin-bottom:6px}
+.cab-stub-text{font-size:14px}
+/* Cabinet responsive for smaller screens */
+@media(max-width:900px){
+  .cab-sidebar{width:200px}
+  .cab-stats{grid-template-columns:repeat(2,1fr)}
+  .cab-main{padding:20px 18px}
+}
+@media(max-width:640px){
+  .cabinet-screen.show{flex-direction:column}
+  .cab-sidebar{width:100%;border-right:none;border-bottom:1px solid #e5e7eb;flex-direction:row;overflow-x:auto;overflow-y:hidden;flex-shrink:0}
+  .cab-sidebar-logo{display:none}
+  .cab-nav{display:flex;flex-direction:row;padding:6px 10px;gap:4px;flex:1;overflow-x:auto}
+  .cab-nav-item{white-space:nowrap;padding:8px 12px;font-size:13px}
+  .cab-nav-divider{display:none}
+  .cab-sidebar-bottom{display:none}
+  .cab-stats{grid-template-columns:1fr 1fr}
+  .cab-main{padding:16px}
+}
