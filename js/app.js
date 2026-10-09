@@ -201,6 +201,19 @@ async function saveRates() {
   await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ rates: currentRates });
 }
 
+// Тара процентом от веса клиентов (когда недовешенные «вес в цене» не дают посчитать тару по карго).
+// 0 = обычный режим (тара = введённая или карго − вес клиентов).
+let currentTarePct = 0;
+const TARE_PCT_FIXED = 8;  // чекбокс «Тара 8%»
+function onTarePctChange(v) {
+  currentTarePct = v === true ? TARE_PCT_FIXED : v === false ? 0 : Math.max(0, parseFloat(String(v).replace(',', '.')) || 0);
+  const ti = document.getElementById('tareInput'); if (ti) ti.disabled = currentTarePct > 0;
+  if (typeof renderWeighList === 'function' && document.getElementById('weighList')) renderWeighList();
+  const id = editingShipmentId || activeShipmentId;
+  if (id) shipmentsRef().doc(id).update({ tarePct: currentTarePct });
+  updateClientsWeightTotal();
+}
+
 async function saveWeights() {
   if (!activeShipmentId) return;
   await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ weights: currentWeights, tare: currentTare, priceInclWeight: currentPriceInclWeight });
@@ -577,6 +590,8 @@ function openWeighing() {
   if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
   renderWeighList();
   document.getElementById('tareInput').value = currentTare ? Math.round(currentTare * 1000) : '';
+  const tpi = document.getElementById('tarePctChk'); if (tpi) tpi.checked = currentTarePct > 0;
+  document.getElementById('tareInput').disabled = currentTarePct > 0;
   const cw = document.getElementById('cargoWeightInput'); if (cw) cw.value = currentCargoWeight ? Math.round(currentCargoWeight*1000) : '';
   const dep = document.getElementById('departedChk'); if (dep) dep.checked = !!shipmentDeparted;
   document.getElementById('weighScreen').classList.add('show');
@@ -600,7 +615,7 @@ function renderWeighList() {
         <label class="weigh-incl-label"><input type="checkbox" ${incl ? 'checked' : ''} data-name="${encodeURIComponent(name)}" onchange="onInclWeightChange(this)"> вес включён в цену</label>
       </div>
       <div class="weigh-client-right">
-        <input type="number" step="50" inputmode="numeric" placeholder="0" value="${w ? Math.round(w*1000) : ''}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)" ${incl ? 'disabled' : ''}>
+        <input type="number" step="50" inputmode="numeric" placeholder="0" value="${w ? Math.round(w*1000) : ''}" data-name="${encodeURIComponent(name)}" onchange="onWeightChange(this)">
         <span class="weigh-unit">г</span>
       </div>
     </div>`;
@@ -624,8 +639,9 @@ function updateClientsWeightTotal() {
   const { names } = getClientsInShipment();
   let total = 0, weighed = 0, needWeigh = 0;
   for (const n of names) {
-    // клиенты с галочкой "вес включён в цену" не требуют взвешивания
-    if (currentPriceInclWeight[n]) continue;
+    // Обычный режим: «вес в цене» тоже взвешиваются (их вес не должен уйти в тару и лечь на других).
+    // Режим «Тара 8%»: тару не высчитываем, «вес в цене» можно не взвешивать.
+    if (currentTarePct > 0 && currentPriceInclWeight[n] && !(currentWeights[n] > 0)) continue;
     needWeigh++;
     const w = currentWeights[n] || 0;
     if (w > 0) { total += w; weighed++; }
@@ -637,7 +653,7 @@ function updateClientsWeightTotal() {
   if (warn) warn.style.display = allWeighed ? 'none' : 'block';
 
   // АВТОРАСЧЁТ ТАРЫ: если все клиенты взвешены и есть вес карго → тара = карго − товары клиентов
-  if (allWeighed && currentCargoWeight > 0) {
+  if (allWeighed && currentCargoWeight > 0 && !(currentTarePct > 0)) {
     const tare = currentCargoWeight - total;  // в кг
     if (tare >= 0) {
       currentTare = tare;
@@ -654,7 +670,7 @@ function onInclWeightChange(input) {
   if (input.checked) currentPriceInclWeight[name] = true;
   else delete currentPriceInclWeight[name];
   saveWeights();
-  renderWeighList();  // перерисуем чтобы поле веса стало disabled/enabled
+  renderWeighList();
   updateClientsWeightTotal();
 }
 
@@ -697,7 +713,9 @@ function computeClientCalc() {
   const ourWeight = totalClientWeight;
   const effectiveTotal = Math.max(currentCargoWeight || 0, ourWeight);
   // Тара = введённая тара ИЛИ разница карго-наш (что больше учитываем как тару сверх веса клиентов)
-  const tareTotal = Math.max(currentTare || 0, (currentCargoWeight || 0) - ourWeight);
+  // Если задана тара в % — тара = % от веса клиентов (каждому +N% к его весу), карго не учитывается
+  const tareTotal = currentTarePct > 0 ? ourWeight * currentTarePct / 100
+    : Math.max(currentTare || 0, (currentCargoWeight || 0) - ourWeight);
 
   const clients = names.map(name => {
     const w = currentWeights[name] || 0;                          // чистый вес товара клиента (кг)
@@ -787,7 +805,7 @@ function renderCalc() {
   // все ли клиенты взвешены? (для точности: если все — прибыль точная зелёная, иначе ~ фиолетовая)
   const { names: allNames } = getClientsInShipment();
   let needW = 0, doneW = 0;
-  for (const n of allNames) { if (currentPriceInclWeight[n]) continue; needW++; if ((currentWeights[n]||0) > 0) doneW++; }
+  for (const n of allNames) { if (currentTarePct > 0 && currentPriceInclWeight[n] && !(currentWeights[n] > 0)) continue; needW++; if ((currentWeights[n]||0) > 0) doneW++; }
   const allWeighed = needW > 0 && doneW >= needW;
 
   const totalColor = allWeighed ? '#22a05c' : '#6C4DB8';  // зелёный если точно, фиолетовый если приблизительно
@@ -1100,6 +1118,7 @@ function applyShipDoc(d) {
   currentCostGoods = d.costGoods ? { ...d.costGoods } : {};
   currentCostShip = d.costShip ? { ...d.costShip } : {};
   currentCargoWeight = d.cargoWeight || 0;
+  currentTarePct = d.tarePct || 0;
   shipmentDeparted = d.departed || false;
   currentDueOverride = d.dueOverride ? { ...d.dueOverride } : {};
   applyClientRules();
@@ -2054,6 +2073,8 @@ function syncRefreshScreens() {
   if (isShownEl('weighScreen')) {
     renderWeighList();
     const ti = document.getElementById('tareInput'); if (ti) ti.value = currentTare ? Math.round(currentTare * 1000) : '';
+    const tp = document.getElementById('tarePctChk'); if (tp) tp.checked = currentTarePct > 0;
+    if (ti) ti.disabled = currentTarePct > 0;
     const cw = document.getElementById('cargoWeightInput'); if (cw) cw.value = currentCargoWeight ? Math.round(currentCargoWeight * 1000) : '';
     const dep = document.getElementById('departedChk'); if (dep) dep.checked = !!shipmentDeparted;
     updateClientsWeightTotal();

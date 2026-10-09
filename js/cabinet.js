@@ -169,7 +169,8 @@ function cabGetClientsFromShipment(ship) {
   let totalW = 0;
   const cNames = Array.from(clientsSet);
   for (const n of cNames) totalW += (weights[n] || 0);
-  const effectiveTare = Math.max(tare || 0, (cargoWeight || 0) - totalW);
+  const tarePct = ship.tarePct || 0;  // тара % к весу клиента — карго не учитывается
+  const effectiveTare = tarePct > 0 ? totalW * tarePct / 100 : Math.max(tare || 0, (cargoWeight || 0) - totalW);
 
   const result = [];
   for (const name of cNames) {
@@ -529,14 +530,15 @@ function cabShipWeighHtml() {
     return `<tr>
       <td style="font-weight:500">${n}</td>
       <td>${counts[n]}</td>
-      <td><input data-name="${enc}" value="${g}" onchange="cabSetWeight(this)" inputmode="numeric" placeholder="граммы" ${incl ? 'disabled' : ''} style="${cabInp};width:110px"></td>
+      <td><input data-name="${enc}" value="${g}" onchange="cabSetWeight(this)" inputmode="numeric" placeholder="граммы" style="${cabInp};width:110px"></td>
       <td><label style="font-size:13px;color:#5f6470;display:flex;align-items:center;gap:6px"><input type="checkbox" data-name="${enc}" ${incl ? 'checked' : ''} onchange="cabSetIncl(this)"> вес в цене</label></td>
     </tr>`;
   }).join('');
   return `<div class="cab-table-wrap">
     <div style="display:flex;gap:16px;flex-wrap:nowrap;align-items:flex-end;margin-bottom:16px">
       <label style="font-size:13px;color:#5f6470">Вес от карго, г<br><input value="${currentCargoWeight ? Math.round(currentCargoWeight * 1000) : ''}" onchange="cabSetCargo(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
-      <label style="font-size:13px;color:#5f6470">Вес тары, г<br><input value="${currentTare ? Math.round(currentTare * 1000) : ''}" onchange="cabSetTare(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
+      <label style="font-size:13px;color:#5f6470">Вес тары, г<br><input value="${currentTare ? Math.round(currentTare * 1000) : ''}" onchange="cabSetTare(this)" ${currentTarePct > 0 ? 'disabled' : ''} inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
+      <label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px;padding-bottom:6px" title="К весу каждого взвешенного клиента +8%, тару по карго не высчитываем"><input type="checkbox" ${currentTarePct > 0 ? 'checked' : ''} onchange="onTarePctChange(this.checked);cabRenderShip()"> Тара 8%</label>
       <label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px;padding-bottom:6px"><input type="checkbox" ${shipmentDeparted ? 'checked' : ''} onchange="cabSetDeparted(this)"> Отправка выехала в карго</label>
     </div>
     <table class="cab-table">
