@@ -388,7 +388,12 @@
     <div class="weigh-tare">
       <label>Вес тары (коробки), г</label>
       <input type="number" step="50" inputmode="numeric" id="tareInput" placeholder="0" onchange="onTareChange()">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#1a1a2e;cursor:pointer;margin-top:10px;margin-bottom:0;font-weight:400">
+        <input type="checkbox" id="tarePctChk" style="width:16px;height:16px" onchange="onTarePctChange(this.checked)">
+        Тара 8% — к весу каждого взвешенного клиента +8%, тару не высчитываем
+      </label>
     </div>
+
     <div class="weigh-tare" style="background:#ecfdf3">
       <label style="color:#22a05c">Общий вес товаров клиентов, г</label>
       <div id="clientsWeightTotal" style="font-size:20px;font-weight:700;color:#1a1a2e;padding:8px 0">0</div>
