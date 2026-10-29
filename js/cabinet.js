@@ -1300,12 +1300,14 @@ function renderCabTariffs(container) {
     let price;
     if (!t.rub) price = `<div class="cab-plan-price" style="font-size:24px">Индивидуально</div><div class="cab-plan-note"><a href="https://t.me/${T.tg}" target="_blank" rel="noopener" style="color:#6C4DB8;text-decoration:none">Обсудить в Telegram</a></div>`;
     else {
+      // Крупно — цена в месяц (главное, что видит человек), мелко — сумма за весь срок
       const full = t.rub[per[0]];
       const pay = founder ? round10(full * k) : full;
-      const month = pay / per[0];
-      const old = founder ? `<span class="cab-plan-old">${cabRub(full)}</span>` : (per[2] ? `<span class="cab-plan-old">${cabRub(t.rub[1] * per[0])}</span>` : '');
-      price = `<div class="cab-plan-price">${cabRub(pay)}${old}</div>
-        <div class="cab-plan-note">${per[0] === 1 ? 'в месяц' : `за ${per[1].toLowerCase()} · ${cabRub(Math.round(month))} в месяц`}</div>`;
+      const month = Math.round(pay / per[0]);
+      const base = t.rub[1];                       // обычная цена месяца без скидок
+      const old = month < base ? `<span class="cab-plan-old">${cabRub(base)}</span>` : '';
+      price = `<div class="cab-plan-price">${cabRub(month)}<span class="cab-plan-unit">/ мес</span>${old}</div>
+        <div class="cab-plan-note">${per[0] === 1 ? 'оплата помесячно' : `${cabRub(pay)} при оплате за ${per[0] === 12 ? 'год' : per[1].toLowerCase()}`}</div>`;
     }
     return `<div class="cab-plan${(curTier === t.id) ? ' current' : t.recommended && !curTier ? ' rec' : ''}">
       <div class="cab-plan-head"><span class="cab-plan-title">${t.name}</span>${flags.join('')}</div>
