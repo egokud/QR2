@@ -192,3 +192,179 @@
 .cab-grp td{background:#f7f8fa;font-weight:600;color:#1f2430;font-size:13px;padding:8px 10px !important;border-bottom:1px solid #dfe2e7}
 .cab-grp td span{color:#9aa0ab;font-weight:500;margin-left:4px}
 .cab-grp td .ti{color:#6b7280;margin-right:4px}
+
+/* ===== Карточки нового вида (Обзор, Клиенты, Приходы) ===== */
+.cab-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-bottom:20px}
+.cab-card-l{display:flex;align-items:center;gap:6px;font-size:14px;color:#6b7280;font-weight:500}
+.cab-card-l .ti{font-size:17px;color:#9aa0ab}
+.cab-card-h{display:flex;align-items:center;font-size:16px;font-weight:600;color:#1a1a2e;margin-bottom:12px}
+.cab-card-link{margin-left:auto;font-size:13px;font-weight:500;color:#6C4DB8;text-decoration:none}
+.cab-hello{margin-bottom:18px}
+.cab-hello-sub{font-size:14px;color:#6b7280}
+.cab-ov-top{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:16px;margin-bottom:20px}
+.cab-ov-top>.cab-card{margin-bottom:0}
+.cab-money-v,.cab-wait-v,.cab-debt-v{font-size:40px;font-weight:700;color:#1a1a2e;letter-spacing:-.5px;margin:6px 0 12px;line-height:1.1}
+.cab-money-v small,.cab-wait-v small,.cab-debt-v small{font-size:16px;font-weight:500;color:#9aa0ab;letter-spacing:0}
+.cab-money-bar,.cab-wait-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:#eef0f3;gap:2px}
+.cab-money-bar span,.cab-wait-bar span{display:block;height:100%}
+.cab-wait-bar span{background:#16a34a;border-radius:6px}
+.cab-money-leg{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.cab-money-leg>div{display:grid;grid-template-columns:12px auto;column-gap:8px;row-gap:2px;align-items:center}
+.cab-money-leg i{width:10px;height:10px;border-radius:3px}
+.cab-money-leg span{font-size:13px;color:#6b7280}
+.cab-money-leg b{grid-column:2;font-size:20px;color:#1a1a2e}
+.cab-money-leg em{grid-column:2;font-style:normal;font-size:12px;color:#9aa0ab}
+.cab-wait{background:linear-gradient(160deg,#f0fdf4 0%,#fff 70%);border-color:#bbf7d0}
+.cab-wait-v{color:#15803d}
+.cab-wait-s{font-size:13px;color:#4a5260;margin:-6px 0 14px}
+.cab-wait-p{font-size:12px;color:#6b7280;margin-top:8px}
+/* Что сделать сейчас */
+.cab-todo{padding:16px 10px 8px}
+.cab-todo .cab-card-h{padding:0 10px}
+.cab-todo-row{display:flex;align-items:center;gap:14px;padding:10px;border-radius:10px;cursor:pointer}
+.cab-todo-row+.cab-todo-row{border-top:1px solid #f1f2f4}
+.cab-todo-row:hover{background:#f8f7fc}
+.cab-todo-ic{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.t-red{background:#fee2e2;color:#dc2626}.t-orange{background:#ffedd5;color:#c2410c}.t-blue{background:#dbeafe;color:#2563a8}
+.t-amber{background:#fef3c7;color:#b45309}.t-sky{background:#e0f2fe;color:#0369a1}.t-gray{background:#f1f2f4;color:#4a5260}
+.cab-todo-tx{flex:1;min-width:0;font-size:15px;color:#1a1a2e}
+.cab-todo-tx b{font-weight:700}
+.cab-todo-s{font-size:13px;color:#6b7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+.cab-todo-btn{flex-shrink:0;border:1px solid #e1e4e8;background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500;color:#6C4DB8;cursor:pointer}
+.cab-todo-row:hover .cab-todo-btn{background:#6C4DB8;border-color:#6C4DB8;color:#fff}
+/* Где сейчас товар */
+.cab-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.cab-flow-col{background:#f7f8fa;border-radius:12px;padding:10px;min-height:90px}
+.cab-flow-head{position:relative;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#1a1a2e;margin:2px 2px 10px}
+.cab-flow-head .ti{color:var(--c);font-size:16px}
+.cab-flow-head span{margin-left:auto;background:#fff;border:1px solid #e5e7eb;border-radius:999px;font-size:12px;padding:0 8px;color:#4a5260}
+.cab-flow-arrow{position:absolute;right:-26px;top:1px;color:#c5c9cf !important}
+.cab-flow-card{background:#fff;border:1px solid #e8eaee;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.cab-flow-card:hover{border-color:#c9bfee;box-shadow:0 2px 8px rgba(108,77,184,.12)}
+.cab-flow-name{font-size:14px;font-weight:600;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis}
+.cab-flow-meta{font-size:12px;color:#6b7280;margin-top:2px}
+.cab-flow-bot{margin-top:8px;font-size:13px;font-weight:600}
+.cab-flow-due{color:#6C4DB8}.cab-flow-ok{color:#16a34a}.cab-flow-profit{color:#16a34a}
+.cab-flow-empty{color:#c5c9cf;text-align:center;padding:14px 0}
+/* Полоса итогов: подпись сверху, цифра снизу */
+.cab-strip{display:flex;background:#fff;border:1px solid #e5e7eb;border-radius:14px;margin-bottom:20px;overflow:hidden}
+.cab-strip-seg{flex:1;min-width:0;padding:14px 20px}
+.cab-strip-seg+.cab-strip-seg{border-left:1px solid #eef0f3}
+.cab-strip-l{display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7280}
+.cab-strip-l .ti{font-size:16px;color:#a99be0}
+.cab-strip-v{font-size:26px;font-weight:700;color:#1a1a2e;margin-top:4px}
+.cab-strip-s{font-size:12px;color:#9aa0ab;margin-top:1px}
+/* Статус-плашка и сегментный переключатель */
+.cab-pill{display:inline-block;font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:999px;color:var(--c);background:var(--b)}
+.cab-table-top{display:flex;align-items:center;margin-bottom:12px}
+.cab-seg{display:inline-flex;background:#f1f2f4;border-radius:10px;padding:3px;gap:2px}
+.cab-seg-b{border:none;background:none;border-radius:8px;padding:7px 14px;font-size:14px;font-weight:500;color:#4a5260;cursor:pointer}
+.cab-seg-b i{font-style:normal;color:#9aa0ab;margin-left:3px}
+.cab-seg-b.on{background:#fff;color:#1a1a2e;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+/* Клиенты: база одной полосой */
+.cab-base-n{margin-left:6px;color:#1a1a2e;font-size:15px}
+.cab-base-bar{display:flex;height:14px;gap:2px;border-radius:7px;overflow:hidden;margin:14px 0 12px}
+.cab-base-bar span{min-width:6px;cursor:pointer;transition:opacity .15s}
+.cab-base-bar:hover span{opacity:.55}.cab-base-bar span:hover,.cab-base-bar span.on{opacity:1}
+.cab-base-leg{display:flex;gap:6px;flex-wrap:wrap}
+.cab-base-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#4a5260;padding:5px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer}
+.cab-base-chip:hover{background:#f7f8fa}
+.cab-base-chip.on{border-color:#d5d8dd;background:#f7f8fa}
+.cab-base-chip>i{width:9px;height:9px;border-radius:3px}
+.cab-base-chip b{color:#1a1a2e}
+.cab-base-chip em{font-style:normal;color:#9aa0ab;font-size:12px}
+.cab-base-chip.champ{color:#a16207;background:#fefce8}
+.cab-base-chip.champ .ti{font-size:15px;color:#eab308}
+.cab-debt-v{font-size:34px}
+.cab-debt-s{font-size:13px;color:#6b7280;margin-top:-6px}
+/* Клиенты: подсказки */
+.cab-adv{padding:0;overflow:hidden;border-color:#e4defa}
+.cab-adv-head{display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;background:linear-gradient(90deg,#faf8ff,#fff)}
+.cab-adv-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;color:#1a1a2e;background:color-mix(in srgb,var(--c) 22%,#fff)}
+.cab-adv-ttl{font-size:16px;font-weight:600;color:#1a1a2e}
+.cab-adv-kick{font-size:12px;font-weight:500;color:#6C4DB8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px}
+.cab-adv-more{margin-left:auto;font-size:13px;color:#6C4DB8;font-weight:500}
+.cab-adv-tabs{display:flex;gap:6px;padding:4px 18px 0}
+.cab-adv-tab{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:#4a5260;padding:5px 11px;border-radius:999px;border:1px solid #e5e7eb;cursor:pointer}
+.cab-adv-tab .ti{font-size:15px;color:var(--c)}
+.cab-adv-tab.on{background:#1f2430;border-color:#1f2430;color:#fff}
+.cab-adv-why{white-space:normal;font-size:14px;color:#4a5260;line-height:1.5;padding:12px 18px 4px;max-width:900px}
+.cab-adv-body{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;padding:10px 18px 18px}
+.cab-adv-tips{margin:0;padding:0;list-style:none;counter-reset:t;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cab-adv-tips li{counter-increment:t;white-space:normal;background:#f8f9fb;border-radius:10px;padding:10px 12px 10px 40px;position:relative;font-size:13px;line-height:1.45;color:#4a5260}
+.cab-adv-tips li:before{content:counter(t);position:absolute;left:12px;top:10px;width:20px;height:20px;border-radius:50%;background:#6C4DB8;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.cab-adv-tips li b{display:block;color:#1a1a2e;font-size:14px;margin-bottom:2px}
+.cab-adv-msg{border:1px dashed #cfc5f1;border-radius:12px;padding:12px 14px;background:#fcfbff;display:flex;flex-direction:column;gap:8px}
+.cab-adv-msg-l{font-size:13px;font-weight:600;color:#6C4DB8;display:flex;align-items:center;gap:5px}
+.cab-adv-msg-t{white-space:normal;font-size:14px;line-height:1.5;color:#1a1a2e}
+.cab-adv-msg-t mark{background:#fef3c7;color:#92400e;border-radius:4px;padding:0 3px}
+.cab-adv-msg-b{display:flex;gap:8px;flex-wrap:wrap}
+.cab-adv-msg-b .cab-filter-btn{padding:6px 12px;font-size:13px}
+.cab-adv-msg-n{font-size:12px;color:#9aa0ab}
+.cab-champs{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 18px}
+.cab-champ{display:inline-flex;align-items:center;gap:8px;border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:6px 12px;font-size:14px;font-weight:500;color:#1a1a2e;cursor:pointer}
+.cab-champ b{width:20px;height:20px;border-radius:50%;background:#eab308;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+.cab-champ em{font-style:normal;font-size:12px;color:#92400e}
+@media(min-width:641px) and (max-width:1440px){
+  .cab-money-v,.cab-wait-v{font-size:34px}
+  .cab-strip-v{font-size:22px}
+  .cab-strip-seg{padding:12px 16px}
+  .cab-adv-tips{grid-template-columns:1fr}
+}
+@media(min-width:641px) and (max-width:1300px){
+  .cab-flow{gap:10px}
+  .cab-money-leg b{font-size:17px}
+}
+.cab-adv-why,.cab-adv-why *,.cab-adv-tips li,.cab-adv-tips li *,.cab-adv-msg-t,.cab-adv-msg-t *{white-space:normal}
+
+/* ===== Цены и курсы ===== */
+.cab-rates-bar{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 20px 16px;margin-bottom:20px}
+.cab-rates-bar-h{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.cab-rates-bar-h b{font-size:15px;color:#1a1a2e}
+.cab-rates-bar-h span{font-size:13px;color:#9aa0ab}
+.cab-rates-bar-f{display:flex;gap:0}
+.cab-rates-bar-f .cab-rate-f{flex:1;min-width:0;padding:0 18px}
+.cab-rates-bar-f .cab-rate-f:first-child{padding-left:0}
+.cab-rates-bar-f .cab-rate-f+.cab-rate-f{border-left:1px solid #eef0f3}
+.cab-rate-f{display:flex;flex-direction:column;gap:4px}
+.cab-rate-f span{font-size:13px;color:#4a5260;font-weight:500}
+.cab-rate-f input{width:100%;max-width:150px;box-sizing:border-box;font-size:20px;font-weight:600;color:#1a1a2e;border:1px solid #e1e4e8;border-radius:8px;padding:6px 10px;background:#fafbfc;transition:border-color .15s,background .15s}
+.cab-rate-f input:hover{border-color:#c9bfee;background:#fff}
+.cab-rate-f input:focus{outline:none;border-color:#6C4DB8;background:#fff;box-shadow:0 0 0 3px #ede9fe}
+.cab-rate-f input.bad{border-color:#dc2626}
+.cab-rate-f em{font-style:normal;font-size:12px;color:#9aa0ab}
+.cab-rate-ro b{font-size:20px;font-weight:700;color:#16a34a;padding:7px 0 6px}
+.cab-prices th small{display:block;font-size:11.5px;font-weight:400;color:#9aa0ab;margin-top:1px}
+.cab-prices th div{font-weight:inherit}
+.cab-num{text-align:right}
+.cab-row-done td{color:#9aa0ab}
+.cab-dots-td{width:76px;text-align:right}
+.cab-pen,.cab-dots{border:none;background:none;width:32px;height:30px;border-radius:7px;cursor:pointer;color:#9aa0ab;font-size:17px;display:inline-flex;align-items:center;justify-content:center}
+.cab-pen:hover,.cab-dots:hover{background:#f0ecf9;color:#6C4DB8}
+.cab-menu{position:fixed;z-index:1000;width:270px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(20,20,40,.14);padding:6px}
+.cab-menu button{display:flex;align-items:center;gap:10px;width:100%;border:none;background:none;text-align:left;padding:9px 10px;border-radius:8px;font-size:14px;color:#1a1a2e;cursor:pointer;white-space:nowrap}
+.cab-menu button:hover:not([disabled]){background:#f5f3fc}
+.cab-menu button .ti{font-size:17px;color:#6b7280}
+.cab-menu button[disabled]{color:#b0b4bb;cursor:not-allowed}
+.cab-menu button em{margin-left:auto;font-style:normal;font-size:11px;background:#f1f2f4;color:#9aa0ab;border-radius:5px;padding:1px 6px}
+.cab-ovl{position:fixed;inset:0;z-index:999;background:rgba(20,20,40,.35);display:flex;align-items:center;justify-content:center}
+.cab-dlg{background:#fff;border-radius:16px;width:680px;max-width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(20,20,40,.25);padding:20px 22px}
+.cab-dlg *{white-space:normal}
+.cab-dlg-h{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:#1a1a2e;margin-bottom:16px}
+.cab-dlg-x{margin-left:auto;border:none;background:none;font-size:20px;color:#9aa0ab;cursor:pointer}
+.cab-rates-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.cab-rates-grid .cab-rate-f input{max-width:none}
+.cab-rates-prev{margin-top:16px;background:#f8f9fb;border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.cab-rates-prev>div{display:grid;grid-template-columns:190px 90px 20px 90px 1fr;align-items:center;white-space:nowrap}
+.cab-rates-prev span{color:#6b7280}
+.cab-rates-prev b{text-align:right;color:#1a1a2e}
+.cab-rates-prev .ti{color:#c5c9cf;text-align:center;font-size:14px;line-height:1}
+.cab-rates-prev em{font-style:normal;font-size:13px;color:#9aa0ab;margin-left:12px}
+.cab-rates-prev em.up{color:#16a34a}.cab-rates-prev em.down{color:#dc2626}
+.cab-rates-who{margin-top:14px;border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.cab-rates-who-h{font-weight:600;color:#92400e;display:flex;gap:6px;align-items:center}
+.cab-rates-who label{display:flex;gap:8px;align-items:baseline;cursor:pointer;color:#1a1a2e;flex-wrap:wrap}
+.cab-rates-who em{font-style:normal;font-size:12px;color:#9aa0ab;flex-basis:100%;padding-left:22px;margin-top:-4px}
+.cab-dlg-f{display:flex;align-items:center;gap:8px;margin-top:18px}
+.cab-dlg-f span{margin-right:auto;font-size:12px;color:#9aa0ab}
+.cab-rates-grid .cab-rate-f span{white-space:nowrap}
