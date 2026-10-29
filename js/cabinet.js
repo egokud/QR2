@@ -774,17 +774,21 @@ function cabLev(a, b) {
   }
   return prev[b.length];
 }
-// Пары похожих имён: exact — отличаются только пробелами/знаками/регистром; near — 1–2 буквы разницы в длинном имени
+// Группы похожих имён. exact — отличаются только пробелами/знаками/регистром (все варианты одной группой);
+// near — длинное имя (10+), одинаковые первые 2 буквы и не больше 2 букв разницы («Марина/Карина» не предлагаем).
+// В группе основное имя — у кого больше приходов; остальные предлагаем присоединить к нему одной кнопкой.
 function cabFindDupes(list) {
+  const groups = {};
+  for (const c of list) { const n = cabNameNorm(c.name); if (n) (groups[n] = groups[n] || []).push(c); }
   const out = [];
-  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
-    const a = list[i], b = list[j], na = cabNameNorm(a.name), nb = cabNameNorm(b.name);
-    if (!na || !nb) continue;
-    const exact = na === nb;
-    // похожие: только длинные имена (10+ знаков), одинаковые первые 2 буквы и не больше 2 букв разницы — «Марина/Карина» не предлагаем
-    if (exact || (Math.min(na.length, nb.length) >= 10 && na.slice(0, 2) === nb.slice(0, 2) && cabLev(na, nb) <= 2)) {
-      const [keep, drop] = (b.ships.length > a.ships.length) ? [b, a] : [a, b];   // остаётся имя, у кого больше приходов
-      out.push({ keep, drop, exact });
+  const byShips = arr => arr.slice().sort((x, y) => y.ships.length - x.ships.length || x.name.localeCompare(y.name, 'ru'));
+  for (const g of Object.values(groups)) if (g.length > 1) { const s = byShips(g); out.push({ keep: s[0], drops: s.slice(1), exact: true }); }
+  const keys = Object.keys(groups);
+  for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) {
+    const na = keys[i], nb = keys[j];
+    if (Math.min(na.length, nb.length) >= 10 && na.slice(0, 2) === nb.slice(0, 2) && cabLev(na, nb) <= 2) {
+      const s = byShips([...groups[na], ...groups[nb]]);
+      out.push({ keep: s[0], drops: s.slice(1), exact: false });
     }
   }
   return out.sort((x, y) => (y.exact - x.exact) || x.keep.name.localeCompare(y.keep.name, 'ru'));
@@ -795,7 +799,7 @@ async function cabMergeClients(fromName, toName) {
   const fl = fromName.toLowerCase(), tl = toName.toLowerCase();
   if (fl === tl) return;
   const touched = cabShipmentsCache.filter(s => (s.data || []).some(row => splitWarehouses((Array.isArray(row) ? row[1] : row.w) || '').some(p => p.toLowerCase() === fl)));
-  if (!confirm(`Объединить клиента «${fromName}» с «${toName}»?\n\nВо всех приходах (${touched.length}) имя «${fromName}» заменится на «${toName}», вместе с весами и оплатами.\nОтменить автоматически нельзя.`)) return;
+  if (!cabMergeSkipConfirm && !confirm(`Объединить клиента «${fromName}» с «${toName}»?\n\nВо всех приходах (${touched.length}) имя «${fromName}» заменится на «${toName}», вместе с весами и оплатами.\nОтменить автоматически нельзя.`)) return;
   const MAPS = ['weights', 'payments', 'dueOverride', 'owners', 'costGoods', 'costShip', 'priceInclWeight'];
   try {
     for (const ship of touched) {
@@ -843,6 +847,14 @@ async function cabMergeClients(fromName, toName) {
   renderCabClients(document.getElementById('cabMain'));
 }
 function cabMergeDupe(encFrom, encTo) { cabMergeClients(decodeURIComponent(encFrom), decodeURIComponent(encTo)); }
+// Группа: присоединить все варианты к основному имени по очереди (подтверждение — одно на всю группу)
+async function cabMergeGroup(encList, encTo) {
+  const from = JSON.parse(decodeURIComponent(encList)), to = decodeURIComponent(encTo);
+  if (!confirm(`Объединить в «${to}» клиентов: ${from.map(x => '«' + x + '»').join(', ')}?\n\nВо всех приходах эти имена заменятся на «${to}», вместе с весами и оплатами. Отменить автоматически нельзя.`)) return;
+  cabMergeSkipConfirm = true;
+  try { for (const f of from) await cabMergeClients(f, to); } finally { cabMergeSkipConfirm = false; }
+}
+let cabMergeSkipConfirm = false;
 // Из карточки клиента: выбранного клиента присоединить к открытому
 function cabMergeIntoOpen(sel) {
   const from = sel.value; sel.selectedIndex = 0;
@@ -899,9 +911,9 @@ function renderCabClients(container) {
       return `<div class="cab-table-wrap" style="border-color:#fde68a;background:#fffdf5">
         <div class="cab-table-title" style="margin-bottom:8px"><i class="ti ti-copy" style="color:#b45309;margin-right:6px"></i>Похожие имена — возможно, это один клиент</div>
         ${dupes.map(p => `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #f3ead0;font-size:14px">
-          <b>${p.drop.name}</b><span style="color:#6b7280">(${p.drop.ships.length} прих.)</span><i class="ti ti-arrow-right" style="color:#9aa0ab"></i><b>${p.keep.name}</b><span style="color:#6b7280">(${p.keep.ships.length} прих.)</span>
+          ${p.drops.map(d => `<b>${d.name}</b><span style="color:#6b7280">(${d.ships.length} прих.)</span>`).join('<span style="color:#9aa0ab">+</span>')}<i class="ti ti-arrow-right" style="color:#9aa0ab"></i><b>${p.keep.name}</b><span style="color:#6b7280">(${p.keep.ships.length} прих.)</span>
           <span style="font-size:12px;color:${p.exact ? '#16a34a' : '#b45309'}">${p.exact ? 'отличаются только пробелами/знаками' : 'похожее написание — проверьте'}</span>
-          <button class="cab-filter-btn" style="margin-left:auto;padding:5px 12px" onclick="cabMergeDupe('${encodeURIComponent(p.drop.name)}','${encodeURIComponent(p.keep.name)}')">Объединить</button>
+          <button class="cab-filter-btn" style="margin-left:auto;padding:5px 12px" onclick="cabMergeGroup('${encodeURIComponent(JSON.stringify(p.drops.map(d => d.name)))}','${encodeURIComponent(p.keep.name)}')">Объединить${p.drops.length > 1 ? ' все' : ''}</button>
         </div>`).join('')}
         <div style="font-size:13px;color:#6b7280;margin-top:8px">Другие написания (напр. «Катя Бычковская» и «Kati Bychkovskaya») — в карточке клиента: «Присоединить клиента…»</div>
       </div>`;
@@ -1437,7 +1449,9 @@ function renderCabTariffs(container) {
 
   const periodBtns = T.periods.map(p => `<button class="cab-filter-btn ${p[0] === per[0] ? 'active' : ''}" onclick="cabSetTariffPeriod(${p[0]})">${p[1]}${p[2] ? ` <span class="cab-period-off">−${p[2]}%</span>` : ''}</button>`).join('');
 
-  const cards = T.tiers.map(t => {
+  // «Крупный / карго» видят только те, кому админ включил индивидуальный тариф (users/{uid}.individual)
+  const tiers = T.tiers.filter(t => t.rub || (userProfile && userProfile.individual));
+  const cards = tiers.map(t => {
     const isFit = vol > 0 && fit && fit.id === t.id;
     const flags = [];
     if (curTier === t.id) flags.push('<span class="cab-plan-badge cur">Ваш тариф</span>');
@@ -1483,7 +1497,7 @@ function renderCabTariffs(container) {
     <div class="cab-filter-row" style="align-items:center">${periodBtns}
       <span style="margin-left:auto;font-size:13px;color:#6b7280">Все функции во всех тарифах — отличается только объём</span></div>
     ${founder ? `<div class="cab-founder"><i class="ti ti-star"></i> Цена первых клиентов: −${T.founderDiscountPct}% навсегда, пока подписка продлевается без перерыва</div>` : ''}
-    <div class="cab-plans" style="grid-template-columns:repeat(${T.tiers.length},minmax(0,1fr))">${cards}</div>
+    <div class="cab-plans" style="grid-template-columns:repeat(${tiers.length},minmax(0,1fr))">${cards}</div>
     <div class="cab-table-wrap">
       <div class="cab-table-title">Как оплатить</div>
       <div class="cab-pay-text">Онлайн-оплата пока не подключена. Напишите нам: пришлём сумму${country ? ` для страны «${country}»` : ''} и способ оплаты,</div>
@@ -1535,6 +1549,7 @@ async function cabLoadAdminUsers(box) {
       const safeName = String(u.name || u.email || '').replace(/['"<>]/g, '');
       const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" style="padding:5px 6px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;background:#fff">
           <option value="">—</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+      const ind = `<label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)" style="margin:0"> да</label>`;
       const fnd = `<label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="Цена первых клиентов: −${PIKSTA_TARIFFS.founderDiscountPct}% (участник пилота)"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked)" style="margin:0"> −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
       rows.push(`<tr>
         <td style="font-weight:500">${u.name || '—'}</td>
@@ -1542,6 +1557,7 @@ async function cabLoadAdminUsers(box) {
         <td>${created.toLocaleDateString('ru-RU')}</td>
         <td>${ctry}</td>
         <td>${fnd}</td>
+        <td>${ind}</td>
         <td>${shipCount}</td>
         <td>${accessEnd.toLocaleDateString('ru-RU')} <span style="color:${daysLeft > 7 ? '#16a34a' : '#dc2626'};font-size:13px">(${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'})</span></td>
         <td>${status}</td>
@@ -1563,8 +1579,8 @@ async function cabLoadAdminUsers(box) {
           <div class="cab-stat-card"><div class="cab-stat-val" style="color:#dc2626">${blocked}</div><div class="cab-stat-label">Заблокировано</div></div>
         </div>
         <table class="cab-table">
-          <thead><tr><th>Имя</th><th>Email</th><th>Регистрация</th><th>Страна</th><th title="Цена первых клиентов (участник пилота)">Первый клиент</th><th>Приходов</th><th>Доступ до</th><th>Статус</th><th></th></tr></thead>
-          <tbody>${rows.join('') || '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:20px">Пользователей нет</td></tr>'}</tbody>
+          <thead><tr><th>Имя</th><th>Email</th><th>Регистрация</th><th>Страна</th><th title="Цена первых клиентов (участник пилота)">Первый клиент</th><th title="Показать тариф «Крупный / карго»">Индивид.</th><th>Приходов</th><th>Доступ до</th><th>Статус</th><th></th></tr></thead>
+          <tbody>${rows.join('') || '<tr><td colspan="10" style="text-align:center;color:#6b7280;padding:20px">Пользователей нет</td></tr>'}</tbody>
         </table>
       </div>`;
   } catch (e) {
