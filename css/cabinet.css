@@ -25,7 +25,7 @@
 /* Обзор */
 .cab-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;overflow-x:auto;padding-bottom:2px}
 .cab-stat-card{min-width:max-content}
-.cab-stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 16px;display:flex;flex-direction:column;gap:4px}
+.cab-stat-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 16px;display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;justify-content:center}
 .cab-stat-val{font-size:28px;font-weight:700;color:#1a1a2e}
 .cab-stat-val.green{color:#16a34a}
 .cab-stat-label{font-size:14px;color:#6b7280}
@@ -148,3 +148,16 @@
   .cab-plan.current{padding:15px 13px}
   .cab-plan-price{font-size:30px}
 }
+
+/* Клиенты: карточки статусов — цифра чёрная по центру, цвет статуса в рамке; клик = фильтр */
+.cab-stat-st{border-color:var(--st);border-width:1.5px;cursor:pointer;transition:background .15s}
+.cab-stat-st:hover{background:var(--stbg)}
+.cab-stat-st.on{background:var(--stbg);box-shadow:inset 0 0 0 1px var(--st)}
+.cab-stat-st .cab-stat-label{color:var(--st);font-weight:500}
+/* Похожие имена: имена в первой строке, подсказка во второй, кнопки одной колонкой справа */
+.cab-dupe{display:flex;align-items:center;gap:16px;padding:9px 0;border-top:1px solid #f3ead0}
+.cab-dupe>div{flex:1;min-width:0}
+.cab-dupe>button{flex-shrink:0;width:150px;padding:6px 10px;text-align:center}
+.cab-dupe-names{font-size:14px}
+.cab-dupe-names span,.cab-dupe-names i{color:#6b7280}
+.cab-dupe-hint{font-size:12px;margin-top:2px}
