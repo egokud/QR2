@@ -123,6 +123,7 @@
 .cab-plan-limit{font-size:14px;color:#6b7280;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .cab-plan-fit{font-size:12px;font-weight:600;color:#16a34a;background:#f0fdf4;padding:1px 7px;border-radius:6px}
 .cab-plan-price{font-size:28px;font-weight:700;color:#1a1a2e;line-height:1.2;display:flex;align-items:baseline;gap:8px}
+.cab-plan-unit{font-size:15px;font-weight:500;color:#6b7280;margin-left:-4px}
 .cab-plan-old{font-size:14px;font-weight:500;color:#9aa0ab;text-decoration:line-through}
 .cab-plan-note{font-size:14px;color:#6b7280;margin-top:6px}
 .cab-pay-text{font-size:14px;color:#4a5260;line-height:1.6}
@@ -138,4 +139,7 @@
 @media(min-width:641px) and (max-width:1366px){
   .cab-table th{padding:9px 6px}
   .cab-table td{padding:11px 6px}
+  .cab-plans{gap:12px}
+  .cab-plan{padding:16px 14px}
+  .cab-plan.current{padding:15px 13px}
 }
