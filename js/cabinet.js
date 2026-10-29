@@ -894,11 +894,9 @@ function renderCabClients(container) {
     <div class="cab-main-title">Клиенты</div>
     <div class="cab-stats" style="grid-template-columns:repeat(7,1fr)">
       <div class="cab-stat-card"><div class="cab-stat-val">${all.length}</div><div class="cab-stat-label">Всего клиентов</div></div>
-      <div class="cab-stat-card" title="Впервые в самом свежем приходе"><div class="cab-stat-val" style="color:#6C4DB8">${cnt('new')}</div><div class="cab-stat-label">Новых</div></div>
-      <div class="cab-stat-card" title="Есть в двух последних приходах"><div class="cab-stat-val" style="color:#16a34a">${cnt('active')}</div><div class="cab-stat-label">Активных</div></div>
-      <div class="cab-stat-card" title="Заказывали только в одном приходе"><div class="cab-stat-val" style="color:#0369a1">${cnt('once')}</div><div class="cab-stat-label">Разовых</div></div>
-      <div class="cab-stat-card" title="Были в 2+ приходах, но в трёх последних их нет"><div class="cab-stat-val" style="color:#b45309">${cnt('forgotten')}</div><div class="cab-stat-label">Забытых</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt(totalUnpaid)}</div><div class="cab-stat-label">Задолженность, BYN</div></div>
+      ${[['new', 'Новых', 'Впервые в самом свежем приходе'], ['active', 'Активных', 'Есть в двух последних приходах'], ['once', 'Разовых', 'Заказывали только в одном приходе'], ['forgotten', 'Забытых', 'Были в 2+ приходах, но в трёх последних их нет']]
+        .map(([k, l, t]) => `<div class="cab-stat-card cab-stat-st${cabClientFilter === k ? ' on' : ''}" style="--st:${CAB_CLIENT_STATUS[k].color};--stbg:${CAB_CLIENT_STATUS[k].bg}" title="${t}. Нажмите — показать в списке" onclick="cabSetClientFilter(cabClientFilter === '${k}' ? 'all' : '${k}')"><div class="cab-stat-val">${cnt(k)}</div><div class="cab-stat-label">${l}</div></div>`).join('')}
+      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt(totalUnpaid)}</div><div class="cab-stat-label">Задолженность, BYN</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val">${debtors}</div><div class="cab-stat-label">Должников</div></div>
     </div>
     <div style="font-size:13px;color:#6b7280;margin:-14px 0 4px">Задолженность — только по рассортированным и архивным приходам. Формирующиеся и едущие — это «Вложено в товар» в Обзоре</div>
@@ -910,11 +908,13 @@ function renderCabClients(container) {
       if (!dupes.length) return '';
       return `<div class="cab-table-wrap" style="border-color:#fde68a;background:#fffdf5">
         <div class="cab-table-title" style="margin-bottom:8px"><i class="ti ti-copy" style="color:#b45309;margin-right:6px"></i>Похожие имена — возможно, это один клиент</div>
-        ${dupes.map(p => `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #f3ead0;font-size:14px">
-          ${p.drops.map(d => `<b>${d.name}</b><span style="color:#6b7280">(${d.ships.length} прих.)</span>`).join('<span style="color:#9aa0ab">+</span>')}<i class="ti ti-arrow-right" style="color:#9aa0ab"></i><b>${p.keep.name}</b><span style="color:#6b7280">(${p.keep.ships.length} прих.)</span>
-          <span style="font-size:12px;color:${p.exact ? '#16a34a' : '#b45309'}">${p.exact ? 'отличаются только пробелами/знаками' : 'похожее написание — проверьте'}</span>
-          <button class="cab-filter-btn" style="margin-left:auto;padding:5px 12px" onclick="cabMergeGroup('${encodeURIComponent(JSON.stringify(p.drops.map(d => d.name)))}','${encodeURIComponent(p.keep.name)}')">Объединить${p.drops.length > 1 ? ' все' : ''}</button>
-        </div>`).join('')}
+        <div class="cab-dupes">${dupes.map(p => `<div class="cab-dupe">
+          <div>
+            <div class="cab-dupe-names">${p.drops.map(d => `<b>${d.name}</b> <span>(${d.ships.length} прих.)</span>`).join(' <span>+</span> ')} <i class="ti ti-arrow-right"></i> <b>${p.keep.name}</b> <span>(${p.keep.ships.length} прих.)</span></div>
+            <div class="cab-dupe-hint" style="color:${p.exact ? '#16a34a' : '#b45309'}">${p.exact ? 'Отличаются только пробелами или знаками' : 'Похожее написание — проверьте'}</div>
+          </div>
+          <button class="cab-filter-btn" onclick="cabMergeGroup('${encodeURIComponent(JSON.stringify(p.drops.map(d => d.name)))}','${encodeURIComponent(p.keep.name)}')">Объединить${p.drops.length > 1 ? ' все' : ''}</button>
+        </div>`).join('')}</div>
         <div style="font-size:13px;color:#6b7280;margin-top:8px">Другие написания (напр. «Катя Бычковская» и «Kati Bychkovskaya») — в карточке клиента: «Присоединить клиента…»</div>
       </div>`;
     })()}
