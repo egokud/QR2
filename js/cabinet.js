@@ -449,6 +449,48 @@ function renderCabOverview(container) {
 }
 
 // ============ ПРИХОДЫ ============
+// Шапка раздела: этапы «сейчас в работе» + объём по приходам столбиками + факты
+function cabShipsHero(ships) {
+  const day = 864e5, now = Date.now();
+  const age = s => { const t = s.created ? new Date(s.created).getTime() : NaN; return isFinite(t) ? Math.max(0, Math.round((now - t) / day)) : null; };
+  const stages = [['Собирается', ['forming'], 'ti-shopping-cart', '#4a90d9'], ['В пути', ['transit', 'delayed'], 'ti-truck', '#d4a106'], ['На складе', ['warehouse'], 'ti-building-warehouse', '#3cb371'], ['Рассортирован', ['sorted'], 'ti-checks', '#8b7fd4']];
+  const inWork = ships.filter(s => s.status !== 'done');
+  const steps = stages.map(([l, keys, ic, c]) => {
+    const list = ships.filter(s => keys.includes(s.status));
+    const pos = list.reduce((n, s) => n + (s.data || []).length, 0);
+    return `<div class="cab-step${list.length ? '' : ' off'}" style="--c:${c}"><span class="cab-step-ic"><i class="ti ${ic}"></i></span><b>${list.length}</b><span>${l}</span><em>${list.length ? pos + ' поз.' : '—'}</em></div>`;
+  }).join('<i class="ti ti-chevron-right cab-step-arr"></i>');
+  // Дольше всех в пути — повод проверить
+  const road = ships.filter(s => ['transit', 'delayed', 'warehouse'].includes(s.status)).map(s => ({ s, a: age(s) })).filter(x => x.a !== null).sort((a, b) => b.a - a.a)[0];
+  const facts = [];
+  if (road) facts.push(`<div class="cab-fact${road.a > 30 ? ' warn' : ''}"><i class="ti ti-clock"></i><span>Дольше всех в пути</span><b>${road.s.name || 'Приход'} — ${road.a} ${cabDaysWord(road.a)}</b></div>`);
+  const big = ships.slice().sort((a, b) => (b.data || []).length - (a.data || []).length)[0];
+  if (big) facts.push(`<div class="cab-fact"><i class="ti ti-trophy"></i><span>Самый большой приход</span><b>${big.name || 'Приход'} — ${(big.data || []).length} поз.</b></div>`);
+  const billed = ships.filter(s => s.status === 'sorted' || s.status === 'done');
+  const kg = cabDeliveredKg(ships), items = billed.reduce((n, s) => n + (s.data || []).length, 0);
+  if (items) facts.push(`<div class="cab-fact"><i class="ti ti-weight"></i><span>В среднем товар весит</span><b>${(kg / items).toFixed(2)} кг · приход ${cabFmt(kg / billed.length)} кг</b></div>`);
+  // Столбики: позиции в каждом приходе, старые слева
+  const chron = ships.slice().reverse().slice(-12);
+  const maxN = Math.max(1, ...chron.map(s => (s.data || []).length));
+  const bars = chron.map(s => {
+    const n = (s.data || []).length, st = SHIP_STATUSES[s.status] || SHIP_STATUSES.forming;
+    const w = (s.status === 'sorted' || s.status === 'done') ? cabShipTotalKg(s) : 0;
+    const mm = (s.name || '').match(/(\d{1,2})(?:-(\d{1,2}))?\.(\d{1,2})/), lbl = mm ? `${(mm[2] || mm[1]).padStart(2, '0')}.${mm[3].padStart(2, '0')}` : '·';
+    return `<div class="cab-bar" title="${s.name || ''}: ${n} поз.${w ? ', ' + w.toFixed(1) + ' кг' : ''} · ${st.label}" onclick="${s.status === 'done' ? '' : `cabOpenShip('${s.id}')`}"><em>${n}</em><span style="height:${Math.max(6, n / maxN * 100)}%;background:${st.color}"></span><i>${lbl}</i></div>`;
+  }).join('');
+  return `<div class="cab-ov-top cab-sh-top">
+    <div class="cab-card">
+      <div class="cab-card-l"><i class="ti ti-route"></i> Сейчас в работе<b class="cab-base-n">${inWork.length} ${cabPl(inWork.length, 'приход', 'прихода', 'приходов')}</b></div>
+      <div class="cab-steps">${steps}</div>
+      <div class="cab-facts">${facts.join('')}</div>
+    </div>
+    <div class="cab-card">
+      <div class="cab-card-l"><i class="ti ti-chart-bar"></i> Позиций в приходах</div>
+      <div class="cab-bars">${bars}</div>
+      <div class="cab-bars-sum"><span><b>${ships.length}</b> ${cabPl(ships.length, 'приход', 'прихода', 'приходов')}</span><span><b>${cabFmt(items)}</b> товаров привезено</span><span><b>${kg.toFixed(1)}</b> кг</span></div>
+    </div>
+  </div>`;
+}
 let cabShipFilter = 'all';
 function renderCabShipments(container) {
   const ships = cabShipmentsCache;
@@ -477,7 +519,7 @@ function renderCabShipments(container) {
 
   container.innerHTML = `
     <div class="cab-main-title">Приходы</div>
-    ${cabTotalsStrip(ships, false)}
+    ${cabShipsHero(ships)}
     <div class="cab-table-wrap">
       <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
@@ -1100,11 +1142,9 @@ function cabChampions(list) {
   const top = Math.min(10, Math.max(3, Math.round(cl.length * 0.1)));
   return cl.filter(c => c.ships.length >= 3 && c.status !== 'forgotten').sort((a, b) => b.totalDue - a.totalDue).slice(0, top);
 }
-let cabAdviceOpen = true;
-try { cabAdviceOpen = localStorage.getItem('pk_adv') !== '0'; } catch (e) {}
+let cabAdviceOpen = false;   // по умолчанию свёрнут — список клиентов сразу на виду; раскрытие помним до перезагрузки
 function cabAdviceToggle() {
   cabAdviceOpen = !cabAdviceOpen;
-  try { localStorage.setItem('pk_adv', cabAdviceOpen ? '1' : '0'); } catch (e) {}
   renderCabClients(document.getElementById('cabMain'));
 }
 function cabCopy(text, btn) {
@@ -1170,9 +1210,9 @@ function cabAdviceHtml(all, champs) {
   const head = `<div class="cab-adv-head" onclick="cabAdviceToggle()">
       <span class="cab-adv-ic" style="--c:${CAB_SEG_BAR[seg]}"><i class="ti ${A.ic}"></i></span>
       <div class="cab-adv-ttl"><div class="cab-adv-kick">${auto ? 'Главная возможность сейчас' : 'Что делать с этими клиентами'}</div><div>${A.title(n)}</div></div>
-      <span class="cab-adv-more">${cabAdviceOpen ? 'Свернуть <i class="ti ti-chevron-up"></i>' : 'Как с ними работать <i class="ti ti-chevron-down"></i>'}</span>
+      ${cabAdviceOpen ? '<span class="cab-adv-more">Свернуть <i class="ti ti-chevron-up"></i></span>' : `<span class="cab-adv-cta">${{ once: 'Как вернуть их', forgotten: 'Как напомнить о себе', new: 'Как удержать', active: 'Как не потерять', regular: 'Как сделать постоянными', champ: 'Как поощрить' }[seg]}<span class="cab-adv-chev"><i class="ti ti-chevron-down"></i><i class="ti ti-chevron-down"></i></span></span>`}
     </div>`;
-  if (!cabAdviceOpen) return `<div class="cab-card cab-adv">${head}</div>`;
+  if (!cabAdviceOpen) return `<div class="cab-card cab-adv cab-adv-closed">${head}</div>`;
   const vars = cabMsgVariants(seg), vi = (cabMsgIdx[seg] || 0) % vars.length, V = vars[vi];
   const msgEnc = encodeURIComponent(V.text).replace(/'/g, '%27'), namesEnc = encodeURIComponent(people.map(c => c.name).join('\n')).replace(/'/g, '%27');
   return `<div class="cab-card cab-adv">
