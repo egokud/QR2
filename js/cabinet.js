@@ -11,7 +11,28 @@ function exitCabinet() {
   if (hi) hi.textContent = 'Куда переходим, ' + (userProfile.name ? userProfile.name.split(' ')[0] : '') + '?';
 }
 
+// Боковое меню: можно свернуть до значков (запоминается); на узком окне при первом входе — свёрнуто
+function cabSidebarSet(mini) {
+  const sc = document.getElementById('cabinetScreen'); if (!sc) return;
+  sc.classList.toggle('cab-mini', !!mini);
+  try { localStorage.setItem('pk_side', mini ? '1' : '0'); } catch (e) {}
+  const b = document.getElementById('cabSideTg');
+  if (b) { b.innerHTML = `<i class="ti ti-layout-sidebar-left-${mini ? 'expand' : 'collapse'}"></i>`; b.title = mini ? 'Развернуть меню' : 'Свернуть меню'; }
+}
+function cabSidebarInit() {
+  const logo = document.querySelector('.cab-sidebar-logo');
+  if (logo && !document.getElementById('cabSideTg')) {
+    const b = document.createElement('button');
+    b.id = 'cabSideTg'; b.className = 'cab-side-tg';
+    b.onclick = e => { e.stopPropagation(); cabSidebarSet(!document.getElementById('cabinetScreen').classList.contains('cab-mini')); };
+    logo.appendChild(b);
+  }
+  document.querySelectorAll('#cabNav .cab-nav-item, .cab-sidebar-logout').forEach(x => { if (!x.title) x.title = x.textContent.trim(); });
+  let saved = null; try { saved = localStorage.getItem('pk_side'); } catch (e) {}
+  cabSidebarSet(saved === null ? window.innerWidth < 1100 : saved === '1');
+}
 async function openCabinet() {
+  cabSidebarInit();
   const isAdmin = userProfile && userProfile.role === 'admin';
   document.getElementById('cabAdminBtn').style.display = isAdmin ? 'flex' : 'none';
   document.getElementById('cabAdminDivider').style.display = isAdmin ? 'block' : 'none';
@@ -130,8 +151,8 @@ function cabFlag(map, kind, name) {
   if (map && Object.prototype.hasOwnProperty.call(map, name)) return !!map[name];
   return typeof clientRule === 'function' ? !!clientRule(kind, name) : false;
 }
-const cabFmt = (v) => v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-const cabFmt2 = (v) => v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const cabFmt = (v) => v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');   // неразрывный пробел: «38 554» не рвётся на две строки
+const cabFmt2 = (v) => v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 
 function cabGetClientsFromShipment(ship) {
   const data = ship.data || [];
@@ -578,7 +599,7 @@ function cabRenderShip() {
   else body = cabShipRatesHtml();
   document.getElementById('cabMain').innerHTML = `
     <a href="#" onclick="cabCloseShip();return false" style="display:inline-flex;align-items:center;gap:4px;color:#6C4DB8;text-decoration:none;font-size:14px;margin-bottom:10px"><i class="ti ti-arrow-left"></i> Все приходы</a>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
       <div class="cab-main-title" style="margin:0">${ship.name || 'Без названия'}</div>
       <button onclick="cabRenameShip()" title="Переименовать" style="border:none;background:none;color:#6b7280;cursor:pointer;font-size:16px"><i class="ti ti-pencil"></i></button>
       <select onchange="cabSetStatus(this.value)" style="${cabInp};margin-left:auto">${opts}</select>
@@ -649,7 +670,7 @@ function cabShipItemsHtml() {
     </tr>`;
   }).join('');
   return `<div class="cab-table-wrap">
-    <div style="display:flex;gap:10px;flex-wrap:nowrap;align-items:center;margin-bottom:12px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
       <input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку или клиенту" style="${cabInp};width:100%;max-width:340px">
       <div style="display:flex;gap:6px;margin-left:auto">
         <button class="cab-filter-btn ${cabItemSort === 'track' ? 'active' : ''}" onclick="cabSetItemSort('track')">По трек-кодам</button>
@@ -708,7 +729,7 @@ function cabShipWeighHtml() {
     </tr>`;
   }).join('');
   return `<div class="cab-table-wrap">
-    <div style="display:flex;gap:16px;flex-wrap:nowrap;align-items:flex-end;margin-bottom:16px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
       <label style="font-size:13px;color:#5f6470">Вес от карго, г<br><input value="${currentCargoWeight ? Math.round(currentCargoWeight * 1000) : ''}" onchange="cabSetCargo(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
       <label style="font-size:13px;color:#5f6470">Вес тары, г<br><input value="${currentTare ? Math.round(currentTare * 1000) : ''}" onchange="cabSetTare(this)" ${currentTarePct > 0 ? 'disabled' : ''} inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
       <label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px;padding-bottom:6px" title="К весу каждого взвешенного клиента +8%, тару по карго не высчитываем"><input type="checkbox" ${currentTarePct > 0 ? 'checked' : ''} onchange="onTarePctChange(this.checked);cabRenderShip()"> Тара 8%</label>
@@ -1336,7 +1357,7 @@ function renderCabClients(container) {
       </div>`;
     })()}
     <div class="cab-table-wrap">
-      <div style="display:flex;gap:2px;flex-wrap:nowrap;margin-bottom:10px">
+      <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:10px">
         ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}${fbtn('champ', 'Чемпионы')}
       </div>
       ${folderRow}
@@ -1428,7 +1449,7 @@ function cabRenderClientCard(container, name) {
 
   container.innerHTML = `
     <a href="#" onclick="cabCloseClient();return false" style="display:inline-flex;align-items:center;gap:4px;color:#6C4DB8;text-decoration:none;font-size:14px;margin-bottom:10px"><i class="ti ti-arrow-left"></i> Все клиенты</a>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <div class="cab-main-title" style="margin:0">${m.name}</div>
       <span style="font-size:13px;background:${st.bg};color:${st.color};padding:3px 8px;border-radius:5px;font-weight:600">${st.label}</span>
       ${m.isOwner ? '<span style="font-size:13px;background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:5px">свой</span>' : ''}
@@ -1443,7 +1464,7 @@ function cabRenderClientCard(container, name) {
       </select>
     </div>
     <div class="cab-table-wrap" style="padding:14px 18px">
-      <div style="display:flex;gap:24px;flex-wrap:nowrap">
+      <div style="display:flex;gap:24px;flex-wrap:wrap;row-gap:6px">
         ${ruleChk('owner', 'Это я')}${ruleChk('costGoods', 'Товар по себестоимости')}${ruleChk('costShip', 'Доставка по себестоимости')}
       </div>
       <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют начиная со следующего формирующегося прихода. Для уже созданных приходов — галочки во вкладке «Расчёт» конкретного прихода.</div>
@@ -1847,7 +1868,7 @@ function renderCabCalc(container) {
   const seg = (k, l, n) => `<button class="cab-seg-b${cabCalcFilter === k ? ' on' : ''}" onclick="cabCalcSetFilter('${k}')">${l} <i>${n}</i></button>`;
   const totPct = sumBilled > 0 ? Math.round(sumPaid / sumBilled * 100) : 100;
   container.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
       <div class="cab-main-title" style="margin:0">Расчёты по приходам</div>
       <button class="cab-filter-btn" style="margin-left:auto" onclick="cabCalcAll(true)"><i class="ti ti-arrows-maximize"></i> Развернуть все</button>
       <button class="cab-filter-btn" onclick="cabCalcAll(false)"><i class="ti ti-arrows-minimize"></i> Свернуть все</button>
@@ -1909,7 +1930,7 @@ function renderCabAnalytics(container) {
   const ships = cabShipmentsCache.filter(s => !from || inRange(s, from, new Date(now.getTime() + 864e5)));
   const prevShips = from ? cabShipmentsCache.filter(s => inRange(s, prevFrom, from)) : [];
   const seg = CAB_PERIODS.map(p => `<button class="cab-seg-b${cabAnPeriod === p[0] ? ' on' : ''}" onclick="cabSetAnPeriod('${p[0]}')">${p[1]}</button>`).join('');
-  const head = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><div class="cab-main-title" style="margin:0">Аналитика</div><div class="cab-seg" style="margin-left:auto">${seg}</div></div>`;
+  const head = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap"><div class="cab-main-title" style="margin:0">Аналитика</div><div class="cab-seg" style="margin-left:auto">${seg}</div></div>`;
   if (ships.length === 0) {
     container.innerHTML = head + `<div class="cab-stub"><i class="ti ti-chart-bar"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">За выбранный период приходов нет</div></div>`;
     return;
