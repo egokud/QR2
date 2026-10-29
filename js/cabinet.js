@@ -356,7 +356,7 @@ function renderCabShipments(container) {
     ${filterHtml}
     <div class="cab-table-wrap">
       <table class="cab-table" id="cabShipmentsTable">
-        <thead><tr><th>Название</th><th title="Когда приход создан в Piksta">Создан</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th></tr></thead>
+        <thead><tr><th>Название</th><th>Дата</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет приходов</td></tr>'}</tbody>
       </table>
     </div>`;
@@ -829,7 +829,7 @@ function cabRenderClientCard(container, name) {
 
   const shipsHtml = m.ships.map(({ ship, c }) => {
     const open = cabClientShipOpen.has(ship.id);
-    const date = cabNameHasDate(ship) ? '' : cabShipDateStr(ship);
+    const date = cabShipDateStr(ship);
     const sst = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const inp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:92px;box-sizing:border-box';
     const paidHtml = c.isOwner ? '<div onclick="event.stopPropagation()" style="grid-column:5/9;font-size:13px;color:#dc2626;cursor:default">свой склад</div>'
@@ -1031,7 +1031,7 @@ function renderCabCalc(container) {
     const open = cabCalcOpen.has(ship.id);
     let totalDue = 0, totalProfit = 0;
     for (const c of clients) { totalDue += c.due; totalProfit += c.profit; }
-    const date = cabNameHasDate(ship) ? '' : cabShipDateStr(ship);
+    const date = cabShipDateStr(ship);
 
     let table = '';
     if (open) {
