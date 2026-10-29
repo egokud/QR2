@@ -235,6 +235,24 @@ function cabShipTotalKg(ship) {
   const { totalW, effectiveTare } = cabGetClientsFromShipment(ship);
   return Math.max(totalW + effectiveTare, ship.cargoWeight || 0);
 }
+// Долг клиентов считается только когда приход рассортирован или в архиве — до этого клиентам ещё не выставлено
+function cabIsBilled(ship) { return !!ship && (ship.status === 'sorted' || ship.status === 'done'); }
+// «Вложено в товар»: деньги владельца в закупке приходов, которые формируются / едут / на складе.
+// Закупка ¥ (если нет — цена клиента ¥) × курс закупки этого прихода
+function cabFrozen(ships) {
+  let byn = 0, yuan = 0, n = 0;
+  for (const ship of ships) {
+    if (cabIsBilled(ship)) continue;
+    const rates = ship.rates ? { ...DEFAULT_RATES, ...ship.rates } : { ...DEFAULT_RATES };
+    let y = 0;
+    for (const row of (ship.data || [])) {
+      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || ''];
+      y += parseFloat(r[3]) || parseFloat(r[4]) || 0;
+    }
+    yuan += y; byn += y * rates.buyRate; n++;
+  }
+  return { byn, yuan, n };
+}
 function cabDeliveredKg(ships) {
   return ships.filter(s => s.status === 'sorted' || s.status === 'done').reduce((n, s) => n + cabShipTotalKg(s), 0);
 }
@@ -278,13 +296,18 @@ function renderCabOverview(container) {
     }
   }
   const topDebtors = Object.entries(clientDebt).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const frozen = cabFrozen(ships);
 
   container.innerHTML = `
     <div class="cab-main-title">Обзор</div>
-    <div class="cab-stats" style="grid-template-columns:repeat(4,1fr)">
+    <div class="cab-stats" style="grid-template-columns:repeat(5,1fr)">
       <div class="cab-stat-card">
         <div class="cab-stat-val">${ships.length}</div>
         <div class="cab-stat-label">Всего приходов</div>
+      </div>
+      <div class="cab-stat-card" title="Закупка товара в приходах, которые формируются, едут или на складе (${frozen.n} шт., ${cabFmt(frozen.yuan)} ¥ по курсу закупки). Клиентам ещё не выставлено">
+        <div class="cab-stat-val" style="color:#b45309">${cabFmt(frozen.byn)}</div>
+        <div class="cab-stat-label">Вложено в товар, BYN</div>
       </div>
       <div class="cab-stat-card">
         <div class="cab-stat-val">${ships.filter(s=>s.status==='sorted'||s.status==='done').reduce((n,s)=>n+(s.data||[]).length,0)}</div>
@@ -421,7 +444,7 @@ function cabRenderShip() {
       <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt(calc.grandDue)}</div><div class="cab-stat-label">Должны, BYN</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val ${calc.grandProfit >= 0 ? 'green' : ''}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt(calc.grandProfit)}</div><div class="cab-stat-label">Прибыль, BYN</div></div>
     </div>
-    <div class="cab-filter-row" style="align-items:center">${tabs}${cabShipTab === 'calc' ? `<button onclick="cabShipPDF()" style="margin-left:auto;flex-shrink:0;background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>` : ''}</div>
+    <div class="cab-filter-row" style="align-items:center">${tabs}${cabShipTab === 'calc' ? `<button onclick="cabShipAllPaid()" style="margin-left:auto;flex-shrink:0;background:#fff;color:#16a34a;border:1px solid #86efac;border-radius:8px;padding:8px 14px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-checks"></i> Все оплатили</button><button onclick="cabShipPDF()" style="margin-left:8px;flex-shrink:0;background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>` : ''}</div>
     ${body}`;
 }
 
@@ -718,7 +741,7 @@ function cabClientsSummary() {
       m.totalProfit += c.profit;
       m.totalWeight += c.weight;
       if (c.isOwner) m.isOwner = true;
-      if (!c.isOwner) m.unpaidDue += c.payRest;
+      if (!c.isOwner && cabIsBilled(ship)) m.unpaidDue += c.payRest;   // долг — только рассортированные и архив
     }
   }
   const list = Object.values(map);
@@ -774,7 +797,8 @@ function renderCabClients(container) {
       <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt(totalUnpaid)}</div><div class="cab-stat-label">Текущая задолженность, BYN</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val">${debtors}</div><div class="cab-stat-label">Должников</div></div>
     </div>
-    <div style="font-size:13px;color:${okSum ? '#4a5260' : '#dc2626'};margin:-14px 0 16px">
+    <div style="font-size:13px;color:#6b7280;margin:-14px 0 4px">Задолженность — только по рассортированным и архивным приходам. Формирующиеся и едущие — это «Вложено в товар» в Обзоре</div>
+    <div style="font-size:13px;color:${okSum ? '#4a5260' : '#dc2626'};margin:0 0 16px">
       Сверка позиций: в базе ${S.totalItemsDb} = у клиентов ${S.clientItemsSum}${S.sharedExtra ? ' − повторы общих ' + S.sharedExtra : ''}${S.noClientItems ? ' + без клиента ' + S.noClientItems : ''} ${okSum ? '✓' : '— не сходится'}
     </div>
     <div class="cab-table-wrap">
@@ -835,7 +859,7 @@ function cabRenderClientCard(container, name) {
     const paidHtml = c.isOwner ? '<div onclick="event.stopPropagation()" style="grid-column:5/9;font-size:13px;color:#dc2626;cursor:default">свой склад</div>'
       : `<div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></div>
         <div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></div>
-        <b onclick="event.stopPropagation()" style="justify-self:end;font-size:14px;cursor:default;color:${c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b>
+        <b onclick="event.stopPropagation()" ${cabIsBilled(ship) ? '' : 'title="Приход ещё не рассортирован — в долг не входит"'} style="justify-self:end;font-size:14px;cursor:default;color:${!cabIsBilled(ship) ? '#9aa0ab' : c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b>
         <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')" style="width:16px;height:16px;margin:0;cursor:pointer">${cabPayBadge(c.payStatus)}</label>`;
     let items = '';
     if (open) {
@@ -942,6 +966,21 @@ async function cabCardSetDue(shipId, encName, val) {
   try { await cabTxMapField(shipId, 'dueOverride', key, v); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
   cabRerender();
 }
+// «Все оплатили»: отметить всех клиентов прихода (кроме «это я») оплатившими полностью — только с подтверждением
+async function cabShipAllPaid() {
+  const ship = cabShipmentsCache.find(s => s.id === cabShipId); if (!ship) return;
+  const { clients } = cabGetClientsFromShipment(ship);
+  const left = clients.filter(c => !c.isOwner && c.payRest > 0.004);
+  if (!left.length) { alert('Все клиенты этого прихода уже оплатили.'); return; }
+  const sum = left.reduce((n, c) => n + c.payRest, 0);
+  const warn = cabIsBilled(ship) ? '' : '\n\nВнимание: приход ещё не рассортирован — суммы могут измениться после взвешивания.';
+  if (!confirm(`Отметить оплатившими полностью ${left.length} клиентов прихода «${ship.name || ''}»?\nОстаток к оплате: ${cabFmt2(sum)} BYN.${warn}\n\nОтменить можно у каждого клиента вручную.`)) return;
+  try {
+    for (const c of left) await cabSavePayment(ship.id, cabClientKey(ship, c.name), Math.round(c.due * 100) / 100);
+  } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+  cabRerender();
+}
+
 async function cabCardSetPaid(shipId, encName, val) {
   const ship = cabShipmentsCache.find(s => s.id === shipId); if (!ship) return;
   const key = cabClientKey(ship, decodeURIComponent(encName));
