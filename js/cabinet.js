@@ -851,6 +851,10 @@ async function cabMergeClients(fromName, toName) {
         t.update(ref, upd);
       });
     }
+    // папка клиента — переносим, если у основного своей нет
+    const FD = cabFolders();
+    if (FD.map[fl] && !FD.map[tl]) { FD.map[tl] = FD.map[fl]; delete FD.map[fl]; userProfile.clientFolders = FD; await db.collection('users').doc(savedUid).update({ clientFolders: FD }); }
+    else if (FD.map[fl]) { delete FD.map[fl]; userProfile.clientFolders = FD; await db.collection('users').doc(savedUid).update({ clientFolders: FD }); }
     // правило клиента («Это я» и т.п.) — переносим, если у основного своего нет
     const rules = (userProfile && userProfile.clientRules) || {};
     if (rules[fl] && !rules[tl]) {
@@ -878,6 +882,64 @@ function cabMergeIntoOpen(sel) {
   if (from && cabClientOpen) cabMergeClients(from, cabClientOpen);
 }
 
+// ---- ПАПКИ КЛИЕНТОВ (откуда пришли: Threads, чат СП и т.п.) ----
+// userProfile.clientFolders = { list: ['Threads', ...], map: { 'имя в нижнем регистре': 'Threads' } } — у клиента одна папка
+let cabFolderFilter = '';        // '' — все папки, '-' — без папки
+const cabSel = new Set();        // отмеченные галочками клиенты (для «В папку»)
+function cabFolders() { const f = (userProfile && userProfile.clientFolders) || {}; return { list: Array.isArray(f.list) ? f.list.slice() : [], map: { ...(f.map || {}) } }; }
+function cabFolderOf(name) { return cabFolders().map[String(name).toLowerCase()] || ''; }
+async function cabSaveFolders(f) {
+  userProfile.clientFolders = f;
+  try { await db.collection('users').doc(savedUid).update({ clientFolders: f }); } catch (e) { alert('Не удалось сохранить папки: ' + e.message); }
+  renderCabClients(document.getElementById('cabMain'));
+}
+function cabFolderNew() {
+  const n = (prompt('Название новой папки (например, Threads):') || '').trim(); if (!n) return;
+  const f = cabFolders(); if (f.list.some(x => x.toLowerCase() === n.toLowerCase())) { alert('Такая папка уже есть'); return; }
+  f.list.push(n); cabSaveFolders(f);
+}
+function cabFolderRename(enc) {
+  const old = decodeURIComponent(enc); const n = (prompt('Новое название папки:', old) || '').trim(); if (!n || n === old) return;
+  const f = cabFolders(); f.list = f.list.map(x => x === old ? n : x); for (const k in f.map) if (f.map[k] === old) f.map[k] = n;
+  if (cabFolderFilter === old) cabFolderFilter = n; cabSaveFolders(f);
+}
+function cabFolderDelete(enc) {
+  const name = decodeURIComponent(enc); if (!confirm(`Удалить папку «${name}»?\nКлиенты останутся, просто без папки.`)) return;
+  const f = cabFolders(); f.list = f.list.filter(x => x !== name); for (const k in f.map) if (f.map[k] === name) delete f.map[k];
+  if (cabFolderFilter === name) cabFolderFilter = ''; cabSaveFolders(f);
+}
+function cabSetFolderFilter(enc) { cabFolderFilter = decodeURIComponent(enc); renderCabClients(document.getElementById('cabMain')); }
+function cabSetClientFolder(enc, folder) {
+  const f = cabFolders(); const k = decodeURIComponent(enc).toLowerCase();
+  if (folder) f.map[k] = folder; else delete f.map[k]; cabSaveFolders(f);
+}
+// Галочки в списке: панель «Выбрано N → В папку» обновляется без перерисовки таблицы
+function cabSelBar() {
+  const bar = document.getElementById('cabSelBar'); if (!bar) return;
+  const f = cabFolders();
+  bar.style.display = cabSel.size ? 'flex' : 'none';
+  bar.innerHTML = `<b>Выбрано: ${cabSel.size}</b>
+    <select onchange="if(this.value)cabSelMove(this.value)" class="cab-sel-select"><option value="">Переместить в папку…</option>${f.list.map(x => `<option value="${x.replace(/"/g, '&quot;')}">${x}</option>`).join('')}<option value="+">+ Новая папка…</option></select>
+    <button class="cab-filter-btn" onclick="cabSelMove('-')">Убрать из папки</button>
+    <button class="cab-filter-btn" onclick="cabSel.clear();renderCabClients(document.getElementById('cabMain'))">Снять выбор</button>`;
+}
+function cabSelToggle(enc, on) { const n = decodeURIComponent(enc); if (on) cabSel.add(n); else cabSel.delete(n); cabSelBar(); }
+function cabSelAllVisible(on) {
+  document.querySelectorAll('#cabClientsTable input[data-sel]').forEach(i => { i.checked = on; const n = decodeURIComponent(i.dataset.sel); if (on) cabSel.add(n); else cabSel.delete(n); });
+  cabSelBar();
+}
+function cabSelMove(folder) {
+  if (!cabSel.size) return;
+  const f = cabFolders();
+  if (folder === '+') {
+    const n = (prompt('Название новой папки:') || '').trim(); if (!n) { cabSelBar(); return; }
+    if (!f.list.some(x => x.toLowerCase() === n.toLowerCase())) f.list.push(n);
+    folder = f.list.find(x => x.toLowerCase() === n.toLowerCase());
+  }
+  for (const n of cabSel) { if (folder === '-') delete f.map[n.toLowerCase()]; else f.map[n.toLowerCase()] = folder; }
+  cabSel.clear(); cabSaveFolders(f);
+}
+
 function cabSetClientFilter(f) { cabClientFilter = f; renderCabClients(document.getElementById('cabMain')); }
 
 function renderCabClients(container) {
@@ -888,12 +950,18 @@ function renderCabClients(container) {
   const totalUnpaid = all.reduce((n, m) => n + m.unpaidDue, 0);
   const debtors = all.filter(m => m.unpaidDue > 0.005).length;
   const okSum = S.clientItemsSum - S.sharedExtra + S.noClientItems === S.totalItemsDb;
-  const list = cabClientFilter === 'all' ? all : all.filter(c => c.status === cabClientFilter);
+  const F = cabFolders();
+  if (cabFolderFilter && cabFolderFilter !== '-' && !F.list.includes(cabFolderFilter)) cabFolderFilter = '';
+  const folderOf = c => F.map[c.name.toLowerCase()] || '';
+  let list = cabClientFilter === 'all' ? all : all.filter(c => c.status === cabClientFilter);
+  if (cabFolderFilter) list = list.filter(c => cabFolderFilter === '-' ? !folderOf(c) : folderOf(c) === cabFolderFilter);
 
-  const rows = list.map(c => {
+  const rowHtml = c => {
     const st = CAB_CLIENT_STATUS[c.status];
     const ownerBadge = c.isOwner ? ' <span style="font-size:12px;background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:4px;font-weight:600">свой</span>' : '';
+    const enc = encodeURIComponent(c.name);
     return `<tr>
+      <td class="cab-sel-td"><input type="checkbox" data-sel="${enc}" ${cabSel.has(c.name) ? 'checked' : ''} onchange="cabSelToggle('${enc}',this.checked)"></td>
       <td style="font-weight:500"><a href="#" onclick="cabOpenClient('${encodeURIComponent(c.name)}');return false" style="color:#6C4DB8;text-decoration:none">${c.name}</a>${ownerBadge}</td>
       <td><span style="font-size:13px;background:${st.bg};color:${st.color};padding:3px 8px;border-radius:5px;font-weight:600">${st.label}</span></td>
       <td>${c.ships.length}</td>
@@ -903,7 +971,21 @@ function renderCabClients(container) {
       <td>${cabFmt(c.totalDue)}</td>
       <td class="${c.totalProfit >= 0 ? 'val-green' : 'val-red'}">${c.totalProfit >= 0 ? '+' : ''}${cabFmt(c.totalProfit)}</td>
     </tr>`;
-  }).join('');
+  };
+  // Есть папки — список разделён на группы по папкам (в порядке папок), «Без папки» в конце; внутри — текущая сортировка и фильтр статуса
+  let rows;
+  if (F.list.length) {
+    const groups = [...F.list, ''].map(fd => ({ fd, items: list.filter(c => folderOf(c) === fd) })).filter(g => g.items.length);
+    rows = groups.map(g => `<tr class="cab-grp"><td colspan="9"><i class="ti ti-folder${g.fd ? '' : '-off'}"></i> ${g.fd || 'Без папки'} <span>${g.items.length}</span></td></tr>` + g.items.map(rowHtml).join('')).join('');
+  } else rows = list.map(rowHtml).join('');
+  const fchip = (val, label, n, extra) => `<span class="cab-fchip${cabFolderFilter === val ? ' on' : ''}" onclick="cabSetFolderFilter('${encodeURIComponent(val)}')">${label}${n !== null ? ` <i>${n}</i>` : ''}${extra || ''}</span>`;
+  const folderRow = `<div class="cab-frow"><span class="cab-frow-l"><i class="ti ti-folders"></i> Папки:</span>
+    ${fchip('', 'Все', null)}
+    ${F.list.map(fd => fchip(fd, fd, all.filter(c => folderOf(c) === fd).length,
+      cabFolderFilter === fd ? ` <b onclick="event.stopPropagation();cabFolderRename('${encodeURIComponent(fd)}')" title="Переименовать"><i class="ti ti-pencil"></i></b><b onclick="event.stopPropagation();cabFolderDelete('${encodeURIComponent(fd)}')" title="Удалить папку"><i class="ti ti-x"></i></b>` : '')).join('')}
+    ${F.list.length ? fchip('-', 'Без папки', all.filter(c => !folderOf(c)).length) : ''}
+    <span class="cab-fchip add" onclick="cabFolderNew()"><i class="ti ti-plus"></i> Папка</span>
+    <span style="font-size:12px;color:#9aa0ab;margin-left:6px">Отметьте клиентов галочками → «Переместить в папку»</span></div>`;
 
   const fbtn = (k, l) => `<button onclick="cabSetClientFilter('${k}')" style="border:none;background:${cabClientFilter === k ? '#f0ecf9' : 'none'};color:${cabClientFilter === k ? '#6C4DB8' : '#6b7280'};font-weight:${cabClientFilter === k ? 600 : 500};font-size:14px;padding:5px 10px;border-radius:6px;cursor:pointer">${l}</button>`;
 
@@ -939,11 +1021,14 @@ function renderCabClients(container) {
       <div style="display:flex;gap:2px;flex-wrap:nowrap;margin-bottom:10px">
         ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}
       </div>
-      <table class="cab-table">
-        <thead><tr><th>Клиент</th><th>Статус</th><th>Приходов</th><th>Позиций</th><th>Вес</th><th>Долг (не оплачено)</th><th>Всего BYN</th><th>Прибыль</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
+      ${folderRow}
+      <div id="cabSelBar" class="cab-selbar" style="display:none"></div>
+      <table class="cab-table" id="cabClientsTable">
+        <thead><tr><th class="cab-sel-td"><input type="checkbox" title="Отметить всех в списке" onchange="cabSelAllVisible(this.checked)"></th><th>Клиент</th><th>Статус</th><th>Приходов</th><th>Позиций</th><th>Вес</th><th>Долг (не оплачено)</th><th>Всего BYN</th><th>Прибыль</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
       </table>
     </div>`;
+  cabSelBar();
 }
 
 function cabOpenClient(encName) {
@@ -1029,7 +1114,10 @@ function cabRenderClientCard(container, name) {
       <div class="cab-main-title" style="margin:0">${m.name}</div>
       <span style="font-size:13px;background:${st.bg};color:${st.color};padding:3px 8px;border-radius:5px;font-weight:600">${st.label}</span>
       ${m.isOwner ? '<span style="font-size:13px;background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:5px">свой</span>' : ''}
-      <select onchange="cabMergeIntoOpen(this)" title="Если это один и тот же человек под разными именами" style="margin-left:auto;padding:7px 10px;border:1px solid #d5d8dd;border-radius:8px;font-size:14px;background:#fff;color:#4a5260;cursor:pointer">
+      <select onchange="cabSetClientFolder('${enc}', this.value)" title="Папка клиента (откуда пришёл)" style="margin-left:auto;padding:7px 10px;border:1px solid #d5d8dd;border-radius:8px;font-size:14px;background:#fff;color:#4a5260;cursor:pointer">
+        <option value="">Без папки</option>${cabFolders().list.map(fd => `<option value="${fd.replace(/"/g, '&quot;')}" ${cabFolderOf(m.name) === fd ? 'selected' : ''}>Папка: ${fd}</option>`).join('')}
+      </select>
+      <select onchange="cabMergeIntoOpen(this)" title="Если это один и тот же человек под разными именами" style="padding:7px 10px;border:1px solid #d5d8dd;border-radius:8px;font-size:14px;background:#fff;color:#4a5260;cursor:pointer">
         <option value="">Присоединить клиента…</option>
         ${(() => { const nm = cabNameNorm(m.name); const others = S.list.filter(x => x.name !== m.name)
             .map(x => ({ x, d: cabLev(cabNameNorm(x.name), nm) })).sort((a, b) => a.d - b.d || a.x.name.localeCompare(b.x.name, 'ru'));
