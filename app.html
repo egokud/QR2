@@ -100,7 +100,7 @@
       <div style="width:60px;height:60px;border-radius:14px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-layout-dashboard" style="color:#6C4DB8;font-size:32px"></i></div>
       <div style="text-align:left;flex:1">
         <div style="font-size:20px;font-weight:600;color:#1a1a2e;margin-bottom:4px">Кабинет</div>
-        <div style="font-size:15px;color:#4a5260;line-height:1.45">Компьютер. Приходы, клиенты, цены, расчёты и аналитика</div>
+        <div style="font-size:15px;color:#4a5260;line-height:1.45">Компьютер. Закупки, клиенты, цены, расчёты и аналитика</div>
       </div>
       <i class="ti ti-chevron-right" style="color:#c5c8ce;font-size:24px;flex-shrink:0"></i>
     </div>
@@ -120,7 +120,7 @@
     </div>
     <div class="cab-nav" id="cabNav">
       <button class="cab-nav-item active" data-section="overview" onclick="cabNav('overview')"><i class="ti ti-chart-dots-3"></i> Обзор</button>
-      <button class="cab-nav-item" data-section="shipments" onclick="cabNav('shipments')"><i class="ti ti-package"></i> Приходы</button>
+      <button class="cab-nav-item" data-section="shipments" onclick="cabNav('shipments')"><i class="ti ti-package"></i> Закупки</button>
       <button class="cab-nav-item" data-section="clients" onclick="cabNav('clients')"><i class="ti ti-users"></i> Клиенты</button>
       <button class="cab-nav-item" data-section="prices" onclick="cabNav('prices')"><i class="ti ti-currency-yuan"></i> Цены</button>
       <button class="cab-nav-item" data-section="calc" onclick="cabNav('calc')"><i class="ti ti-calculator"></i> Расчёты</button>
@@ -175,8 +175,8 @@
 </div>
 <div class="shipment-section">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <span class="shipment-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px;cursor:pointer" onclick="toggleShipCollapse()">Приходы <i class="ti ti-chevron-up" id="shipCollapseIcon" style="font-size:16px;color:#9aa0ab;transition:transform 0.2s"></i></span>
-    <button onclick="openUploadModal()" style="display:flex;align-items:center;gap:5px;background:none;border:1px solid #d5d8dd;border-radius:8px;padding:5px 11px;font-size:13px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-plus" style="font-size:16px"></i> Добавить приход</button>
+    <span class="shipment-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px;cursor:pointer" onclick="toggleShipCollapse()">Закупки <i class="ti ti-chevron-up" id="shipCollapseIcon" style="font-size:16px;color:#9aa0ab;transition:transform 0.2s"></i></span>
+    <button onclick="openUploadModal()" style="display:flex;align-items:center;gap:5px;background:none;border:1px solid #d5d8dd;border-radius:8px;padding:5px 11px;font-size:13px;color:#5f6470;cursor:pointer;font-weight:500"><i class="ti ti-plus" style="font-size:16px"></i> Новая закупка</button>
   </div>
   <select class="shipment-select" id="shipmentSelect" onchange="switchShipment()" style="display:none"></select>
   <button id="btnCacheImages" onclick="cacheShipmentImages()" style="display:none"></button>
@@ -306,7 +306,7 @@
     <div class="profile-card">
       <h3><i class="ti ti-puzzle" aria-hidden="true" style="font-size:14px;margin-right:4px;"></i> Расширение для импорта</h3>
       <div style="font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:12px;">
-        Расширение Chrome для импорта треков из Pinduoduo прямо в приход. Установите один раз — и импортируйте заказы в один клик.
+        Расширение Chrome для импорта треков из Pinduoduo прямо в закупку. Установите один раз — и импортируйте заказы в один клик.
       </div>
       <a href="https://github.com/egokud/QR2/raw/main/piksta-extension.zip" download style="display:flex;align-items:center;justify-content:center;gap:8px;background:#6C4DB8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:500;text-decoration:none;margin-bottom:10px;">
         <i class="ti ti-download" style="font-size:18px;"></i> Скачать расширение
@@ -347,14 +347,14 @@
   <div class="rates-modal-card">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
       <div>
-        <div style="font-size:17px;font-weight:500;color:#1a1a2e">Курсы прихода</div>
+        <div style="font-size:17px;font-weight:500;color:#1a1a2e">Курсы закупки</div>
         <div style="font-size:13px;color:#9aa0ab;margin-top:2px" id="ratesModalSub"></div>
       </div>
       <button onclick="closeRatesModal()" style="background:none;border:none;color:#9aa0ab;cursor:pointer;font-size:20px;padding:0"><i class="ti ti-x"></i></button>
     </div>
     <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:18px">
       <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Клиент BYN/¥</span><input type="number" step="0.01" id="rateClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
-      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Закупка BYN/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
+      <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Выкуп BYN/¥</span><input type="number" step="0.01" id="rateBuy" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
       <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка клиенту BYN/кг</span><input type="number" step="0.5" id="rateShipClient" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
       <label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:#6b7280">Доставка карго BYN/кг</span><input type="number" step="0.5" id="rateShipCargo" onchange="onRateChange()" style="border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:15px;outline:none;color:#1a1a2e;width:100%;box-sizing:border-box"></label>
     </div>
@@ -458,8 +458,8 @@
 
 <div class="modal-overlay" id="uploadModal">
   <div class="modal-card">
-    <h3><i class="ti ti-upload" style="font-size:16px;margin-right:4px"></i> Загрузить партию</h3>
-    <input type="text" id="shipmentName" placeholder="Название (напр: Партия 15 сентября)">
+    <h3><i class="ti ti-upload" style="font-size:16px;margin-right:4px"></i> Новая закупка</h3>
+    <input type="text" id="shipmentName" placeholder="Название (напр.: Закупка 15.09)">
     <p style="font-size:12px;color:#888;margin-bottom:8px">CSV: первая колонка — трек, вторая — склад</p>
     <input type="file" id="csvFile" accept=".csv,.txt">
     <div class="modal-buttons">
