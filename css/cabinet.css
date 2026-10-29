@@ -368,3 +368,26 @@
 .cab-dlg-f{display:flex;align-items:center;gap:8px;margin-top:18px}
 .cab-dlg-f span{margin-right:auto;font-size:12px;color:#9aa0ab}
 .cab-rates-grid .cab-rate-f span{white-space:nowrap}
+
+/* Наценка в заказах (честная разбивка), прокрутка этапов, подсказки «?» */
+.cab-wait-warn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 10px;margin:-4px 0 10px}
+.cab-wait-warn .ti{font-size:15px}
+.cab-wait-bar span.est,.cab-wait-rows i.est{background:repeating-linear-gradient(135deg,#d1d5db 0 4px,#eef0f3 4px 8px)}
+.cab-wait-bar span{border-radius:0}
+.cab-wait-rows{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:13px}
+.cab-wait-rows>div{display:flex;align-items:center;gap:8px}
+.cab-wait-rows i{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.cab-wait-rows span{color:#4a5260}
+.cab-wait-rows em{font-style:normal;color:#b45309;font-size:12px;margin-left:2px}
+.cab-wait-rows b{margin-left:auto;color:#1a1a2e;font-weight:600}
+.cab-flow-list{max-height:304px;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.cab-flow-list::-webkit-scrollbar{width:6px}.cab-flow-list::-webkit-scrollbar-thumb{background:#d5d8dd;border-radius:3px}
+.cab-help{border:none;background:none;padding:0 0 0 4px;cursor:pointer;color:#c5c9cf;font-size:16px;display:inline-flex;align-items:center}
+.cab-help:hover{color:#6C4DB8}
+.cab-card-h .cab-help{font-size:17px}
+.cab-help-pop{position:fixed;z-index:1001;width:340px;background:#1f2430;color:#e5e7eb;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+.cab-help-pop,.cab-help-pop *{white-space:normal}
+.cab-help-pop b{color:#fff}
+.cab-help-pop>b{display:block;font-size:14px;margin-bottom:4px}
+.cab-wait-warn+.cab-wait-s{margin:-4px 0 12px;font-size:12px;color:#6b7280}
+.cab-flow-profit em{font-style:normal;font-weight:500;font-size:11.5px;color:#9aa0ab;margin-left:2px}
