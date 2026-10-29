@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/welcome",
+      "destination": "/welcome.html"
+    },
+    {
       "source": "/offer",
       "destination": "/offer.html"
     },
@@ -67,6 +71,15 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=604800"
+        }
+      ]
+    },
+    {
+      "source": "/welcome",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
         }
       ]
     }
