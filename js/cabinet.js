@@ -2,13 +2,10 @@
 let cabCurrentSection = 'overview';
 let cabShipmentsCache = []; // кэш приходов для кабинета
 
+// «Выйти» в Кабинете — выход из аккаунта (экрана выбора режима больше нет)
 function exitCabinet() {
   if (cabShipId) { cabShipId = null; restoreActiveEditing(); }
-  document.getElementById('cabinetScreen').classList.remove('show');
-  localStorage.removeItem('piksta_mode');
-  document.getElementById('modeSelectScreen').classList.remove('hide');
-  const hi = document.getElementById('modeSelectHi');
-  if (hi) hi.textContent = 'Куда переходим, ' + (userProfile.name ? userProfile.name.split(' ')[0] : '') + '?';
+  doLogout();
 }
 
 // Боковое меню: можно свернуть до значков (запоминается); на узком окне при первом входе — свёрнуто
@@ -38,9 +35,9 @@ async function openCabinet() {
   document.getElementById('cabAdminDivider').style.display = isAdmin ? 'block' : 'none';
   document.getElementById('cabUserName').textContent = userProfile.name || currentUser.email;
   document.getElementById('cabUserRole').textContent = isAdmin ? 'Администратор' : 'Пользователь';
-  // Клик по логотипу — на экран выбора режима (мобильный / десктопный)
+  // Клик по логотипу — на Обзор
   const logo = document.querySelector('.cab-sidebar-logo');
-  if (logo) { logo.style.cursor = 'pointer'; logo.title = 'Выбор режима'; logo.onclick = exitCabinet; }
+  if (logo) { logo.style.cursor = 'pointer'; logo.title = 'Обзор'; logo.onclick = () => cabNav('overview'); }
   await loadCabinetData();
   cabNav('overview');
 }

@@ -1,12 +1,7 @@
 // ============ AUTH LISTENER ============
 auth.onAuthStateChanged(async (user) => {
-  // Гость на piksta.online → лендинг /welcome. Вход — /?login (запоминается на сессию), из установленного приложения и после выхода — сразу форма входа
-  if (!user) {
-    const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
-    let wantLogin = /[?&]login\b/.test(location.search);
-    try { if (wantLogin) sessionStorage.setItem('pk_login', '1'); else wantLogin = sessionStorage.getItem('pk_login') === '1'; } catch (e) {}
-    if (!standalone && !wantLogin && !window.__pkWasIn) { location.replace('/welcome'); return; }
-  } else window.__pkWasIn = true;
+  // Приложение живёт на /app, лендинг — на главной. Метка pk_in нужна главной, чтобы вошедших сразу отправлять в приложение
+  try { if (user) localStorage.setItem('pk_in', '1'); else localStorage.removeItem('pk_in'); } catch (e) {}
   document.getElementById('loadingScreen').classList.add('hide');
   if (user) {
     currentUser = user;
@@ -18,6 +13,8 @@ auth.onAuthStateChanged(async (user) => {
     currentUser = null;
     userProfile = null;
     document.getElementById('appScreen').classList.add('hide');
+    document.getElementById('cabinetScreen').classList.remove('show');
+    document.getElementById('modeSelectScreen').classList.add('hide');
     document.getElementById('authScreen').classList.remove('hide');
     showScreen('login');
   }
@@ -125,6 +122,7 @@ function chooseMode(mode) {
 // Вход в режим (scanner = мобильный сканер, cabinet = широкий Кабинет)
 function enterMode(mode) {
   document.getElementById('modeSelectScreen').classList.add('hide');
+  try { localStorage.setItem('piksta_mode', mode); } catch (e) {}  // запоминаем последний выбор
   if (mode === 'cabinet') {
     document.getElementById('cabinetScreen').classList.add('show');
     openCabinet();
@@ -135,15 +133,13 @@ function enterMode(mode) {
 
 async function showApp() {
   document.getElementById('authScreen').classList.add('hide');
-  // Экран выбора режима: если запомнен — сразу в него, иначе показываем выбор
-  const remembered = localStorage.getItem('piksta_mode');
-  if (remembered === 'scanner' || remembered === 'cabinet') {
-    enterMode(remembered);
-  } else {
-    const hi = document.getElementById('modeSelectHi');
-    if (hi) hi.textContent = 'Куда переходим, ' + (userProfile.name ? userProfile.name.split(' ')[0] : '') + '?';
-    document.getElementById('modeSelectScreen').classList.remove('hide');
+  // Без экрана выбора: последний выбор пользователя, иначе по устройству — телефон → сканер, компьютер → Кабинет
+  let remembered = null; try { remembered = localStorage.getItem('piksta_mode'); } catch (e) {}
+  if (remembered !== 'scanner' && remembered !== 'cabinet') {
+    const phone = window.matchMedia && (matchMedia('(max-width: 820px)').matches || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 768));
+    remembered = phone ? 'scanner' : 'cabinet';
   }
+  enterMode(remembered);
   document.getElementById('userBadgeName').textContent = userProfile.name || currentUser.email;
   if (userProfile.role === 'admin') { const cb = document.querySelector('.contact-banner'); if (cb) cb.style.display = 'none'; }
 
@@ -886,6 +882,7 @@ function openRatesModal(id) {
 }
 function closeRatesModal() {
   document.getElementById('ratesModal').classList.remove('open');
+  restoreActiveEditing();
 }
 
 // При изменении любого поля курса — обновляем currentRates и сохраняем в приход
@@ -1049,7 +1046,7 @@ function openShipMenu(id, ev) {
     <button onclick="loadForAction('${id}').then(()=>openCalc());closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
     <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
     ${pkOfflineMenuBtn(id)}
-    <button onclick="loadForAction('${id}').then(()=>resetAll());closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
+    <button onclick="loadForAction('${id}').then(()=>resetAll()).then(restoreActiveEditing);closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
     <button onclick="exportForInventory('${id}');closeShipMenu()"><i class="ti ti-file-export" aria-hidden="true"></i> Выгрузить для описи</button>
     <button onclick="openCargoCompare('${id}');closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
     <button onclick="loadForAction('${id}').then(()=>deleteShipment());closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
@@ -1417,8 +1414,9 @@ async function updateShipmentStats() {
 
 // ============ SAVE SCANNED ============
 async function saveScanned() {
-  if (!activeShipmentId) return;
-  await scannedRef(activeShipmentId).set({ items: scanned });
+  const sid = editingShipmentId || activeShipmentId;  // отметки принадлежат приходу, чьи данные загружены — никогда не пишем их в чужой
+  if (!sid) return;
+  await scannedRef(sid).set({ items: scanned });
 }
 
 // ============ HISTORY (FIRESTORE) ============
@@ -1443,6 +1441,8 @@ function levenshtein(a, b) {
 
 // ============ LOOKUP ============
 function lookup(code) {
+  // если после действия из шестерёнки загружен другой приход — сначала вернуть выбранный, потом искать
+  if (editingShipmentId && activeShipmentId && editingShipmentId !== activeShipmentId) { restoreActiveEditing().then(() => lookup(code)); return; }
   code = code.trim(); if (!code || !TABLE.length) return;
   const isP = code.length <= 6, cl = code.toLowerCase();
   // Частичный код ищем по вхождению в любом месте трека (includes), полный — точное совпадение
@@ -1594,8 +1594,8 @@ async function checkCacheStatus() {
 function pkOfflineMenuBtn(id) {
   let n = 0; try { n = +localStorage.getItem('pk_off_' + id) || 0; } catch (e) {}
   return n
-    ? `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}'));closeShipMenu()" style="color:#15803d"><i class="ti ti-cloud-check" aria-hidden="true"></i> Фото скачаны (${n}) · обновить</button>`
-    : `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}'));closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Скачать фото для работы без интернета</button>`;
+    ? `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}')).then(restoreActiveEditing);closeShipMenu()" style="color:#15803d"><i class="ti ti-cloud-check" aria-hidden="true"></i> Фото скачаны (${n}) · обновить</button>`
+    : `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}')).then(restoreActiveEditing);closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Скачать фото для работы без интернета</button>`;
 }
 // Полоса прогресса скачивания фото (внизу экрана)
 function pkCacheBar(state, done, total) {
