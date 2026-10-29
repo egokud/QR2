@@ -421,7 +421,7 @@ function cabShipTabSet(t) { cabShipTab = t; cabRenderShip(); }
 function cabRenderShip() {
   const ship = cabShipmentsCache.find(s => s.id === cabShipId) || {};
   const calc = computeClientCalc();
-  const order = ['forming','transit','warehouse','sorted','done'];
+  const order = ['forming','transit','delayed','warehouse','sorted','done'];
   const opts = order.map(k => `<option value="${k}" ${(ship.status || 'forming') === k ? 'selected' : ''}>${SHIP_STATUSES[k].label}</option>`).join('');
   const tabs = [['items','Товары и цены'],['weigh','Взвешивание'],['calc','Расчёт'],['rates','Курсы']]
     .map(([k, l]) => `<button class="cab-filter-btn ${cabShipTab === k ? 'active' : ''}" onclick="cabShipTabSet('${k}')">${l}</button>`).join('');
@@ -712,6 +712,7 @@ const CAB_CLIENT_STATUS = {
   new:       { label: 'Новый',    bg: '#ede9fe', color: '#6C4DB8' },
   active:    { label: 'Активный', bg: '#dcfce7', color: '#16a34a' },
   regular:   { label: 'Обычный',  bg: '#f3f4f6', color: '#4a5260' },
+  once:      { label: 'Разовый',  bg: '#e0f2fe', color: '#0369a1' },
   forgotten: { label: 'Забытый',  bg: '#fef3c7', color: '#b45309' }
 };
 
@@ -749,13 +750,102 @@ function cabClientsSummary() {
     const ids = m.ships.map(x => x.ship.id);
     const inLatest = latestIds.length > 0 && ids.includes(latestIds[0]);
     const inBoth = latestIds.length === 2 && latestIds.every(id => ids.includes(id));
+    const last3 = ships.slice(0, 3).map(s => s.id);
     if (ids.length === 1 && inLatest) m.status = 'new';                          // впервые в самом свежем приходе
     else if (inBoth) m.status = 'active';                                        // в двух последних приходах
-    else if (ids.length === 1 && !latestIds.includes(ids[0])) m.status = 'forgotten'; // один приход и он не из двух последних
+    else if (ids.length === 1) m.status = 'once';                                // разовый: был только в одном приходе
+    else if (!ids.some(id => last3.includes(id))) m.status = 'forgotten';        // 2+ прихода, но в трёх последних нет
     else m.status = 'regular';
   }
   const clientItemsSum = list.reduce((n, m) => n + m.totalItems, 0);
   return { list, totalItemsDb, noClientItems, sharedItems, sharedExtra, clientItemsSum };
+}
+
+// ---- ДУБЛИ КЛИЕНТОВ ----
+// Нормализация для поиска: регистр, ё/е, пробелы и знаки не важны («Марина (Marinn07)» = «Марина(Marinn07)»)
+function cabNameNorm(n) { return String(n || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]/g, ''); }
+function cabLev(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// Пары похожих имён: exact — отличаются только пробелами/знаками/регистром; near — 1–2 буквы разницы (длинные имена)
+function cabFindDupes(list) {
+  const out = [];
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j], na = cabNameNorm(a.name), nb = cabNameNorm(b.name);
+    if (!na || !nb) continue;
+    const exact = na === nb;
+    if (exact || (Math.min(na.length, nb.length) >= 6 && cabLev(na, nb) <= 2)) {
+      const [keep, drop] = (b.ships.length > a.ships.length) ? [b, a] : [a, b];   // остаётся имя, у кого больше приходов
+      out.push({ keep, drop, exact });
+    }
+  }
+  return out.sort((x, y) => (y.exact - x.exact) || x.keep.name.localeCompare(y.keep.name, 'ru'));
+}
+
+// Объединить клиента fromName в toName во ВСЕХ приходах: имя в товарах + веса, оплаты, отметки. Транзакция на каждый приход.
+async function cabMergeClients(fromName, toName) {
+  const fl = fromName.toLowerCase(), tl = toName.toLowerCase();
+  if (fl === tl) return;
+  const touched = cabShipmentsCache.filter(s => (s.data || []).some(row => splitWarehouses((Array.isArray(row) ? row[1] : row.w) || '').some(p => p.toLowerCase() === fl)));
+  if (!confirm(`Объединить клиента «${fromName}» с «${toName}»?\n\nВо всех приходах (${touched.length}) имя «${fromName}» заменится на «${toName}», вместе с весами и оплатами.\nОтменить автоматически нельзя.`)) return;
+  const MAPS = ['weights', 'payments', 'dueOverride', 'owners', 'costGoods', 'costShip', 'priceInclWeight'];
+  try {
+    for (const ship of touched) {
+      const ref = shipmentsRef().doc(ship.id);
+      await db.runTransaction(async t => {
+        const doc = await t.get(ref);
+        if (!doc.exists) return;
+        const d = doc.data();
+        const upd = {};
+        upd.data = (d.data || []).map(row => {
+          const w = (Array.isArray(row) ? row[1] : row.w) || '';
+          const parts = splitWarehouses(w);
+          if (!parts.some(p => p.toLowerCase() === fl)) return row;
+          const np = []; for (const p of parts) { const v = p.toLowerCase() === fl ? toName : p; if (!np.some(x => x.toLowerCase() === v.toLowerCase())) np.push(v); }
+          const nw = np.join(' и ');
+          if (Array.isArray(row)) { const r = row.slice(); r[1] = nw; return r; }
+          return { ...row, w: nw };
+        });
+        for (const f of MAPS) {
+          const m = { ...(d[f] || {}) };
+          const fk = Object.keys(m).find(k => k.toLowerCase() === fl);
+          if (fk === undefined) continue;
+          const tk = Object.keys(m).find(k => k.toLowerCase() === tl);
+          const v = m[fk]; delete m[fk];
+          if (tk === undefined) m[toName] = v;
+          else if (f === 'weights') m[tk] = Math.round(((m[tk] || 0) + (v || 0)) * 1000) / 1000;
+          else if (f === 'payments') m[tk] = { paid: Math.round((((m[tk] && m[tk].paid) || 0) + ((v && v.paid) || 0)) * 100) / 100, at: new Date().toISOString() };
+          else if (f === 'dueOverride') delete m[tk];      // у объединённого клиента — снова расчётная сумма
+          else m[tk] = !!(m[tk] || v);
+          upd[f] = m;
+        }
+        t.update(ref, upd);
+      });
+    }
+    // правило клиента («Это я» и т.п.) — переносим, если у основного своего нет
+    const rules = (userProfile && userProfile.clientRules) || {};
+    if (rules[fl] && !rules[tl]) {
+      const nr = { ...rules, [tl]: rules[fl] }; delete nr[fl];
+      await db.collection('users').doc(savedUid).update({ clientRules: nr });
+      userProfile.clientRules = nr;
+    }
+  } catch (e) { alert('Не удалось объединить: ' + e.message); }
+  await loadCabinetData();
+  cabClientOpen = cabClientOpen ? toName : null;
+  renderCabClients(document.getElementById('cabMain'));
+}
+function cabMergeDupe(encFrom, encTo) { cabMergeClients(decodeURIComponent(encFrom), decodeURIComponent(encTo)); }
+// Из карточки клиента: выбранного клиента присоединить к открытому
+function cabMergeIntoOpen(sel) {
+  const from = sel.value; sel.selectedIndex = 0;
+  if (from && cabClientOpen) cabMergeClients(from, cabClientOpen);
 }
 
 function cabSetClientFilter(f) { cabClientFilter = f; renderCabClients(document.getElementById('cabMain')); }
@@ -789,21 +879,35 @@ function renderCabClients(container) {
 
   container.innerHTML = `
     <div class="cab-main-title">Клиенты</div>
-    <div class="cab-stats" style="grid-template-columns:repeat(6,1fr)">
+    <div class="cab-stats" style="grid-template-columns:repeat(7,1fr)">
       <div class="cab-stat-card"><div class="cab-stat-val">${all.length}</div><div class="cab-stat-label">Всего клиентов</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cnt('new')}</div><div class="cab-stat-label">Новых клиентов</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#16a34a">${cnt('active')}</div><div class="cab-stat-label">Активных клиентов</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#b45309">${cnt('forgotten')}</div><div class="cab-stat-label">Забытых клиентов</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt(totalUnpaid)}</div><div class="cab-stat-label">Текущая задолженность, BYN</div></div>
+      <div class="cab-stat-card" title="Впервые в самом свежем приходе"><div class="cab-stat-val" style="color:#6C4DB8">${cnt('new')}</div><div class="cab-stat-label">Новых</div></div>
+      <div class="cab-stat-card" title="Есть в двух последних приходах"><div class="cab-stat-val" style="color:#16a34a">${cnt('active')}</div><div class="cab-stat-label">Активных</div></div>
+      <div class="cab-stat-card" title="Заказывали только в одном приходе"><div class="cab-stat-val" style="color:#0369a1">${cnt('once')}</div><div class="cab-stat-label">Разовых</div></div>
+      <div class="cab-stat-card" title="Были в 2+ приходах, но в трёх последних их нет"><div class="cab-stat-val" style="color:#b45309">${cnt('forgotten')}</div><div class="cab-stat-label">Забытых</div></div>
+      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt(totalUnpaid)}</div><div class="cab-stat-label">Задолженность, BYN</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val">${debtors}</div><div class="cab-stat-label">Должников</div></div>
     </div>
     <div style="font-size:13px;color:#6b7280;margin:-14px 0 4px">Задолженность — только по рассортированным и архивным приходам. Формирующиеся и едущие — это «Вложено в товар» в Обзоре</div>
     <div style="font-size:13px;color:${okSum ? '#4a5260' : '#dc2626'};margin:0 0 16px">
       Сверка позиций: в базе ${S.totalItemsDb} = у клиентов ${S.clientItemsSum}${S.sharedExtra ? ' − повторы общих ' + S.sharedExtra : ''}${S.noClientItems ? ' + без клиента ' + S.noClientItems : ''} ${okSum ? '✓' : '— не сходится'}
     </div>
+    ${(() => {
+      const dupes = cabFindDupes(all).slice(0, 12);
+      if (!dupes.length) return '';
+      return `<div class="cab-table-wrap" style="border-color:#fde68a;background:#fffdf5">
+        <div class="cab-table-title" style="margin-bottom:8px"><i class="ti ti-copy" style="color:#b45309;margin-right:6px"></i>Похожие имена — возможно, это один клиент</div>
+        ${dupes.map(p => `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #f3ead0;font-size:14px">
+          <b>${p.drop.name}</b><span style="color:#6b7280">(${p.drop.ships.length} прих.)</span><i class="ti ti-arrow-right" style="color:#9aa0ab"></i><b>${p.keep.name}</b><span style="color:#6b7280">(${p.keep.ships.length} прих.)</span>
+          <span style="font-size:12px;color:${p.exact ? '#16a34a' : '#b45309'}">${p.exact ? 'отличаются только пробелами/знаками' : 'похожее написание — проверьте'}</span>
+          <button class="cab-filter-btn" style="margin-left:auto;padding:5px 12px" onclick="cabMergeDupe('${encodeURIComponent(p.drop.name)}','${encodeURIComponent(p.keep.name)}')">Объединить</button>
+        </div>`).join('')}
+        <div style="font-size:13px;color:#6b7280;margin-top:8px">Другие написания (напр. «Катя Бычковская» и «Kati Bychkovskaya») — в карточке клиента: «Присоединить клиента…»</div>
+      </div>`;
+    })()}
     <div class="cab-table-wrap">
       <div style="display:flex;gap:2px;flex-wrap:nowrap;margin-bottom:10px">
-        ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('forgotten', 'Забытые')}
+        ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}
       </div>
       <table class="cab-table">
         <thead><tr><th>Клиент</th><th>Статус</th><th>Приходов</th><th>Позиций</th><th>Вес</th><th>Долг (не оплачено)</th><th>Всего BYN</th><th>Прибыль</th></tr></thead>
@@ -895,6 +999,12 @@ function cabRenderClientCard(container, name) {
       <div class="cab-main-title" style="margin:0">${m.name}</div>
       <span style="font-size:13px;background:${st.bg};color:${st.color};padding:3px 8px;border-radius:5px;font-weight:600">${st.label}</span>
       ${m.isOwner ? '<span style="font-size:13px;background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:5px">свой</span>' : ''}
+      <select onchange="cabMergeIntoOpen(this)" title="Если это один и тот же человек под разными именами" style="margin-left:auto;padding:7px 10px;border:1px solid #d5d8dd;border-radius:8px;font-size:14px;background:#fff;color:#4a5260;cursor:pointer">
+        <option value="">Присоединить клиента…</option>
+        ${(() => { const nm = cabNameNorm(m.name); const others = S.list.filter(x => x.name !== m.name)
+            .map(x => ({ x, d: cabLev(cabNameNorm(x.name), nm) })).sort((a, b) => a.d - b.d || a.x.name.localeCompare(b.x.name, 'ru'));
+          return others.map(o => `<option value="${o.x.name.replace(/"/g, '&quot;')}">${o.x.name} (${o.x.ships.length} прих.)</option>`).join(''); })()}
+      </select>
     </div>
     <div class="cab-table-wrap" style="padding:14px 18px">
       <div style="display:flex;gap:24px;flex-wrap:nowrap">
@@ -1007,8 +1117,6 @@ function renderCabPrices(container) {
     const rates = ship.rates ? { ...DEFAULT_RATES, ...ship.rates } : { ...DEFAULT_RATES };
     const st = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const isDone = ship.status === 'done';
-    const mRate = rates.clientRate > 0 ? (rates.clientRate - rates.buyRate) / rates.clientRate * 100 : null;
-    const mShip = rates.shipClient > 0 ? (rates.shipClient - rates.shipCargo) / rates.shipClient * 100 : null;
     const t = cabShipTotals(ship);
     if (ship.status === 'forming') t.rent = null;   // формируется: веса нет, рентабельность не окончательна
     if (t.rent !== null) rents.push(t.rent);
@@ -1019,8 +1127,6 @@ function renderCabPrices(container) {
       <td>${rates.buyRate.toFixed(2)}</td>
       <td>${rates.shipClient}</td>
       <td>${rates.shipCargo}</td>
-      <td style="color:#6C4DB8;font-weight:600">${cabPct(mRate)}</td>
-      <td style="color:#16a34a;font-weight:600">${cabPct(mShip)}</td>
       <td style="font-weight:600;color:${t.rent === null ? '#6b7280' : t.rent >= 0 ? '#16a34a' : '#dc2626'}">${cabPct(t.rent)}</td>
     </tr>`;
   }).join('');
@@ -1041,10 +1147,10 @@ function renderCabPrices(container) {
     <div class="cab-table-wrap">
       <div class="cab-table-title">Курсы по приходам</div>
       <table class="cab-table">
-        <thead><tr><th>Приход</th><th>Статус</th><th title="Курс для клиента, BYN за ¥">Курс кл.</th><th title="Курс закупки, BYN за ¥">Курс зак.</th><th title="Доставка клиенту, BYN за кг">Дост. кл.</th><th title="Доставка карго, BYN за кг">Дост. карго</th><th>Маржа курса</th><th>Маржа дост.</th><th>Рентаб.</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:20px">Нет данных</td></tr>'}</tbody>
+        <thead><tr><th>Приход</th><th>Статус</th><th title="Курс для клиента, BYN за ¥">Курс кл.</th><th title="Курс закупки, BYN за ¥">Курс зак.</th><th title="Доставка клиенту, BYN за кг">Дост. кл.</th><th title="Доставка карго, BYN за кг">Дост. карго</th><th>Рентабельность</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет данных</td></tr>'}</tbody>
       </table>
-      <div style="font-size:13px;color:#6b7280;margin-top:12px;line-height:1.6">Курсы — BYN за ¥, доставка — BYN за кг. Маржа = наценка в % от цены для клиента.<br>Рентабельность = прибыль ÷ оборот (сколько должны клиенты) × 100%. Формирующиеся приходы — «—», в среднюю не входят.</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:12px;line-height:1.6">Курсы — BYN за ¥, доставка — BYN за кг.<br>Рентабельность = прибыль ÷ оборот (сколько должны клиенты) × 100%. Формирующиеся приходы — «—», в среднюю не входят.</div>
     </div>`;
 }
 
