@@ -38,7 +38,7 @@
 .cab-table th{text-align:left;padding:9px 10px;color:#6b7280;font-weight:600;font-size:13px;border-bottom:2px solid #dfe2e7}
 .cab-table td{padding:11px 10px;color:#1a1a2e;border-bottom:1px solid #dfe2e7}
 .cab-table tr:last-child td{border-bottom:none}
-.cab-table .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .cab-table .val-green{color:#16a34a;font-weight:600}
 .cab-table .val-red{color:#dc2626;font-weight:600}
 .cab-table .val-purple{color:#6C4DB8;font-weight:600}
@@ -84,3 +84,58 @@
 .cab-cship-row>:first-child{justify-self:end}
 .cab-cship-head{border-color:transparent;background:none;margin-bottom:0}
 .cab-cship-head .cab-cship-row{padding-top:0;padding-bottom:4px;font-size:12px;color:#6b7280;font-weight:600}
+
+/* Боковая панель: подписи в одну строку */
+.cab-sidebar,.cab-sidebar *{white-space:nowrap}
+/* Ноутбуки 1280–1440: панель уже, поля меньше — больше места таблицам */
+@media(min-width:641px) and (max-width:1440px){
+  .cab-sidebar{width:210px}
+  .cab-main{padding:24px 24px}
+  .cab-table th{padding:9px 8px}
+  .cab-table td{padding:11px 8px}
+  .cab-stats{gap:12px}
+  .cab-stat-card{padding:16px 14px}
+  .cab-sidebar-bottom{padding:14px 14px}
+  .cab-sidebar-logout{padding:9px 12px}
+}
+
+/* Тариф */
+.cab-access{display:flex;align-items:center;gap:14px;border-radius:12px;padding:16px 18px;margin-bottom:20px}
+.cab-access>i{font-size:28px;flex-shrink:0}
+.cab-access-title{font-size:16px;font-weight:600}
+.cab-access-text{font-size:14px;color:#4a5260;margin-top:2px}
+.cab-access-vol{margin-left:auto;display:flex;align-items:baseline;gap:18px;padding-left:24px}
+.cab-access-vol>div:not(.cab-access-vol-l){display:flex;flex-direction:column;align-items:flex-end}
+.cab-access-vol span{font-size:13px;color:#6b7280}
+.cab-access-vol b{font-size:20px;color:#1a1a2e}
+.cab-access-vol-l{font-size:13px;color:#6b7280;align-self:flex-end;padding-bottom:3px}
+.cab-period-off{font-size:12px;font-weight:700;color:#16a34a}
+.cab-filter-btn.active .cab-period-off{color:#dcfce7}
+.cab-founder{display:flex;align-items:center;gap:8px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:500;margin-bottom:16px}
+.cab-plans{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.cab-plan{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;min-width:max-content}
+.cab-plan.rec{border-color:#c9bdf0}
+.cab-plan.current{border:2px solid #6C4DB8;padding:17px}
+.cab-plan-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.cab-plan-title{font-size:17px;font-weight:600;color:#1a1a2e}
+.cab-plan-badge{font-size:12px;font-weight:600;background:#f0ecf9;color:#6C4DB8;padding:2px 8px;border-radius:6px;margin-left:auto}
+.cab-plan-badge.cur{background:#6C4DB8;color:#fff}
+.cab-plan-limit{font-size:14px;color:#6b7280;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.cab-plan-fit{font-size:12px;font-weight:600;color:#16a34a;background:#f0fdf4;padding:1px 7px;border-radius:6px}
+.cab-plan-price{font-size:28px;font-weight:700;color:#1a1a2e;line-height:1.2;display:flex;align-items:baseline;gap:8px}
+.cab-plan-old{font-size:14px;font-weight:500;color:#9aa0ab;text-decoration:line-through}
+.cab-plan-note{font-size:14px;color:#6b7280;margin-top:6px}
+.cab-pay-text{font-size:14px;color:#4a5260;line-height:1.6}
+.cab-pay-btns{display:flex;gap:10px;margin-top:14px}
+.cab-pay-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border-radius:9px;border:1px solid #d5d8dd;color:#1f2430;text-decoration:none;font-size:14px;font-weight:500;background:#fff}
+.cab-pay-btn i{font-size:18px}
+.cab-pay-btn:hover{background:#f7f8fa}
+.cab-pay-btn.primary{background:#6C4DB8;border-color:#6C4DB8;color:#fff}
+.cab-pay-btn.primary:hover{background:#5b3fa3}
+
+.cab-atcost{border-bottom:1px dotted #8b909a;cursor:help}
+/* 1281–1366 и уже: плотнее ячейки, чтобы широкие таблицы (Расчёт прихода, Цены) влезали без прокрутки */
+@media(min-width:641px) and (max-width:1366px){
+  .cab-table th{padding:9px 6px}
+  .cab-table td{padding:11px 6px}
+}
