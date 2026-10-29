@@ -2,7 +2,7 @@
   "name": "Piksta — сканер посылок",
   "short_name": "Piksta",
   "description": "Сканирование и сортировка посылок по трек-кодам",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#f0f0f0",
   "theme_color": "#7c6ff7",
