@@ -1188,9 +1188,10 @@ async function uploadCSV() {
         }
       }
       if (data.length === 0) { alert('Данные не найдены в CSV'); return; }
-      // Курсы нового прихода копируются с ПОСЛЕДНЕГО прихода (или дефолт если первый)
+      // Курсы нового прихода: базовые курсы из кабинета (users/{uid}.baseRates); если их нет — с ПОСЛЕДНЕГО прихода (или дефолт)
       let newRates = { ...DEFAULT_RATES };
-      try {
+      if (userProfile && userProfile.baseRates) newRates = { ...DEFAULT_RATES, ...userProfile.baseRates };
+      else try {
         const lastSnap = await shipmentsRef().orderBy('created', 'desc').limit(1).get();
         if (!lastSnap.empty && lastSnap.docs[0].data().rates) newRates = { ...DEFAULT_RATES, ...lastSnap.docs[0].data().rates };
       } catch(e) {}

@@ -265,127 +265,169 @@ function cabDeliveredKg(ships) {
 }
 
 // ============ ОБЗОР ============
+// Склонение: cabPl(5, 'клиент', 'клиента', 'клиентов') → 'клиентов'
+function cabPl(n, one, few, many) {
+  const a = Math.abs(Math.round(n)) % 100, b = a % 10;
+  return (a > 10 && a < 20) ? many : b === 1 ? one : (b >= 2 && b <= 4) ? few : many;
+}
+function cabGreeting() {
+  const h = new Date().getHours();
+  const part = h < 5 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер';
+  const first = userProfile && userProfile.name ? userProfile.name.split(' ')[0] : '';
+  return part + (first ? ', ' + first : '');
+}
+// Итоги «за всё время» одной полосой: подпись сверху, цифра снизу (Обзор и Приходы)
+function cabTotalsStrip(ships, withClients) {
+  const billed = ships.filter(s => s.status === 'sorted' || s.status === 'done');
+  const items = billed.reduce((n, s) => n + (s.data || []).length, 0);
+  const kg = cabDeliveredKg(ships);
+  const inWork = ships.filter(s => s.status !== 'done' && s.status !== 'sorted').length;
+  const segs = [
+    ['ti-package', 'Приходов всего', ships.length, inWork ? `${inWork} собирается или в пути` : 'все доставлены'],
+    ['ti-shirt', 'Привезено товаров', cabFmt(items), billed.length ? `≈ ${cabFmt(items / billed.length)} за приход` : ''],
+    ['ti-weight', 'Привезено, кг', kg.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ' '), items ? `≈ ${(kg / items).toFixed(2)} кг на товар` : '']
+  ];
+  if (withClients) {
+    const names = new Set(); ships.forEach(s => cabGetClientsFromShipment(s).clients.forEach(c => { if (!c.isOwner) names.add(c.name.toLowerCase()); }));
+    segs.push(['ti-users', 'Клиентов', names.size, 'за всё время']);
+  }
+  return `<div class="cab-strip">${segs.map(([ic, l, v, sub]) => `<div class="cab-strip-seg">
+      <div class="cab-strip-l"><i class="ti ${ic}"></i>${l}</div>
+      <div class="cab-strip-v">${v}</div>
+      <div class="cab-strip-s">${sub}</div>
+    </div>`).join('')}</div>`;
+}
+// Плашка статуса прихода (цветная, вместо точки)
+function cabShipPill(status) {
+  const st = SHIP_STATUSES[status] || SHIP_STATUSES.forming;
+  return `<span class="cab-pill" style="--c:${st.text || st.color};--b:${st.color}22">${st.label}</span>`;
+}
+
 function renderCabOverview(container) {
   const ships = cabShipmentsCache;
-  const activeShips = ships.filter(s => s.status !== 'done').length;
-  const totalClients = new Set();
-  let grandDue = 0, grandProfit = 0;
-  const shipSummaries = [];
-
-  for (const ship of ships) {
-    const { clients } = cabGetClientsFromShipment(ship);
-    let shipDue = 0, shipProfit = 0;
-    for (const c of clients) {
-      totalClients.add(c.name);
-      shipDue += c.due;
-      shipProfit += c.profit;
-    }
-    grandDue += shipDue;
-    grandProfit += shipProfit;
-    const st = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
-    shipSummaries.push({
-      name: ship.name || 'Без названия',
-      count: (ship.data || []).length,
-      clients: clients.length,
-      status: st.label, statusColor: st.color,
-      due: shipDue, profit: shipProfit,
-      isDone: ship.status === 'done'
-    });
-  }
-
-  // Топ должников (не-done приходы)
-  const clientDebt = {};
-  for (const ship of ships) {
-    if (ship.status === 'done') continue;
-    const { clients } = cabGetClientsFromShipment(ship);
-    for (const c of clients) {
-      if (!c.isOwner) clientDebt[c.name] = (clientDebt[c.name] || 0) + c.due;
-    }
-  }
-  const topDebtors = Object.entries(clientDebt).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const money = cabMoney(ships);
+  // Ожидаемая прибыль: вся расчётная прибыль по клиентам минус уже полученная
+  let profitAll = 0;
+  for (const ship of ships) for (const c of cabGetClientsFromShipment(ship).clients) if (!c.isOwner) profitAll += Math.max(0, c.profit);
+  const profitWait = Math.max(0, profitAll - money.realized);
+  const profitPct = profitAll > 0 ? Math.round(money.realized / profitAll * 100) : 0;
+  const turn = money.turnover || 1;
+  const frozenPct = Math.max(money.frozen > 0 ? 3 : 0, Math.min(100, money.frozen / turn * 100));
+  const realPct = money.realized > 0 ? Math.max(3, 100 - frozenPct) : 0;
+
+  // Клиенты: долги, сегменты, дубли — для блока «Что сделать сейчас»
+  const S = cabClientsSummary();
+  const cl = S.list.filter(c => !c.isOwner);
+  const debtSum = cl.reduce((n, c) => n + c.unpaidDue, 0);
+  const debtors = cl.filter(c => c.unpaidDue > 0.005).length;
+  const segN = k => cl.filter(c => c.status === k).length;
+  const dupes = cabFindDupes(S.list).length;
+
+  const todo = [];
+  if (debtors) todo.push({ ic: 'ti-cash', tone: 'red', t: `${debtors} ${cabPl(debtors, 'клиент должен', 'клиента должны', 'клиентов должны')} <b>${cabFmt(debtSum)} BYN</b>`, s: 'По рассортированным приходам. Отметьте, кто уже заплатил', a: `cabClientFilter='all';cabNav('clients')`, btn: 'Отметить оплаты' });
+  for (const s of ships.filter(s => s.status === 'delayed')) todo.push({ ic: 'ti-clock-exclamation', tone: 'orange', t: `<b>${s.name || 'Приход'}</b> задерживается`, s: 'Предупредите клиентов — это сохраняет доверие', a: `cabOpenShip('${s.id}')`, btn: 'Открыть' });
+  for (const s of ships.filter(s => s.status === 'forming')) { const n = (s.data || []).length, k = cabGetClientsFromShipment(s).clients.length; todo.push({ ic: 'ti-shopping-cart', tone: 'blue', t: `<b>${s.name || 'Приход'}</b> собирается`, s: `${n} ${cabPl(n, 'позиция', 'позиции', 'позиций')} · ${k} ${cabPl(k, 'клиент', 'клиента', 'клиентов')}. Самое время позвать тех, кто давно не заказывал`, a: `cabOpenShip('${s.id}')`, btn: 'Открыть' }); }
+  const once = segN('once'), forg = segN('forgotten');
+  if (forg) todo.push({ ic: 'ti-zzz', tone: 'amber', t: `${forg} ${cabPl(forg, 'постоянный клиент пропал', 'постоянных клиента пропали', 'постоянных клиентов пропали')}`, s: 'Заказывали 2+ раза, но давно не было. Как вернуть — подскажем', a: `cabClientFilter='forgotten';cabNav('clients')`, btn: 'Вернуть' });
+  if (once) todo.push({ ic: 'ti-repeat', tone: 'sky', t: `${once} ${cabPl(once, 'клиент купил', 'клиента купили', 'клиентов купили')} только один раз`, s: `${cl.length ? Math.round(once / cl.length * 100) : 0}% базы. Второй заказ — главный шаг к постоянному клиенту`, a: `cabClientFilter='once';cabNav('clients')`, btn: 'Как вернуть' });
+  if (dupes) todo.push({ ic: 'ti-copy', tone: 'gray', t: `${dupes} ${cabPl(dupes, 'клиент записан', 'клиента записаны', 'клиентов записаны')} по-разному`, s: 'Похожие имена — объедините, чтобы история и долги считались верно', a: `cabClientFilter='all';cabNav('clients')`, btn: 'Проверить' });
+
+  // Где сейчас товар — этапы
+  const stages = [
+    ['Собирается', ['forming'], 'ti-shopping-cart', '#4a90d9'],
+    ['В пути', ['transit', 'delayed'], 'ti-truck', '#d4a106'],
+    ['На складе', ['warehouse'], 'ti-building-warehouse', '#3cb371'],
+    ['Рассортирован', ['sorted'], 'ti-checks', '#8b7fd4']
+  ];
+  const shipCard = s => {
+    const { clients } = cabGetClientsFromShipment(s);
+    let profit = 0, rest = 0;
+    for (const c of clients) { if (c.isOwner) continue; profit += c.profit; rest += c.payRest; }
+    const n = (s.data || []).length;
+    const bottom = s.status === 'sorted'
+      ? (rest > 0.5 ? `<span class="cab-flow-due">ждём ${cabFmt(rest)} BYN</span>` : `<span class="cab-flow-ok"><i class="ti ti-check"></i> всё оплачено</span>`)
+      : `<span class="cab-flow-profit">прибыль ${profit >= 0 ? '+' : ''}${cabFmt(profit)}</span>`;
+    return `<div class="cab-flow-card" onclick="cabOpenShip('${s.id}')">
+        <div class="cab-flow-name">${s.name || 'Без названия'}${s.status === 'delayed' ? ' <span class="cab-pill" style="--c:#c2410c;--b:#f9731622">задерж.</span>' : ''}</div>
+        <div class="cab-flow-meta">${n} поз. · ${clients.length} кл.</div>
+        <div class="cab-flow-bot">${bottom}</div>
+      </div>`;
+  };
+  const archived = ships.filter(s => s.status === 'done').length;
+  const flow = stages.map(([label, keys, ic, color], i) => {
+    const list = ships.filter(s => keys.includes(s.status));
+    return `<div class="cab-flow-col">
+      <div class="cab-flow-head" style="--c:${color}"><i class="ti ${ic}"></i>${label}<span>${list.length}</span>${i < stages.length - 1 ? '<i class="ti ti-chevron-right cab-flow-arrow"></i>' : ''}</div>
+      ${list.map(shipCard).join('') || '<div class="cab-flow-empty">—</div>'}
+    </div>`;
+  }).join('');
 
   container.innerHTML = `
-    <div class="cab-main-title">Обзор</div>
-    <div class="cab-stats" style="grid-template-columns:repeat(3,1fr)">
-      <div class="cab-stat-card" title="Себестоимость товара (закупка по курсу закупки + доставка карго после взвешивания), за который клиенты ещё не рассчитались. Отсчёт — с выкупа на Pinduoduo, в любом статусе прихода (${money.nShips} прих.). Покупки «Это я» не входят">
-        <div class="cab-stat-val">${cabFmt(money.frozen)}</div>
-        <div class="cab-stat-label">Вложено в товар, BYN</div>
-      </div>
-      <div class="cab-stat-card" title="Наценка, которую клиенты уже заплатили — сверх себестоимости">
-        <div class="cab-stat-val" style="color:#16a34a">${cabFmt(money.realized)}</div>
-        <div class="cab-stat-label">Получено прибыли, BYN</div>
-      </div>
-      <div class="cab-stat-card" title="Вложено в товар + полученная прибыль">
-        <div class="cab-stat-val">${cabFmt(money.turnover)}</div>
-        <div class="cab-stat-label">Оборотка, BYN</div>
-      </div>
+    <div class="cab-hello">
+      <div class="cab-main-title" style="margin-bottom:2px">${cabGreeting()}</div>
+      <div class="cab-hello-sub">Вот как идут дела: деньги, приходы и что стоит сделать сегодня</div>
     </div>
-    <div class="cab-stats" style="grid-template-columns:repeat(4,1fr)">
-      <div class="cab-stat-card">
-        <div class="cab-stat-val">${ships.length}</div>
-        <div class="cab-stat-label">Всего приходов</div>
+
+    <div class="cab-ov-top">
+      <div class="cab-card cab-money" title="Деньги в обороте = вложено в товар + полученная прибыль. Вложено — себестоимость товара (закупка + доставка карго), за который клиенты ещё не рассчитались; отсчёт с выкупа на Pinduoduo. Покупки «Это я» не входят">
+        <div class="cab-card-l"><i class="ti ti-coins"></i> Деньги в обороте</div>
+        <div class="cab-money-v">${cabFmt(money.turnover)} <small>BYN</small></div>
+        <div class="cab-money-bar"><span style="width:${frozenPct}%;background:#6C4DB8"></span>${realPct ? `<span style="width:${realPct}%;background:#16a34a"></span>` : ''}</div>
+        <div class="cab-money-leg">
+          <div><i style="background:#6C4DB8"></i><span>Вложено в товар</span><b>${cabFmt(money.frozen)} BYN</b><em>ждёт оплаты клиентов · ${money.nShips} ${cabPl(money.nShips, 'приход', 'прихода', 'приходов')}</em></div>
+          <div><i style="background:#16a34a"></i><span>Получено прибыли</span><b style="color:#16a34a">${cabFmt(money.realized)} BYN</b><em>уже ваши деньги</em></div>
+        </div>
       </div>
-      <div class="cab-stat-card">
-        <div class="cab-stat-val">${ships.filter(s=>s.status==='sorted'||s.status==='done').reduce((n,s)=>n+(s.data||[]).length,0)}</div>
-        <div class="cab-stat-label">Привезено всего товаров</div>
-      </div>
-      <div class="cab-stat-card">
-        <div class="cab-stat-val">${cabDeliveredKg(ships).toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}</div>
-        <div class="cab-stat-label">Привезено всего, кг</div>
-      </div>
-      <div class="cab-stat-card">
-        <div class="cab-stat-val">${totalClients.size}</div>
-        <div class="cab-stat-label">Всего клиентов</div>
+      <div class="cab-card cab-wait" title="Прибыль по всем приходам (наценка на курс и доставку), которую клиенты ещё не оплатили">
+        <div class="cab-card-l"><i class="ti ti-trending-up"></i> Ещё заработаете</div>
+        <div class="cab-wait-v">+${cabFmt(profitWait)} <small>BYN</small></div>
+        <div class="cab-wait-s">когда клиенты рассчитаются по всем приходам</div>
+        <div class="cab-wait-bar"><span style="width:${Math.max(profitPct, profitAll > 0 && money.realized > 0 ? 2 : 0)}%"></span></div>
+        <div class="cab-wait-p">Получено ${cabFmt(money.realized)} из ${cabFmt(profitAll)} BYN · ${profitPct}%</div>
       </div>
     </div>
 
-    <div class="cab-table-wrap">
-      <div class="cab-table-title">Приходы</div>
-      <table class="cab-table">
-        <thead><tr><th>Название</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны BYN</th><th>Прибыль BYN</th></tr></thead>
-        <tbody>
-          ${shipSummaries.length === 0 ? '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px">Нет приходов</td></tr>' :
-            shipSummaries.map(s => `<tr style="${s.isDone ? 'opacity:0.55' : ''}">
-              <td style="font-weight:500">${s.name}</td>
-              <td>${s.count}</td>
-              <td>${s.clients}</td>
-              <td><span class="status-dot" style="background:${s.statusColor}"></span>${s.status}</td>
-              <td class="val-purple">${cabFmt(s.due)}</td>
-              <td class="${s.profit >= 0 ? 'val-green' : 'val-red'}">${s.profit >= 0 ? '+' : ''}${cabFmt(s.profit)}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
+    ${todo.length ? `<div class="cab-card cab-todo">
+      <div class="cab-card-h">Что сделать сейчас</div>
+      ${todo.slice(0, 6).map(x => `<div class="cab-todo-row" onclick="${x.a}">
+        <span class="cab-todo-ic t-${x.tone}"><i class="ti ${x.ic}"></i></span>
+        <div class="cab-todo-tx"><div>${x.t}</div><div class="cab-todo-s">${x.s}</div></div>
+        <button class="cab-todo-btn">${x.btn} <i class="ti ti-arrow-right"></i></button>
+      </div>`).join('')}
+    </div>` : ''}
+
+    <div class="cab-card">
+      <div class="cab-card-h">Где сейчас товар${archived ? `<a href="#" onclick="cabNav('shipments');return false" class="cab-card-link">Архив: ${archived} ${cabPl(archived, 'приход', 'прихода', 'приходов')} →</a>` : ''}</div>
+      <div class="cab-flow">${flow}</div>
     </div>
 
+    <div class="cab-card-h" style="margin:4px 2px 10px">За всё время</div>
+    ${cabTotalsStrip(ships, true)}
   `;
 }
 
 // ============ ПРИХОДЫ ============
+let cabShipFilter = 'all';
 function renderCabShipments(container) {
   const ships = cabShipmentsCache;
-  // Фильтры
-  const filterHtml = `
-    <div class="cab-filter-row">
-      <button class="cab-filter-btn active" data-f="all" onclick="cabFilterShipments('all',this)">Все (${ships.length})</button>
-      <button class="cab-filter-btn" data-f="active" onclick="cabFilterShipments('active',this)">Активные (${ships.filter(s=>s.status!=='done').length})</button>
-      <button class="cab-filter-btn" data-f="done" onclick="cabFilterShipments('done',this)">Архив (${ships.filter(s=>s.status==='done').length})</button>
-    </div>`;
+  const nAct = ships.filter(s => s.status !== 'done').length, nDone = ships.length - nAct;
+  const seg = (k, l, n) => `<button class="cab-seg-b${cabShipFilter === k ? ' on' : ''}" data-f="${k}" onclick="cabFilterShipments('${k}',this)">${l} <i>${n}</i></button>`;
+  const filterHtml = `<div class="cab-seg">${seg('all', 'Все', ships.length)}${seg('active', 'Активные', nAct)}${seg('done', 'Архив', nDone)}</div>`;
 
   const rows = ships.map(ship => {
     const { clients } = cabGetClientsFromShipment(ship);
     let due = 0, profit = 0;
     for (const c of clients) { due += c.due; profit += c.profit; }
-    const st = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const date = ship.created ? new Date(ship.created).toLocaleDateString('ru-RU') : '—';
     const isDone = ship.status === 'done';
-    const departed = (ship.departed && ship.status !== 'sorted' && ship.status !== 'done') ? '<i class="ti ti-truck" style="color:#3cb371;font-size:14px" title="Выехала"></i>' : '';
-    return `<tr class="cab-ship-row" data-status="${isDone ? 'done' : 'active'}" style="${isDone ? 'opacity:0.55' : ''}">
+    const departed = (ship.departed && ship.status !== 'sorted' && ship.status !== 'done') ? ' <i class="ti ti-truck" style="color:#3cb371;font-size:14px" title="Выехала"></i>' : '';
+    const hide = (cabShipFilter === 'active' && isDone) || (cabShipFilter === 'done' && !isDone);
+    return `<tr class="cab-ship-row" data-status="${isDone ? 'done' : 'active'}" style="${isDone ? 'opacity:0.6;' : ''}${hide ? 'display:none' : ''}">
       <td style="font-weight:500">${isDone ? (ship.name || 'Без названия') : `<a href="#" onclick="cabOpenShip('${ship.id}');return false" style="color:#6C4DB8;text-decoration:none">${ship.name || 'Без названия'}</a>`}</td>
       <td>${date}</td>
       <td>${(ship.data || []).length}</td>
       <td>${clients.length}</td>
-      <td><span class="status-dot" style="background:${st.color}"></span>${st.label} ${departed}</td>
+      <td>${cabShipPill(ship.status)}${departed}</td>
       <td class="val-purple">${cabFmt(due)}</td>
       <td class="${profit >= 0 ? 'val-green' : 'val-red'}">${profit >= 0 ? '+' : ''}${cabFmt(profit)}</td>
     </tr>`;
@@ -393,8 +435,9 @@ function renderCabShipments(container) {
 
   container.innerHTML = `
     <div class="cab-main-title">Приходы</div>
-    ${filterHtml}
+    ${cabTotalsStrip(ships, false)}
     <div class="cab-table-wrap">
+      <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
         <thead><tr><th>Название</th><th title="Когда приход создан в Piksta">Создан</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет приходов</td></tr>'}</tbody>
@@ -403,8 +446,8 @@ function renderCabShipments(container) {
 }
 
 function cabFilterShipments(filter, btn) {
-  document.querySelectorAll('.cab-filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  cabShipFilter = filter;
+  document.querySelectorAll('.cab-seg-b').forEach(b => b.classList.toggle('on', b.dataset.f === filter));
   document.querySelectorAll('.cab-ship-row').forEach(row => {
     const st = row.dataset.status;
     row.style.display = (filter === 'all' || filter === st) ? '' : 'none';
@@ -940,6 +983,132 @@ function cabSelMove(folder) {
   cabSel.clear(); cabSaveFolders(f);
 }
 
+// ---- СЕГМЕНТЫ КЛИЕНТОВ: подсказки «что делать» (маркетинг удержания) ----
+const CAB_SEG_BAR = { new: '#8b5cf6', active: '#22c55e', regular: '#cbd5e1', once: '#38bdf8', forgotten: '#f59e0b', champ: '#eab308' };
+const CAB_ADVICE = {
+  once: {
+    ic: 'ti-repeat', title: n => `${n} ${cabPl(n, 'клиент купил', 'клиента купили', 'клиентов купили')} только один раз`,
+    why: 'Второй заказ — главный шаг: кто заказал дважды, обычно остаётся надолго. Вернуть знакомого покупателя проще и дешевле, чем найти нового.',
+    tips: [
+      ['Спросите, как заказ', 'Через 1–2 недели после получения: всё ли подошло, понравилось ли. Это забота, а не реклама — и повод для следующего заказа.'],
+      ['Дайте причину вернуться', 'Бонус на второй заказ: доставка одной позиции в подарок или курс чуть лучше.'],
+      ['Позовите заранее', '«Собираю отправку до такого-то числа — успеете добавить». Дата отсечки подталкивает решиться.'],
+      ['Попросите отзыв или фото', 'С разрешения опубликуйте в Threads или канале — это реклама для следующих клиентов.']
+    ],
+    msg: 'Здравствуйте, {имя}! Как вам заказ из Китая — всё подошло? Собираю следующую отправку до {дата}. Если захотите что-то добавить — доставка одной позиции в подарок.'
+  },
+  forgotten: {
+    ic: 'ti-zzz', title: n => `${n} ${cabPl(n, 'постоянный клиент пропал', 'постоянных клиента пропали', 'постоянных клиентов пропали')}`,
+    why: 'Заказывали 2+ раза, но в трёх последних приходах их нет. Обычно причина простая: забыли, нашли дешевле или что-то не понравилось. Часто хватает одного личного сообщения.',
+    tips: [
+      ['Напишите лично, по имени', '«Давно вас не было — всё в порядке?» Спросите, что можно улучшить. Ответ подскажет, как вернуть и других.'],
+      ['Предложение на возвращение', 'Бонус или скидка, которые действуют только до ближайшей отправки — есть повод не откладывать.'],
+      ['Напомните, что брали', 'Покажите похожие новинки к их прошлым покупкам — так проще захотеть снова.'],
+      ['Скоро: уведомления в Piksta', 'Напоминание о новой отправке придёт клиенту прямо в приложение.']
+    ],
+    msg: 'Здравствуйте, {имя}! Давно вас не было в наших заказах — всё хорошо? Собираю отправку до {дата}. Для тех, кто с нами давно, — {бонус}. Если в прошлый раз что-то не понравилось, напишите — исправлю.'
+  },
+  new: {
+    ic: 'ti-sparkles', title: n => `${n} ${cabPl(n, 'новый клиент', 'новых клиента', 'новых клиентов')} в последнем приходе`,
+    why: 'Первый опыт решает, будет ли второй заказ. Новичку важно понимать, что происходит с его посылкой.',
+    tips: [
+      ['Поприветствуйте', 'Коротко расскажите, как всё устроено: сроки, когда платить, как забрать.'],
+      ['Держите в курсе', 'Напишите, когда посылка выехала и когда приехала — тишина пугает новичков больше всего.'],
+      ['Спросите впечатления', 'После получения — пара вопросов: всё ли понравилось, что улучшить.'],
+      ['Позовите в канал или чат', 'Там анонсы следующих отправок — новичок не потеряется.']
+    ],
+    msg: 'Здравствуйте, {имя}! Спасибо за первый заказ. Напишу, как только посылка выедет, — обычно доставка занимает {срок}. Анонсы следующих отправок — в нашем канале: {ссылка}.'
+  },
+  active: {
+    ic: 'ti-heart', title: n => `${n} ${cabPl(n, 'клиент заказывает', 'клиента заказывают', 'клиентов заказывают')} каждый приход`,
+    why: 'Это ядро вашего дохода. Задача — не потерять их и сделать вашими «амбассадорами».',
+    tips: [
+      ['Ранний доступ', 'Сообщайте о следующей отправке им первым — это приятно и ничего не стоит.'],
+      ['Маленький сюрприз', 'Записка, наклейка или пробник в посылке — дёшево, а запоминается надолго.'],
+      ['«Приведи подругу»', 'Бонус обоим за нового клиента. Активные советуют охотнее всех.'],
+      ['Просите отзывы', 'У постоянных они самые искренние — публикуйте с разрешения.']
+    ],
+    msg: 'Здравствуйте, {имя}! Спасибо, что заказываете с нами постоянно. Вы узнаёте первыми: следующая отправка собирается до {дата}. А если приведёте подругу — {бонус} вам обеим.'
+  },
+  regular: {
+    ic: 'ti-calendar-repeat', title: n => `${n} ${cabPl(n, 'клиент заказывает', 'клиента заказывают', 'клиентов заказывают')} время от времени`,
+    why: 'Были в 2+ приходах и недавно. Цель — чтобы заказывали каждый приход, как активные.',
+    tips: [
+      ['Анонсы с датой отсечки', 'Регулярно сообщайте, до какого числа собирается отправка.'],
+      ['Подборки', '«Что сейчас выгодно брать» — помогает найти повод заказать.'],
+      ['Бонус за серию', 'Заказ в двух отправках подряд — небольшой подарок или скидка на доставку.']
+    ],
+    msg: 'Здравствуйте, {имя}! Собираю отправку до {дата}. Если закажете и в этой, и в следующей — {бонус}.'
+  },
+  champ: {
+    ic: 'ti-trophy', title: n => `Ваши чемпионы — ${n} ${cabPl(n, 'лучший клиент', 'лучших клиента', 'лучших клиентов')}`,
+    why: 'Заказывают часто, были недавно и приносят больше всего. Их стоит поощрять — и они приведут похожих на себя.',
+    tips: [
+      ['Персональные условия', 'Курс чуть лучше или скидка на доставку — «для своих».'],
+      ['Подарок к празднику', 'Поздравление и маленький презент — лояльность растёт сильнее, чем от скидки.'],
+      ['Статус VIP', 'Закрытый чат или ранний доступ к отправкам.'],
+      ['Попросите рекомендацию', 'У чемпионов самые тёплые знакомые — их друзья тоже станут хорошими клиентами.']
+    ],
+    msg: 'Здравствуйте, {имя}! Вы один из самых постоянных наших клиентов — спасибо! Для вас теперь {бонус}. И если кому-то из знакомых нужен заказ из Китая — буду рад помочь.'
+  }
+};
+// Чемпионы: 3+ прихода, были недавно (не «забытые»), больше всего сумма заказов. Топ-10% базы, от 3 до 10 человек
+function cabChampions(list) {
+  const cl = list.filter(c => !c.isOwner);
+  const top = Math.min(10, Math.max(3, Math.round(cl.length * 0.1)));
+  return cl.filter(c => c.ships.length >= 3 && c.status !== 'forgotten').sort((a, b) => b.totalDue - a.totalDue).slice(0, top);
+}
+let cabAdviceOpen = true;
+try { cabAdviceOpen = localStorage.getItem('pk_adv') !== '0'; } catch (e) {}
+function cabAdviceToggle() {
+  cabAdviceOpen = !cabAdviceOpen;
+  try { localStorage.setItem('pk_adv', cabAdviceOpen ? '1' : '0'); } catch (e) {}
+  renderCabClients(document.getElementById('cabMain'));
+}
+function cabCopy(text, btn) {
+  const done = () => { if (btn) { const o = btn.innerHTML; btn.innerHTML = '<i class="ti ti-check"></i> Скопировано'; setTimeout(() => { btn.innerHTML = o; }, 1500); } };
+  const fallback = () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (e) {} t.remove(); done(); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+}
+// Блок «Что делать с этими клиентами»: сегмент = текущий фильтр, на «Все» — главная возможность
+function cabAdviceHtml(all, champs) {
+  const cl = all.filter(c => !c.isOwner);
+  const cnt = k => k === 'champ' ? champs.length : cl.filter(c => c.status === k).length;
+  let seg = cabClientFilter, auto = false;
+  if (!CAB_ADVICE[seg]) {
+    auto = true;
+    seg = cl.length && cnt('once') / cl.length >= 0.3 ? 'once' : cnt('forgotten') ? 'forgotten' : champs.length ? 'champ' : 'active';
+  }
+  const A = CAB_ADVICE[seg], n = cnt(seg);
+  const people = seg === 'champ' ? champs : cl.filter(c => c.status === seg);
+  const tabs = ['once', 'forgotten', 'new', 'active', 'champ'].map(k => `<span class="cab-adv-tab${k === seg ? ' on' : ''}" style="--c:${CAB_SEG_BAR[k]}" onclick="cabSetClientFilter('${k}')"><i class="ti ${CAB_ADVICE[k].ic}"></i>${k === 'champ' ? 'Чемпионы' : { once: 'Разовые', forgotten: 'Забытые', new: 'Новые', active: 'Активные' }[k]}</span>`).join('');
+  const head = `<div class="cab-adv-head" onclick="cabAdviceToggle()">
+      <span class="cab-adv-ic" style="--c:${CAB_SEG_BAR[seg]}"><i class="ti ${A.ic}"></i></span>
+      <div class="cab-adv-ttl"><div class="cab-adv-kick">${auto ? 'Главная возможность сейчас' : 'Что делать с этими клиентами'}</div><div>${A.title(n)}</div></div>
+      <span class="cab-adv-more">${cabAdviceOpen ? 'Свернуть <i class="ti ti-chevron-up"></i>' : 'Как с ними работать <i class="ti ti-chevron-down"></i>'}</span>
+    </div>`;
+  if (!cabAdviceOpen) return `<div class="cab-card cab-adv">${head}</div>`;
+  const msgEnc = encodeURIComponent(A.msg).replace(/'/g, '%27'), namesEnc = encodeURIComponent(people.map(c => c.name).join('\n')).replace(/'/g, '%27');
+  return `<div class="cab-card cab-adv">
+    ${head}
+    <div class="cab-adv-tabs">${tabs}</div>
+    <div class="cab-adv-why">${A.why}</div>
+    <div class="cab-adv-body">
+      <ol class="cab-adv-tips">${A.tips.map(([t, d]) => `<li><b>${t}</b><span>${d}</span></li>`).join('')}</ol>
+      <div class="cab-adv-msg">
+        <div class="cab-adv-msg-l"><i class="ti ti-message-2"></i> Готовое сообщение</div>
+        <div class="cab-adv-msg-t">${A.msg.replace(/\{([^}]+)\}/g, '<mark>$1</mark>')}</div>
+        <div class="cab-adv-msg-b">
+          <button class="cab-filter-btn" onclick="event.stopPropagation();cabCopy(decodeURIComponent('${msgEnc}'),this)"><i class="ti ti-copy"></i> Скопировать текст</button>
+          ${people.length ? `<button class="cab-filter-btn" onclick="event.stopPropagation();cabCopy(decodeURIComponent('${namesEnc}'),this)"><i class="ti ti-users"></i> Имена (${people.length})</button>` : ''}
+        </div>
+        <div class="cab-adv-msg-n">Подставьте свои данные вместо выделенного</div>
+      </div>
+    </div>
+    ${seg === 'champ' && champs.length ? `<div class="cab-champs">${champs.map((c, i) => `<span class="cab-champ" onclick="cabOpenClient('${encodeURIComponent(c.name)}')"><b>${i + 1}</b>${c.name}<em>${c.ships.length} прих. · ${cabFmt(c.totalDue)} BYN</em></span>`).join('')}</div>` : ''}
+  </div>`;
+}
+
 function cabSetClientFilter(f) { cabClientFilter = f; renderCabClients(document.getElementById('cabMain')); }
 
 function renderCabClients(container) {
@@ -953,7 +1122,8 @@ function renderCabClients(container) {
   const F = cabFolders();
   if (cabFolderFilter && cabFolderFilter !== '-' && !F.list.includes(cabFolderFilter)) cabFolderFilter = '';
   const folderOf = c => F.map[c.name.toLowerCase()] || '';
-  let list = cabClientFilter === 'all' ? all : all.filter(c => c.status === cabClientFilter);
+  const champs = cabChampions(all);
+  let list = cabClientFilter === 'all' ? all : cabClientFilter === 'champ' ? all.filter(c => champs.includes(c)) : all.filter(c => c.status === cabClientFilter);
   if (cabFolderFilter) list = list.filter(c => cabFolderFilter === '-' ? !folderOf(c) : folderOf(c) === cabFolderFilter);
 
   const rowHtml = c => {
@@ -991,15 +1161,28 @@ function renderCabClients(container) {
 
   container.innerHTML = `
     <div class="cab-main-title">Клиенты</div>
-    <div class="cab-stats" style="grid-template-columns:repeat(7,1fr)">
-      <div class="cab-stat-card"><div class="cab-stat-val">${all.length}</div><div class="cab-stat-label">Всего клиентов</div></div>
-      ${[['new', 'Новых', 'Впервые в самом свежем приходе'], ['active', 'Активных', 'Есть в двух последних приходах'], ['once', 'Разовых', 'Заказывали только в одном приходе'], ['forgotten', 'Забытых', 'Были в 2+ приходах, но в трёх последних их нет']]
-        .map(([k, l, t]) => `<div class="cab-stat-card cab-stat-st${cabClientFilter === k ? ' on' : ''}" style="--st:${CAB_CLIENT_STATUS[k].color};--stbg:${CAB_CLIENT_STATUS[k].bg}" title="${t}. Нажмите — показать в списке" onclick="cabSetClientFilter(cabClientFilter === '${k}' ? 'all' : '${k}')"><div class="cab-stat-val">${cnt(k)}</div><div class="cab-stat-label">${l}</div></div>`).join('')}
-      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt(totalUnpaid)}</div><div class="cab-stat-label">Задолженность, BYN</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${debtors}</div><div class="cab-stat-label">Должников</div></div>
-    </div>
-    <div style="font-size:13px;color:#6b7280;margin:-14px 0 4px">Задолженность — только по рассортированным и архивным приходам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре</div>
-    <div style="font-size:13px;color:${okSum ? '#4a5260' : '#dc2626'};margin:0 0 16px">
+    ${(() => {
+      const cl = all.filter(c => !c.isOwner), tot = cl.length || 1;
+      const segs = [['new', 'Новые', 'Впервые в самом свежем приходе'], ['active', 'Активные', 'Есть в двух последних приходах'], ['regular', 'Обычные', 'Заказывают время от времени, были недавно'], ['once', 'Разовые', 'Заказывали только в одном приходе'], ['forgotten', 'Забытые', 'Были в 2+ приходах, но в трёх последних их нет']]
+        .map(([k, l, t]) => ({ k, l, t, n: cl.filter(c => c.status === k).length }));
+      const bar = segs.filter(x => x.n).map(x => `<span class="${cabClientFilter === x.k ? 'on' : ''}" style="flex:${x.n};background:${CAB_SEG_BAR[x.k]}" title="${x.l}: ${x.n} — ${x.t}" onclick="cabSetClientFilter(cabClientFilter === '${x.k}' ? 'all' : '${x.k}')"></span>`).join('');
+      const leg = segs.map(x => `<span class="cab-base-chip${cabClientFilter === x.k ? ' on' : ''}" title="${x.t}. Нажмите — показать в списке" onclick="cabSetClientFilter(cabClientFilter === '${x.k}' ? 'all' : '${x.k}')"><i style="background:${CAB_SEG_BAR[x.k]}"></i>${x.l}<b>${x.n}</b><em>${Math.round(x.n / tot * 100)}%</em></span>`).join('')
+        + `<span class="cab-base-chip champ${cabClientFilter === 'champ' ? ' on' : ''}" title="Чаще всех заказывают, были недавно и приносят больше всего" onclick="cabSetClientFilter(cabClientFilter === 'champ' ? 'all' : 'champ')"><i class="ti ti-trophy"></i>Чемпионы<b>${champs.length}</b></span>`;
+      return `<div class="cab-ov-top cab-cl-top">
+        <div class="cab-card">
+          <div class="cab-card-l"><i class="ti ti-users"></i> Клиентская база<b class="cab-base-n">${cl.length}</b>${cabClientFilter !== 'all' ? `<a href="#" class="cab-card-link" onclick="cabSetClientFilter('all');return false">Показать всех ×</a>` : ''}</div>
+          <div class="cab-base-bar">${bar}</div>
+          <div class="cab-base-leg">${leg}</div>
+        </div>
+        <div class="cab-card cab-debt" title="Только по рассортированным и архивным приходам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре">
+          <div class="cab-card-l"><i class="ti ti-cash"></i> Должны вам</div>
+          <div class="cab-debt-v">${cabFmt(totalUnpaid)} <small>BYN</small></div>
+          <div class="cab-debt-s">${debtors} ${cabPl(debtors, 'клиент', 'клиента', 'клиентов')} · по рассортированным приходам</div>
+        </div>
+      </div>`;
+    })()}
+    ${cabAdviceHtml(all, champs)}
+    <div style="font-size:13px;color:${okSum ? '#9aa0ab' : '#dc2626'};margin:0 0 14px">
       Сверка позиций: в базе ${S.totalItemsDb} = у клиентов ${S.clientItemsSum}${S.sharedExtra ? ' − повторы общих ' + S.sharedExtra : ''}${S.noClientItems ? ' + без клиента ' + S.noClientItems : ''} ${okSum ? '✓' : '— не сходится'}
     </div>
     ${(() => {
@@ -1019,7 +1202,7 @@ function renderCabClients(container) {
     })()}
     <div class="cab-table-wrap">
       <div style="display:flex;gap:2px;flex-wrap:nowrap;margin-bottom:10px">
-        ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}
+        ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}${fbtn('champ', 'Чемпионы')}
       </div>
       ${folderRow}
       <div id="cabSelBar" class="cab-selbar" style="display:none"></div>
@@ -1229,46 +1412,218 @@ function cabShipTotals(ship) {
 }
 const cabPct = v => (v === null || !isFinite(v)) ? '—' : v.toFixed(1) + '%';
 
+// ---- БАЗОВЫЕ КУРСЫ: users/{uid}.baseRates — с ними создаются новые приходы (и в мобильной версии) ----
+const CAB_RATE_FIELDS = [
+  ['clientRate', 'Курс для клиента', 'BYN за 1 ¥', 2],
+  ['buyRate', 'Курс закупки', 'BYN за 1 ¥', 2],
+  ['shipClient', 'Доставка клиенту', 'BYN за 1 кг', 0],
+  ['shipCargo', 'Доставка карго', 'BYN за 1 кг', 0]
+];
+function cabBaseRates() {
+  if (userProfile && userProfile.baseRates) return { ...DEFAULT_RATES, ...userProfile.baseRates };
+  const last = cabShipmentsCache[0];   // свежий сверху — так же, как раньше брались курсы для нового прихода
+  return last && last.rates ? { ...DEFAULT_RATES, ...last.rates } : { ...DEFAULT_RATES };
+}
+const cabRateNum = v => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) && n >= 0 ? Math.round(n * 10000) / 10000 : null; };
+const cabRateStr = (v, d) => d ? Number(v).toFixed(Math.max(d, (String(Math.round(v * 10000) / 10000).split('.')[1] || '').length)) : String(Math.round(v * 10000) / 10000);
+async function cabSetBaseRate(key, inp) {
+  const v = cabRateNum(inp.value);
+  const base = cabBaseRates();
+  if (v === null) { inp.value = cabRateStr(base[key], key.endsWith('Rate') ? 2 : 0); return; }
+  if (v === base[key]) return;
+  base[key] = v;
+  try {
+    await db.collection('users').doc(savedUid).update({ baseRates: base });
+    userProfile.baseRates = base;
+  } catch (e) { alert('Не удалось сохранить: ' + e.message); return; }
+  // Формирующиеся приходы ещё никому не выставлены — предлагаем сразу перевести их на новый курс
+  const forming = cabShipmentsCache.filter(s => s.status === 'forming' && (s.rates || {})[key] !== v);
+  if (forming.length && confirm(`Базовый курс сохранён.\n\nПрименить его и к формирующимся приходам (${forming.map(s => '«' + (s.name || 'Без названия') + '»').join(', ')})?`)) {
+    for (const s of forming) {
+      const r = { ...DEFAULT_RATES, ...(s.rates || {}), [key]: v };
+      try { await shipmentsRef().doc(s.id).update({ rates: r }); s.rates = r; cabSyncMobileRates(s.id, r); } catch (e) { alert('Не удалось обновить «' + s.name + '»: ' + e.message); }
+    }
+  }
+  renderCabPrices(document.getElementById('cabMain'));
+}
+// Если этот приход открыт в мобильной части — обновляем курсы в памяти, чтобы расчёт там совпадал
+function cabSyncMobileRates(shipId, r) {
+  if (shipId === (typeof editingShipmentId !== 'undefined' && editingShipmentId || activeShipmentId)) currentRates = { ...r };
+}
+
+// ---- Меню «⋯» в строке прихода ----
+function cabRowMenu(ev, id) {
+  ev.stopPropagation();
+  cabRowMenuClose();
+  const ship = cabShipmentsCache.find(s => s.id === id); if (!ship) return;
+  const done = ship.status === 'done';
+  const m = document.createElement('div');
+  m.className = 'cab-menu'; m.id = 'cabRowMenu';
+  m.innerHTML = `
+    <button ${done ? 'disabled title="Архив — курсы не меняем, иначе изменится вся статистика"' : ''} onclick="cabRowMenuClose();cabRatesEdit('${id}')"><i class="ti ti-pencil"></i>Изменить курсы${done ? '<em>архив</em>' : ''}</button>
+    <button onclick="cabRowMenuClose();cabRatesToBase('${id}')"><i class="ti ti-arrow-bar-to-up"></i>Сделать курсы базовыми</button>
+    <button onclick="cabRowMenuClose();cabShipCSV('${id}')"><i class="ti ti-file-spreadsheet"></i>Скачать расчёт (Excel / CSV)</button>
+    ${done ? '' : `<button onclick="cabRowMenuClose();cabOpenShip('${id}')"><i class="ti ti-external-link"></i>Открыть приход</button>`}`;
+  document.body.appendChild(m);
+  const r = ev.currentTarget.getBoundingClientRect();
+  const mw = 270;
+  m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.right - mw)) + 'px';
+  const below = r.bottom + 4, h = m.offsetHeight;
+  m.style.top = (below + h > window.innerHeight - 8 ? r.top - h - 4 : below) + 'px';
+  setTimeout(() => document.addEventListener('click', cabRowMenuClose, { once: true }), 0);
+}
+function cabRowMenuClose() { const m = document.getElementById('cabRowMenu'); if (m) m.remove(); }
+async function cabRatesToBase(id) {
+  const ship = cabShipmentsCache.find(s => s.id === id); if (!ship) return;
+  const r = { ...DEFAULT_RATES, ...(ship.rates || {}) };
+  if (!confirm(`Сделать курсы прихода «${ship.name || 'Без названия'}» базовыми?\nС ними будут создаваться новые приходы.`)) return;
+  try { await db.collection('users').doc(savedUid).update({ baseRates: r }); userProfile.baseRates = r; } catch (e) { alert('Не удалось сохранить: ' + e.message); return; }
+  renderCabPrices(document.getElementById('cabMain'));
+}
+// Выгрузка расчёта по клиентам прихода: CSV с «;» и BOM — открывается в Excel с кириллицей
+function cabShipCSV(id) {
+  const ship = cabShipmentsCache.find(s => s.id === id); if (!ship) return;
+  const { clients, rates } = cabGetClientsFromShipment(ship);
+  const n = v => (Math.round((v || 0) * 100) / 100).toFixed(2).replace('.', ',');
+  const lines = [
+    [`Приход: ${ship.name || ''}`], [`Курс для клиента ${rates.clientRate} BYN/¥; курс закупки ${rates.buyRate} BYN/¥; доставка клиенту ${rates.shipClient} BYN/кг; карго ${rates.shipCargo} BYN/кг`], [],
+    ['Клиент', 'Позиций', 'Вес, кг', 'Сумма, ¥', 'Должен, BYN', 'Оплачено, BYN', 'Остаток, BYN', 'Прибыль, BYN']
+  ];
+  for (const c of clients) lines.push([c.name + (c.isOwner ? ' (свой)' : ''), c.items, n(c.weight), n(c.clientYuan), n(c.due), n(c.payPaid), n(c.payRest), n(c.profit)]);
+  const t = cabShipTotals(ship);
+  lines.push(['Итого', clients.reduce((a, c) => a + c.items, 0), n(t.weight), n(t.yuan), n(t.due), n(clients.reduce((a, c) => a + (c.payPaid || 0), 0)), n(clients.reduce((a, c) => a + (c.isOwner ? 0 : c.payRest), 0)), n(t.profit)]);
+  const csv = String.fromCharCode(0xFEFF) + lines.map(r => r.map(x => { const s = String(x); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `Piksta — ${(ship.name || 'приход').replace(/[\\/:*?"<>|]/g, '-')}.csv`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+// ---- Окно «Изменить курсы прихода» с предпросмотром ----
+let cabRatesShipId = null;
+function cabRatesEdit(id) {
+  const ship = cabShipmentsCache.find(s => s.id === id); if (!ship || ship.status === 'done') return;
+  cabRatesShipId = id;
+  const r = { ...DEFAULT_RATES, ...(ship.rates || {}) };
+  const { clients } = cabGetClientsFromShipment(ship);
+  const paidN = clients.filter(c => !c.isOwner && (c.payPaid || 0) > 0.004).length;
+  const fullN = clients.filter(c => !c.isOwner && c.payStatus === 'full').length;
+  const ov = document.createElement('div');
+  ov.className = 'cab-ovl'; ov.id = 'cabRatesOvl';
+  ov.onclick = e => { if (e.target === ov) cabRatesClose(); };
+  ov.innerHTML = `<div class="cab-dlg">
+    <div class="cab-dlg-h">Курсы прихода «${ship.name || 'Без названия'}» ${cabShipPill(ship.status)}<button class="cab-dlg-x" onclick="cabRatesClose()"><i class="ti ti-x"></i></button></div>
+    <div class="cab-rates-grid">${CAB_RATE_FIELDS.map(([k, l, u, d]) => `<label class="cab-rate-f"><span>${l}</span><input data-k="${k}" value="${cabRateStr(r[k], d)}" inputmode="decimal" oninput="cabRatesPreview()"><em>${u}</em></label>`).join('')}</div>
+    <div class="cab-rates-prev" id="cabRatesPrev"></div>
+    ${paidN ? `<div class="cab-rates-who">
+      <div class="cab-rates-who-h"><i class="ti ti-alert-triangle"></i> ${paidN} ${cabPl(paidN, 'клиент уже платил', 'клиента уже платили', 'клиентов уже платили')}${fullN ? `, ${fullN} — полностью` : ''}. Кому пересчитать сумму?</div>
+      <label><input type="radio" name="cabRatesWho" value="unpaid" checked onchange="cabRatesPreview()"> Только тем, кто ещё не рассчитался полностью <em>у рассчитавшихся сумма останется прежней</em></label>
+      <label><input type="radio" name="cabRatesWho" value="all" onchange="cabRatesPreview()"> Всем клиентам <em>у рассчитавшихся может появиться долг или переплата</em></label>
+    </div>` : ''}
+    <div class="cab-dlg-f"><span>Изменения сразу видны и в мобильной версии</span><button class="cab-filter-btn" onclick="cabRatesClose()">Отмена</button><button class="cab-filter-btn active" onclick="cabRatesSave()">Сохранить</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  cabRatesPreview();
+  const f = ov.querySelector('input[data-k]'); if (f) { f.focus(); f.select(); }
+}
+function cabRatesClose() { const o = document.getElementById('cabRatesOvl'); if (o) o.remove(); cabRatesShipId = null; }
+function cabRatesRead() {
+  const ship = cabShipmentsCache.find(s => s.id === cabRatesShipId);
+  const r = { ...DEFAULT_RATES, ...(ship && ship.rates || {}) };
+  let bad = false;
+  document.querySelectorAll('#cabRatesOvl input[data-k]').forEach(i => { const v = cabRateNum(i.value); if (v === null) { bad = true; i.classList.add('bad'); } else { i.classList.remove('bad'); r[i.dataset.k] = v; } });
+  const w = document.querySelector('#cabRatesOvl input[name=cabRatesWho]:checked');
+  return { ship, r, bad, who: w ? w.value : 'all' };
+}
+// Новые суммы с учётом выбора: рассчитавшимся полностью фиксируем прежнюю сумму (dueOverride)
+function cabRatesApply(ship, r, who) {
+  const before = cabGetClientsFromShipment(ship).clients;
+  const freeze = {};
+  if (who === 'unpaid') for (const c of before) if (!c.isOwner && c.payStatus === 'full' && !c.dueEdited) freeze[c.name] = Math.round(c.due * 100) / 100;
+  const after = cabGetClientsFromShipment({ ...ship, rates: r, dueOverride: { ...(ship.dueOverride || {}), ...freeze } }).clients;
+  return { before, after, freeze };
+}
+function cabRatesPreview() {
+  const box = document.getElementById('cabRatesPrev'); if (!box) return;
+  const { ship, r, bad, who } = cabRatesRead();
+  if (!ship || bad) { box.innerHTML = '<span style="color:#dc2626">Введите числа</span>'; return; }
+  const { before, after } = cabRatesApply(ship, r, who);
+  const sum = (arr, f) => arr.reduce((n, c) => n + (c.isOwner ? 0 : f(c)), 0);
+  const row = (l, a, b, good) => { const d = b - a; return `<div><span>${l}</span><b>${cabFmt2(a)}</b><i class="ti ti-arrow-right"></i><b>${cabFmt2(b)}</b><em class="${Math.abs(d) < 0.005 || good === null ? '' : (d > 0) === good ? 'up' : 'down'}">${Math.abs(d) < 0.005 ? 'без изменений' : (d > 0 ? '+' : '') + cabFmt2(d)}</em></div>`; };
+  box.innerHTML = row('Клиенты должны, BYN', sum(before, c => c.due), sum(after, c => c.due), true)
+    + row('Прибыль, BYN', sum(before, c => c.profit), sum(after, c => c.profit), true)
+    + (cabIsBilled(ship) ? row('Остаток к оплате, BYN', sum(before, c => c.payRest), sum(after, c => c.payRest), null) : '');
+}
+async function cabRatesSave() {
+  const { ship, r, bad, who } = cabRatesRead();
+  if (!ship) return;
+  if (bad) { alert('Проверьте курсы — нужны числа'); return; }
+  const { freeze } = cabRatesApply(ship, r, who);
+  const ref = shipmentsRef().doc(ship.id);
+  try {
+    await db.runTransaction(async t => {
+      const doc = await t.get(ref);
+      if (!doc.exists) throw new Error('приход не найден');
+      const upd = { rates: r };
+      if (Object.keys(freeze).length) upd.dueOverride = { ...(doc.data().dueOverride || {}), ...freeze };
+      t.update(ref, upd);
+    });
+  } catch (e) { alert('Не удалось сохранить: ' + e.message); return; }
+  ship.rates = r;
+  if (Object.keys(freeze).length) {
+    ship.dueOverride = { ...(ship.dueOverride || {}), ...freeze };
+    if (ship.id === (typeof editingShipmentId !== 'undefined' && editingShipmentId || activeShipmentId) && typeof currentDueOverride !== 'undefined') Object.assign(currentDueOverride, freeze);
+  }
+  cabSyncMobileRates(ship.id, r);
+  cabRatesClose();
+  cabRerender();
+}
+
 function renderCabPrices(container) {
   const rents = [];
   const rows = cabShipmentsCache.map(ship => {
     const rates = ship.rates ? { ...DEFAULT_RATES, ...ship.rates } : { ...DEFAULT_RATES };
-    const st = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
     const isDone = ship.status === 'done';
     const t = cabShipTotals(ship);
     if (ship.status === 'forming') t.rent = null;   // формируется: веса нет, рентабельность не окончательна
     if (t.rent !== null) rents.push(t.rent);
-    return `<tr style="${isDone ? 'opacity:0.55' : ''}">
+    return `<tr class="${isDone ? 'cab-row-done' : ''}">
       <td style="font-weight:500">${ship.name || 'Без названия'}</td>
-      <td><span class="status-dot" style="background:${st.color}"></span>${st.label}</td>
-      <td>${rates.clientRate.toFixed(2)}</td>
-      <td>${rates.buyRate.toFixed(2)}</td>
-      <td>${rates.shipClient}</td>
-      <td>${rates.shipCargo}</td>
-      <td style="font-weight:600;color:${t.rent === null ? '#6b7280' : t.rent >= 0 ? '#16a34a' : '#dc2626'}">${cabPct(t.rent)}</td>
+      <td>${cabShipPill(ship.status)}</td>
+      <td class="cab-num">${rates.clientRate.toFixed(2)}</td>
+      <td class="cab-num">${rates.buyRate.toFixed(2)}</td>
+      <td class="cab-num">${cabRateStr(rates.shipClient)}</td>
+      <td class="cab-num">${cabRateStr(rates.shipCargo)}</td>
+      <td class="cab-num" style="font-weight:600;color:${t.rent === null ? '#6b7280' : t.rent >= 0 ? '#16a34a' : '#dc2626'}">${cabPct(t.rent)}</td>
+      <td class="cab-dots-td">${isDone ? '' : `<button class="cab-pen" title="Изменить курсы" onclick="cabRatesEdit('${ship.id}')"><i class="ti ti-pencil"></i></button>`}<button class="cab-dots" title="Ещё" onclick="cabRowMenu(event,'${ship.id}')"><i class="ti ti-dots"></i></button></td>
     </tr>`;
   }).join('');
   const avgRent = rents.length ? rents.reduce((a, b) => a + b, 0) / rents.length : null;
-
-  const lastShip = cabShipmentsCache.find(s => s.status !== 'done') || cabShipmentsCache[0];
-  const curRates = lastShip && lastShip.rates ? { ...DEFAULT_RATES, ...lastShip.rates } : { ...DEFAULT_RATES };
+  const base = cabBaseRates();
+  const th = (l1, l2, title) => `<th class="cab-num" title="${title}"><div>${l1}</div><small>${l2}</small></th>`;
 
   container.innerHTML = `
     <div class="cab-main-title">Цены и курсы</div>
-    <div class="cab-stats" style="grid-template-columns:repeat(5,1fr)">
-      <div class="cab-stat-card"><div class="cab-stat-val" style="font-size:22px">${curRates.clientRate.toFixed(2)} BYN/¥</div><div class="cab-stat-label">Курс клиента</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="font-size:22px">${curRates.buyRate.toFixed(2)} BYN/¥</div><div class="cab-stat-label">Курс закупки</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="font-size:22px">${curRates.shipClient} BYN/кг</div><div class="cab-stat-label">Доставка клиенту</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="font-size:22px">${curRates.shipCargo} BYN/кг</div><div class="cab-stat-label">Доставка карго</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="font-size:22px;color:#16a34a">${cabPct(avgRent)}</div><div class="cab-stat-label">Средняя рентабельность</div></div>
+    <div class="cab-rates-bar">
+      <div class="cab-rates-bar-h"><b>Базовые курсы</b><span>с ними создаются новые приходы — и в мобильной версии</span></div>
+      <div class="cab-rates-bar-f">
+        ${CAB_RATE_FIELDS.map(([k, l, u, d]) => `<label class="cab-rate-f"><span>${l}</span><input value="${cabRateStr(base[k], d)}" inputmode="decimal" onchange="cabSetBaseRate('${k}',this)" onkeydown="if(event.key==='Enter')this.blur()"><em>${u}</em></label>`).join('')}
+        <div class="cab-rate-f cab-rate-ro" title="Прибыль ÷ сколько должны клиенты × 100%, среднее по приходам (кроме формирующихся)"><span>Средняя рентабельность</span><b>${cabPct(avgRent)}</b><em>по приходам</em></div>
+      </div>
     </div>
     <div class="cab-table-wrap">
       <div class="cab-table-title">Курсы по приходам</div>
-      <table class="cab-table">
-        <thead><tr><th>Приход</th><th>Статус</th><th title="Курс для клиента, BYN за ¥">Курс кл.</th><th title="Курс закупки, BYN за ¥">Курс зак.</th><th title="Доставка клиенту, BYN за кг">Дост. кл.</th><th title="Доставка карго, BYN за кг">Дост. карго</th><th>Рентабельность</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет данных</td></tr>'}</tbody>
+      <table class="cab-table cab-prices">
+        <thead><tr><th>Приход</th><th>Статус</th>
+          ${th('Курс для клиента', 'BYN за 1 ¥', 'Сколько BYN клиент платит за 1 юань')}
+          ${th('Курс закупки', 'BYN за 1 ¥', 'Сколько BYN стоит вам 1 юань при выкупе')}
+          ${th('Доставка клиенту', 'BYN за 1 кг', 'Сколько клиент платит за доставку 1 кг')}
+          ${th('Доставка карго', 'BYN за 1 кг', 'Сколько вы платите карго за 1 кг')}
+          ${th('Рентабельность', 'прибыль ÷ оборот', 'Прибыль ÷ сколько должны клиенты × 100%')}
+          <th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px">Нет данных</td></tr>'}</tbody>
       </table>
-      <div style="font-size:13px;color:#6b7280;margin-top:12px;line-height:1.6">Курсы — BYN за ¥, доставка — BYN за кг.<br>Рентабельность = прибыль ÷ оборот (сколько должны клиенты) × 100%. Формирующиеся приходы — «—», в среднюю не входят.</div>
+      <div style="font-size:13px;color:#9aa0ab;margin-top:12px">Карандаш — изменить курсы прихода (архив не меняется). Формирующиеся приходы — «—», в среднюю рентабельность не входят.</div>
     </div>`;
 }
 
