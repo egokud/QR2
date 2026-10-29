@@ -383,6 +383,8 @@ function renderCabOverview(container) {
 
   const todo = [];
   if (debtors) todo.push({ ic: 'ti-cash', tone: 'red', t: `${debtors} ${cabPl(debtors, 'клиент должен', 'клиента должны', 'клиентов должны')} <b>${cabFmt(debtSum)} BYN</b>`, s: 'По рассортированным приходам. Отметьте, кто уже заплатил', a: `cabClientFilter='all';cabNav('clients')`, btn: 'Отметить оплаты' });
+  const cnb = cabCnBreak();
+  if (cnb) todo.push({ ic: 'ti-calendar-event', tone: 'orange', t: `Через ${cnb.days} ${cabPl(cnb.days, 'день', 'дня', 'дней')} Китай уходит на <b>${cnb.name}</b>`, s: `Фабрики и склады встанут ${cnb.len}. Напишите клиентам заранее — пусть успеют заказать до ${cnb.fmt(cnb.orderBy)}`, a: `cabClientFilter='all';cabNav('clients')`, btn: 'Написать клиентам' });
   for (const s of ships.filter(s => s.status === 'delayed')) todo.push({ ic: 'ti-clock-exclamation', tone: 'orange', t: `<b>${s.name || 'Приход'}</b> задерживается`, s: 'Предупредите клиентов — это сохраняет доверие', a: `cabOpenShip('${s.id}')`, btn: 'Открыть' });
   for (const s of ships.filter(s => s.status === 'forming')) { const n = (s.data || []).length, k = cabGetClientsFromShipment(s).clients.length; todo.push({ ic: 'ti-shopping-cart', tone: 'blue', t: `<b>${s.name || 'Приход'}</b> собирается`, s: `${n} ${cabPl(n, 'позиция', 'позиции', 'позиций')} · ${k} ${cabPl(k, 'клиент', 'клиента', 'клиентов')}. Самое время позвать тех, кто давно не заказывал`, a: `cabOpenShip('${s.id}')`, btn: 'Открыть' }); }
   const once = segN('once'), forg = segN('forgotten');
@@ -1190,8 +1192,25 @@ const CAB_MSG_CTA = {
   champ: 'Для вас — {бонус}. И если кому-то из знакомых нужен заказ из Китая — буду рад помочь.'
 };
 // Поводы: [метка, проверка даты, фраза]. Порядок = приоритет
+// Длинные каникулы в Китае: фабрики, склады и карго не работают. За 4 недели до начала — подсказка написать клиентам
+const CAB_CN_NY = ['2027-02-06', '2028-01-26', '2029-02-13', '2030-02-03', '2031-01-23'];  // Китайский Новый год (дата праздника)
+function cabCnBreak(now) {
+  now = now || new Date(); const y = now.getFullYear(), list = [];
+  for (const iso of CAB_CN_NY) list.push({ name: 'Китайский Новый год', start: new Date(iso + 'T00:00:00'), len: 'на 2–3 недели', lead: 10 });
+  for (const yy of [y, y + 1]) {
+    list.push({ name: 'майские каникулы', start: new Date(yy, 4, 1), len: 'на 5 дней', lead: 5 });
+    list.push({ name: '«Золотую неделю»', start: new Date(yy, 9, 1), len: 'на неделю', lead: 5 });
+  }
+  const day = 24 * 60 * 60 * 1000;
+  const next = list.map(b => ({ ...b, days: Math.ceil((b.start - now) / day) })).filter(b => b.days > 0 && b.days <= 28).sort((a, b) => a.days - b.days)[0];
+  if (!next) return null;
+  next.orderBy = new Date(next.start.getTime() - next.lead * day);
+  next.fmt = dt => dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  return next;
+}
 const CAB_MSG_CTX = [
-  ['Распродажа 11.11', d => (d.m === 10 && d.d >= 15) || (d.m === 11 && d.d <= 11), 'Скоро 11.11 — главная распродажа в Китае, цены на Pinduoduo самые низкие в году. Собираю заказы до {дата}.'],
+  ['Каникулы в Китае', () => !!cabCnBreak(), () => { const b = cabCnBreak(); return `С ${b.fmt(b.start)} Китай уходит на ${b.name} — фабрики и склады не работают ${b.len}. Чтобы посылки не застряли, заказы собираю до ${b.fmt(b.orderBy)}.`; }],
+  ['Распродажа 11.11', d => (d.m === 10 && d.d >= 15) || (d.m === 11 && d.d <= 11), 'Скоро 11.11 — главная распродажа в Китае, цены в китайских магазинах самые низкие в году. Собираю заказы до {дата}.'],
   ['Распродажа 618', d => (d.m === 5 && d.d >= 25) || (d.m === 6 && d.d <= 18), 'В июне в Китае распродажа 618 — хорошие скидки на всё. Собираю заказы до {дата}.'],
   ['Новый год', d => (d.m === 11 && d.d >= 20) || d.m === 12 || (d.m === 1 && d.d <= 7), 'Скоро Новый год — самое время заказать подарки, чтобы точно успели приехать. Собираю отправку до {дата}.'],
   ['14 февраля и 8 Марта', d => (d.m === 1 && d.d >= 20) || d.m === 2 || (d.m === 3 && d.d <= 8), 'Скоро праздники — подарки лучше заказать заранее, чтобы точно успели. Собираю отправку до {дата}.'],
