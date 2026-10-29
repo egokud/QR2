@@ -1,5 +1,12 @@
 // ============ AUTH LISTENER ============
 auth.onAuthStateChanged(async (user) => {
+  // Гость на piksta.online → лендинг /welcome. Вход — /?login (запоминается на сессию), из установленного приложения и после выхода — сразу форма входа
+  if (!user) {
+    const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+    let wantLogin = /[?&]login\b/.test(location.search);
+    try { if (wantLogin) sessionStorage.setItem('pk_login', '1'); else wantLogin = sessionStorage.getItem('pk_login') === '1'; } catch (e) {}
+    if (!standalone && !wantLogin && !window.__pkWasIn) { location.replace('/welcome'); return; }
+  } else window.__pkWasIn = true;
   document.getElementById('loadingScreen').classList.add('hide');
   if (user) {
     currentUser = user;
