@@ -325,6 +325,8 @@ const CAB_HELP = {
   money: ['Деньги в обороте', 'Сколько ваших денег сейчас крутится в заказах.<br><b>Вложено в товар</b> — сколько вы потратили на выкуп и доставку карго, а клиенты вам это ещё не вернули. Считается с момента выкупа на Pinduoduo, в любом статусе прихода.<br><b>Получено прибыли</b> — ваша наценка, которую клиенты уже заплатили.<br>Отметили оплату клиента — «вложено» уменьшается, «получено» растёт. Ваши личные покупки («Это я») сюда не входят.'],
   markup: ['Наценка в заказах', 'Разница между тем, сколько платят клиенты, и вашей себестоимостью — по всем текущим заказам.<br><b>Уже получено</b> — клиенты заплатили.<br><b>Рассортировано</b> — товар взвешен, сумма точная, ждём оплаты.<br><b>В пути и в сборке (≈)</b> — только наценка на курс юаня. Наценку на доставку посчитаем, когда приход взвесят, поэтому итог может измениться.<br>Это не обещанная прибыль: если клиент не заберёт или не оплатит заказ, этих денег не будет.'],
   todo: ['Что сделать сейчас', 'Помощник собирает дела, которые приносят деньги или экономят время: кто должен, какой приход собирается, кого из клиентов пора вернуть, какие имена похожи на дубли.<br>Нажмите на строку — откроется нужный раздел.'],
+  an_split: ['Куда идут деньги клиентов', 'Всё, что заплатят клиенты по рассортированным приходам, разложено на три части: сколько ушло на выкуп товара, сколько — на доставку карго, и сколько осталось вам (наценка).<br>Приходы в пути сюда не входят: пока нет веса, суммы неточные.'],
+  an_src: ['Откуда наценка', 'Наценка складывается из двух частей: <b>на курсе</b> — разница между курсом для клиента и курсом закупки, и <b>на доставке</b> — разница между тем, что клиент платит за кг, и тарифом карго.<br>Если доля доставки маленькая или отрицательная — возможно, стоит поднять «Доставку клиенту» в Ценах.'],
   flow: ['Где сейчас товар', 'Все приходы по этапам: <b>собирается</b> → <b>в пути</b> → <b>на складе</b> → <b>рассортирован</b>.<br>До сортировки показана примерная наценка (без доставки). После сортировки — сколько клиенты ещё должны.<br>Нажмите на приход, чтобы открыть его. Архивные приходы — в разделе «Приходы».']
 };
 function cabHelpBtn(k) { return `<button class="cab-help" title="Что это?" onclick="cabHelp(event,'${k}')"><i class="ti ti-help-circle"></i></button>`; }
@@ -1772,17 +1774,42 @@ function cabCalcAll(open) {
   renderCabCalc(document.getElementById('cabMain'));
 }
 
+let cabCalcFilter = 'all';   // all / wait (ждут оплаты) / work (до сортировки) / done (архив)
+function cabCalcSetFilter(f) { cabCalcFilter = f; renderCabCalc(document.getElementById('cabMain')); }
 function renderCabCalc(container) {
-  const blocks = [];
+  const rows = [];
+  let sumBilled = 0, sumPaid = 0, nWait = 0, nWork = 0, nDone = 0;
   for (const ship of cabShipmentsCache) {
     const { clients } = cabGetClientsFromShipment(ship);
     if (clients.length === 0) continue;
-    const st = SHIP_STATUSES[ship.status] || SHIP_STATUSES.forming;
-    const isDone = ship.status === 'done';
+    const billed = cabIsBilled(ship), isDone = ship.status === 'done';
+    let due = 0, profit = 0, paid = 0, rest = 0, kg = 0;
+    for (const c of clients) { kg += c.weight || 0; if (c.isOwner) continue; due += c.due; profit += c.profit; paid += Math.min(c.due, c.payPaid || 0); rest += c.payRest; }
+    const wait = billed && rest > 0.5;
+    if (wait) nWait++; if (!billed) nWork++; if (isDone) nDone++;
+    if (billed) { sumBilled += due; sumPaid += paid; }
+    rows.push({ ship, clients, billed, isDone, due, profit, paid, rest, kg, wait });
+  }
+  const shown = rows.filter(r => cabCalcFilter === 'all' || (cabCalcFilter === 'wait' && r.wait) || (cabCalcFilter === 'work' && !r.billed) || (cabCalcFilter === 'done' && r.isDone));
+
+  const blocks = shown.map(({ ship, clients, billed, isDone, due, profit, paid, rest, kg, wait }) => {
     const open = cabCalcOpen.has(ship.id);
-    let totalDue = 0, totalProfit = 0;
-    for (const c of clients) { totalDue += c.due; totalProfit += c.profit; }
+    const pct = due > 0 ? Math.round(paid / due * 100) : 100;
+    const rent = due > 0 ? profit / due * 100 : null;
     const date = cabNameHasDate(ship) ? '' : cabShipDateStr(ship);
+    const approx = billed || kg > 0 ? '' : '≈ ';
+    const debtors = billed ? clients.filter(c => !c.isOwner && c.payRest > 0.5).sort((a, b) => b.payRest - a.payRest) : [];
+    // правая часть шапки: после сортировки — сколько собрано; до — что будет к оплате
+    const right = billed
+      ? `<div class="cab-cc-pay"><div class="cab-cc-pay-t"><span>Собрано <b>${cabFmt(paid)}</b> из ${cabFmt(due)}</span><b class="${rest > 0.5 ? 'red' : 'ok'}">${rest > 0.5 ? 'осталось ' + cabFmt(rest) : '<i class="ti ti-check"></i> всё оплачено'}</b></div><div class="cab-cc-bar"><span style="width:${Math.max(pct, paid > 0 ? 2 : 0)}%"></span></div></div>`
+      : `<div class="cab-cc-pay est"><div class="cab-cc-pay-t"><span>К оплате будет</span><b>${approx}${cabFmt(due)} BYN</b></div><div class="cab-cc-note">${kg > 0 ? 'предварительно — приход ещё не рассортирован' : 'без доставки — посчитаем после взвешивания'}</div></div>`;
+    const cell = (l, v, cls) => `<div class="cab-cc-cell"><span>${l}</span><b class="${cls || ''}">${v}</b></div>`;
+    const cells = cell('Клиенты должны', approx + cabFmt(due) + ' BYN')
+      + cell('Оплачено', billed ? cabFmt(paid) + ' BYN' : '—', billed ? 'ok' : 'mut')
+      + cell('Наценка', approx + (profit >= 0 ? '+' : '') + cabFmt(profit) + ' BYN', profit >= 0 ? 'ok' : 'red')
+      + cell('Рентабельность', ship.status === 'forming' || rent === null ? '—' : rent.toFixed(1) + '%', 'mut')
+      + cell('Вес', kg > 0 ? kg.toFixed(1) + ' кг' : 'не взвешен', kg > 0 ? '' : 'mut');
+    const chips = debtors.length ? `<div class="cab-cc-debt"><span>Больше всех должны:</span>${debtors.slice(0, 4).map(c => `<em onclick="event.stopPropagation();cabNav('clients');cabOpenClient('${encodeURIComponent(c.name)}')">${c.name} <b>${cabFmt(c.payRest)}</b></em>`).join('')}${debtors.length > 4 ? `<i>+ ещё ${debtors.length - 4}</i>` : ''}</div>` : '';
 
     let table = '';
     if (open) {
@@ -1796,36 +1823,40 @@ function renderCabCalc(container) {
           <td>${cabFmt2(c.goodsClient)}</td>
           <td>${cabFmt2(c.shipCli)}</td>
           <td class="val-purple" style="font-weight:600">${c.isOwner ? '—' : `<a href="#" onclick="cabEditTotal('${ship.id}','${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) : 'Нажмите, чтобы изменить итоговую сумму'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:13px;color:#f59e0b"></i>' : ''}`}</td>
+          <td>${c.isOwner ? '—' : billed ? cabPayBadge(c.payStatus) : '<span style="color:#9aa0ab;font-size:13px">до сортировки</span>'}</td>
           <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}">${c.profit >= 0 ? '+' : ''}${cabFmt(c.profit)}</td>
         </tr>`;
       }).join('');
-      table = `<table class="cab-table" style="margin-top:12px">
-          <thead><tr><th>Клиент</th><th>Поз.</th><th>Юани</th><th>Вес</th><th>Товар BYN</th><th>Дост. BYN</th><th>Итого</th><th>Прибыль</th></tr></thead>
+      table = `<div class="cab-cc-table"><table class="cab-table">
+          <thead><tr><th>Клиент</th><th>Поз.</th><th>Юани</th><th>Вес, кг</th><th>Товар BYN</th><th>Дост. BYN</th><th>Итого</th><th>Оплата</th><th>Наценка</th></tr></thead>
           <tbody>${clientRows}</tbody>
-        </table>`;
+        </table></div>`;
     }
+    return `<div class="cab-cc${isDone ? ' done' : ''}${open ? ' open' : ''}">
+      <div class="cab-cc-head" onclick="cabCalcToggle('${ship.id}')">
+        <i class="ti ti-chevron-${open ? 'down' : 'right'} cab-cc-chev"></i>
+        <div class="cab-cc-title"><div><b>${ship.name || 'Без названия'}</b>${cabShipPill(ship.status)}</div><span>${date ? date + ' · ' : ''}${(ship.data || []).length} поз. · ${clients.length} ${cabPl(clients.length, 'клиент', 'клиента', 'клиентов')}</span></div>
+        ${right}
+      </div>
+      <div class="cab-cc-cells" onclick="cabCalcToggle('${ship.id}')">${cells}</div>
+      ${chips}
+      ${table}
+    </div>`;
+  });
 
-    blocks.push(`
-      <div class="cab-table-wrap" style="${isDone ? 'opacity:0.55;' : ''}padding:14px 18px">
-        <div onclick="cabCalcToggle('${ship.id}')" style="display:flex;align-items:center;gap:14px;cursor:pointer;flex-wrap:nowrap">
-          <i class="ti ti-chevron-${open ? 'down' : 'right'}" style="color:#6b7280"></i>
-          <span class="status-dot" style="background:${st.color}"></span>
-          <span style="font-weight:600;font-size:16px">${ship.name || 'Без названия'}</span>
-          <span style="font-size:13px;color:#6b7280">${date ? date + ' · ' : ''}${(ship.data || []).length} поз. · ${clients.length} кл. · <span style="color:${st.text || '#4a5260'};font-weight:600">${st.label}</span></span>
-          <span style="margin-left:auto;font-size:14px;color:#4a5260">Должны: <strong style="color:#6C4DB8">${cabFmt(totalDue)} BYN</strong></span>
-          <span style="font-size:14px;color:#4a5260">Прибыль: <strong style="color:${totalProfit >= 0 ? '#16a34a' : '#dc2626'}">${totalProfit >= 0 ? '+' : ''}${cabFmt(totalProfit)} BYN</strong></span>
-        </div>
-        ${table}
-      </div>`);
-  }
-
+  const seg = (k, l, n) => `<button class="cab-seg-b${cabCalcFilter === k ? ' on' : ''}" onclick="cabCalcSetFilter('${k}')">${l} <i>${n}</i></button>`;
+  const totPct = sumBilled > 0 ? Math.round(sumPaid / sumBilled * 100) : 100;
   container.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:16px">
       <div class="cab-main-title" style="margin:0">Расчёты по приходам</div>
       <button class="cab-filter-btn" style="margin-left:auto" onclick="cabCalcAll(true)"><i class="ti ti-arrows-maximize"></i> Развернуть все</button>
       <button class="cab-filter-btn" onclick="cabCalcAll(false)"><i class="ti ti-arrows-minimize"></i> Свернуть все</button>
     </div>
-    ${blocks.length > 0 ? blocks.join('') : '<div class="cab-stub"><i class="ti ti-calculator"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">Создайте приход в Сканере</div></div>'}
+    <div class="cab-cc-top">
+      <div class="cab-seg">${seg('all', 'Все', rows.length)}${seg('wait', 'Ждут оплаты', nWait)}${seg('work', 'До сортировки', nWork)}${seg('done', 'Архив', nDone)}</div>
+      <div class="cab-cc-sum"><span>По рассортированным собрано <b>${cabFmt(sumPaid)}</b> из ${cabFmt(sumBilled)} BYN</span><div class="cab-cc-bar"><span style="width:${Math.max(totPct, sumPaid > 0 ? 2 : 0)}%"></span></div><b>${totPct}%</b></div>
+    </div>
+    ${blocks.length > 0 ? blocks.join('') : rows.length ? '<div class="cab-cc-empty">В этом фильтре приходов нет</div>' : '<div class="cab-stub"><i class="ti ti-calculator"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">Создайте приход в Сканере</div></div>'}
   `;
 }
 
@@ -1855,85 +1886,101 @@ let cabAnPeriod = 'all';
 const CAB_PERIODS = [['month', 'Месяц', 1], ['quarter', 'Квартал', 3], ['half', 'Полугодие', 6], ['year', 'Год', 12], ['all', 'Всё время', 0]];
 function cabSetAnPeriod(p) { cabAnPeriod = p; renderCabAnalytics(document.getElementById('cabMain')); }
 
+// Экономика прихода (без «Это я»): сколько заплатят клиенты и из чего это состоит
+function cabShipEcon(ship) {
+  const { clients, rates } = cabGetClientsFromShipment(ship);
+  const e = { due: 0, goods: 0, cargo: 0, profit: 0, rateM: 0, shipM: 0, items: (ship.data || []).length, kg: 0, n: 0, per: [] };
+  for (const c of clients) {
+    e.kg += c.weight || 0;
+    if (c.isOwner) continue;
+    const goods = c.buyYuan > 0 ? c.goodsCost : c.clientYuan * rates.buyRate;
+    const rateM = c.costGoodsOn ? 0 : c.goodsClient - goods;
+    e.due += c.due; e.goods += goods; e.cargo += c.shipCo; e.profit += c.profit; e.rateM += rateM; e.shipM += c.profit - rateM; e.n++;
+    e.per.push({ name: c.name, due: c.due, profit: c.profit });
+  }
+  return e;
+}
 function renderCabAnalytics(container) {
   const per = CAB_PERIODS.find(p => p[0] === cabAnPeriod) || CAB_PERIODS[4];
-  let from = null;
-  if (per[2]) { from = new Date(); from.setMonth(from.getMonth() - per[2]); }
+  const inRange = (s, a, b) => { const d = cabShipDate(s); return !!d && d >= a && d < b; };
+  let from = null, prevFrom = null; const now = new Date();
+  if (per[2]) { from = new Date(); from.setMonth(from.getMonth() - per[2]); prevFrom = new Date(from); prevFrom.setMonth(prevFrom.getMonth() - per[2]); }
   // Период — по дате отправки из названия прихода. Приходы без даты попадают только во «Всё время»
-  const ships = cabShipmentsCache.filter(s => { if (!from) return true; const d = cabShipDate(s); return !!d && d >= from; });
-  const periodBtns = CAB_PERIODS.map(p => `<button class="cab-filter-btn ${cabAnPeriod === p[0] ? 'active' : ''}" onclick="cabSetAnPeriod('${p[0]}')">${p[1]}</button>`).join('');
-  const head = `<div class="cab-main-title">Аналитика</div><div class="cab-filter-row">${periodBtns}</div>`;
+  const ships = cabShipmentsCache.filter(s => !from || inRange(s, from, new Date(now.getTime() + 864e5)));
+  const prevShips = from ? cabShipmentsCache.filter(s => inRange(s, prevFrom, from)) : [];
+  const seg = CAB_PERIODS.map(p => `<button class="cab-seg-b${cabAnPeriod === p[0] ? ' on' : ''}" onclick="cabSetAnPeriod('${p[0]}')">${p[1]}</button>`).join('');
+  const head = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><div class="cab-main-title" style="margin:0">Аналитика</div><div class="cab-seg" style="margin-left:auto">${seg}</div></div>`;
   if (ships.length === 0) {
     container.innerHTML = head + `<div class="cab-stub"><i class="ti ti-chart-bar"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">За выбранный период приходов нет</div></div>`;
     return;
   }
+  // Деньги — только рассортированные приходы (вес известен, суммы точные). Остальные — отдельно, как оценка
+  const sum = list => list.reduce((a, s) => { const e = cabShipEcon(s); for (const k of ['due', 'goods', 'cargo', 'profit', 'rateM', 'shipM', 'items', 'kg']) a[k] += e[k]; a.n++; return a; }, { due: 0, goods: 0, cargo: 0, profit: 0, rateM: 0, shipM: 0, items: 0, kg: 0, n: 0 });
+  const billed = ships.filter(cabIsBilled), open = ships.filter(s => !cabIsBilled(s));
+  const T = sum(billed), O = sum(open), P = sum(prevShips.filter(cabIsBilled));
+  const pctOf = (v, t) => t > 0 ? Math.round(v / t * 100) : 0;
+  const rent = T.due > 0 ? T.profit / T.due * 100 : null;
+  const delta = (cur, prev) => { if (!from || !(prev > 0)) return ''; const d = Math.round((cur - prev) / prev * 100); return `<span class="cab-delta ${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d)}% к прошлому периоду</span>`; };
 
-  // Деньги считаем без формирующихся приходов: у них ещё нет веса, доставка и прибыль не окончательны.
-  let totalItems = 0, totalYuan = 0, totalWeight = 0, totalDue = 0, totalProfit = 0, finCount = 0;
-  const profitByShip = [];
-  const clientFreq = {};
-  for (const ship of ships) {
-    const t = cabShipTotals(ship);
-    const prelim = ship.status === 'forming';
-    totalItems += (ship.data || []).length;
-    totalWeight += t.weight;
-    if (!prelim) { totalDue += t.due; totalProfit += t.profit; totalYuan += t.yuan; finCount++; }
-    for (const c of t.clients) if (!c.isOwner) clientFreq[c.name] = (clientFreq[c.name] || 0) + 1;
-    profitByShip.push({ name: ship.name || 'Без названия', profit: t.profit, prelim });
-  }
-  const prelimCount = ships.length - finCount;
-  const totalCost = totalDue - totalProfit;
-  const avgProfit = finCount ? totalProfit / finCount : 0;
-  const rent = totalDue > 0 ? totalProfit / totalDue * 100 : null;
-  const topClients = Object.entries(clientFreq).sort((a, b) => b[1] - a[1]).slice(0, 8);
-
-  const maxProfit = Math.max(...profitByShip.map(p => Math.abs(p.profit)), 1);
-  const barsHtml = profitByShip.map(p => {
-    const pct = Math.abs(p.profit) / maxProfit * 100;
-    const color = p.prelim ? '#b8bcc4' : p.profit >= 0 ? '#16a34a' : '#dc2626';
-    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"${p.prelim ? ' title="Приход формируется — сумма предварительная, в итоги не входит"' : ''}>
-      <div style="min-width:160px;font-size:14px;font-weight:500;color:${p.prelim ? '#6b7280' : '#1a1a2e'};white-space:nowrap;flex-shrink:0">${p.name}${p.prelim ? ' <span style="font-size:12px;font-weight:400">· предв.</span>' : ''}</div>
-      <div style="flex:1;background:#f3f4f6;border-radius:4px;height:22px;position:relative;overflow:hidden">
-        <div style="width:${pct}%;background:${color};height:100%;border-radius:4px;transition:width 0.3s"></div>
+  // 1. Из каждых 100 BYN клиента
+  const gP = pctOf(T.goods, T.due), cP = pctOf(T.cargo, T.due), mP = Math.max(0, 100 - gP - cP);
+  const split = T.due > 0 ? `<div class="cab-card cab-an-split">
+      <div class="cab-card-l"><i class="ti ti-coins"></i> Куда идут деньги клиентов${cabHelpBtn('an_split')}<span class="cab-an-scope">${billed.length} ${cabPl(billed.length, 'рассортированный приход', 'рассортированных прихода', 'рассортированных приходов')}</span></div>
+      <div class="cab-an-big">${cabFmt(T.due)} <small>BYN заплатят клиенты</small></div>
+      <div class="cab-an-bar"><span style="flex:${T.goods};background:#a99be0"><b>${gP}%</b></span><span style="flex:${T.cargo};background:#f5c518"><b>${cP}%</b></span><span style="flex:${Math.max(0, T.profit)};background:#16a34a"><b>${mP}%</b></span></div>
+      <div class="cab-an-leg">
+        <div><i style="background:#a99be0"></i><span>Товар (выкуп)</span><b>${cabFmt(T.goods)} BYN</b></div>
+        <div><i style="background:#f5c518"></i><span>Доставка карго</span><b>${cabFmt(T.cargo)} BYN</b></div>
+        <div><i style="background:#16a34a"></i><span>Ваша наценка</span><b style="color:#16a34a">${cabFmt(T.profit)} BYN</b></div>
       </div>
-      <div style="width:80px;text-align:right;font-size:14px;font-weight:600;color:${color}">${p.profit >= 0 ? '+' : ''}${cabFmt(p.profit)}</div>
+      <div class="cab-an-say">Из каждых <b>100 BYN</b>, которые платит клиент: <b>${gP}</b> уходят на товар, <b>${cP}</b> — карго, <b class="g">${mP}</b> остаются вам.</div>
+    </div>` : `<div class="cab-card cab-an-split"><div class="cab-card-l"><i class="ti ti-coins"></i> Куда идут деньги клиентов</div><div class="cab-an-say">За этот период ещё нет рассортированных приходов — точные суммы появятся после взвешивания.</div></div>`;
+
+  // 2. Откуда наценка: курс или доставка
+  const kpis = `<div class="cab-an-kpis">
+      <div class="cab-card"><div class="cab-card-l"><i class="ti ti-receipt-2"></i> Наценка</div><div class="cab-an-kv g">${cabFmt(T.profit)} <small>BYN</small></div><div class="cab-an-ks">рентабельность ${cabPct(rent)}</div>${delta(T.profit, P.profit)}</div>
+      <div class="cab-card"><div class="cab-card-l"><i class="ti ti-package"></i> Средний приход</div><div class="cab-an-kv">${cabFmt(T.n ? T.profit / T.n : 0)} <small>BYN наценки</small></div><div class="cab-an-ks">${cabFmt(T.n ? T.items / T.n : 0)} поз. · ${(T.n ? T.kg / T.n : 0).toFixed(0)} кг</div></div>
+      <div class="cab-card"><div class="cab-card-l"><i class="ti ti-user"></i> Средний заказ клиента</div><div class="cab-an-kv">${cabFmt(billed.reduce((n, s) => n + cabShipEcon(s).n, 0) ? T.due / billed.reduce((n, s) => n + cabShipEcon(s).n, 0) : 0)} <small>BYN</small></div><div class="cab-an-ks">наценка с заказа ≈ ${cabFmt(billed.reduce((n, s) => n + cabShipEcon(s).n, 0) ? T.profit / billed.reduce((n, s) => n + cabShipEcon(s).n, 0) : 0)} BYN</div></div>
+      <div class="cab-card"><div class="cab-card-l"><i class="ti ti-arrows-split"></i> Откуда наценка${cabHelpBtn('an_src')}</div>
+        <div class="cab-an-src"><span style="flex:${Math.max(0, T.rateM)};background:#6C4DB8"></span><span style="flex:${Math.max(0, T.shipM)};background:#f59e0b"></span></div>
+        <div class="cab-an-src-l"><span><i style="background:#6C4DB8"></i>на курсе юаня</span><b>${T.rateM >= 0 ? '+' : ''}${cabFmt(T.rateM)}</b></div>
+        <div class="cab-an-src-l"><span><i style="background:#f59e0b"></i>на доставке</span><b class="${T.shipM < 0 ? 'red' : ''}">${T.shipM >= 0 ? '+' : ''}${cabFmt(T.shipM)}</b></div></div>
     </div>`;
+
+  // 3. Наценка по приходам: столбики, оценка штриховкой
+  const chron = ships.slice().reverse();
+  const ecs = chron.map(s => ({ s, e: cabShipEcon(s), b: cabIsBilled(s) }));
+  const maxP = Math.max(1, ...ecs.map(x => Math.abs(x.e.profit)));
+  const bars = ecs.map(({ s, e, b }) => {
+    const mm = (s.name || '').match(/(\d{1,2})(?:-(\d{1,2}))?\.(\d{1,2})/), lbl = mm ? `${(mm[2] || mm[1]).padStart(2, '0')}.${mm[3].padStart(2, '0')}` : '·';
+    const est = !b;
+    return `<div class="cab-bar" title="${s.name || ''}: наценка ${est ? '≈ ' : ''}${cabFmt(e.profit)} BYN${est ? ' (оценка, без доставки)' : ''}, ${e.items} поз."><em class="${est ? 'est' : ''}">${est ? '≈' : '+'}${cabFmt(e.profit)}</em><span class="${est ? 'est' : ''}" style="height:${Math.max(4, Math.abs(e.profit) / maxP * 100)}%;${est ? '' : 'background:' + (e.profit >= 0 ? '#16a34a' : '#dc2626')}"></span><i>${lbl}</i></div>`;
   }).join('');
-  const arrow = '<div style="display:flex;align-items:center;justify-content:center;color:#b0b4bb;font-size:22px"><i class="ti ti-arrow-right"></i></div>';
+  const chart = `<div class="cab-card"><div class="cab-card-h">Наценка по приходам<span class="cab-an-chips"><span><i style="background:#16a34a"></i>точно</span><span><i class="est"></i>оценка — ещё не взвешен</span></span></div><div class="cab-bars cab-an-bars">${bars}</div></div>`;
 
-  container.innerHTML = head + `
-    <div class="cab-stats" style="grid-template-columns:1fr 1fr auto 1fr auto 1fr;align-items:stretch">
-      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt(totalYuan)} ¥</div><div class="cab-stat-label">Оборот в юанях</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt(totalDue)} BYN</div><div class="cab-stat-label">Оборот в BYN</div></div>
-      ${arrow}
-      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt(totalCost)} BYN</div><div class="cab-stat-label">Общие затраты</div></div>
-      ${arrow}
-      <div class="cab-stat-card"><div class="cab-stat-val green">${cabFmt(totalProfit)} BYN</div><div class="cab-stat-label">Общая прибыль</div></div>
-    </div>
-    <div class="cab-stats" style="grid-template-columns:repeat(4,1fr)">
-      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabPct(rent)}</div><div class="cab-stat-label">Рентабельность</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${totalItems}</div><div class="cab-stat-label">Всего позиций</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${totalWeight.toFixed(1)} кг</div><div class="cab-stat-label">Вес клиентов</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt(avgProfit)} BYN</div><div class="cab-stat-label">Средняя прибыль / приход</div></div>
-    </div>
+  // 4. Лучшие клиенты по наценке за период
+  const cm = {};
+  for (const s of ships) for (const p of cabShipEcon(s).per) { const k = p.name.toLowerCase(); (cm[k] = cm[k] || { name: p.name, profit: 0, due: 0, n: 0 }); cm[k].profit += p.profit; cm[k].due += p.due; cm[k].n++; }
+  const top = Object.values(cm).sort((a, b) => b.profit - a.profit).slice(0, 8);
+  const allProfit = Object.values(cm).reduce((n, c) => n + Math.max(0, c.profit), 0);
+  const top5 = top.slice(0, 5).reduce((n, c) => n + Math.max(0, c.profit), 0);
+  const maxC = Math.max(1, ...top.map(c => c.profit));
+  const clientsBox = top.length ? `<div class="cab-card"><div class="cab-card-h">Кто приносит больше всего</div>
+      ${top.map((c, i) => `<div class="cab-an-cl" onclick="cabNav('clients');cabOpenClient('${encodeURIComponent(c.name)}')"><b class="n">${i + 1}</b><span class="nm">${c.name}</span><span class="tr"><span style="width:${Math.max(2, c.profit / maxC * 100)}%"></span></span><span class="v">+${cabFmt(c.profit)}</span><em>${c.n} прих. · ${cabFmt(c.due)} BYN</em></div>`).join('')}
+    </div>` : '';
 
-    ${prelimCount ? `<div style="font-size:13px;color:#6b7280;margin:-14px 0 16px">Деньги — без формирующихся приходов (${prelimCount}): у них ещё нет веса, суммы предварительные</div>` : ''}
-    <div class="cab-table-wrap">
-      <div class="cab-table-title">Прибыль по приходам</div>
-      ${barsHtml}
-    </div>
+  // 5. Выводы словами
+  const tips = [];
+  const best = ecs.filter(x => x.b && x.e.due > 0).sort((a, b) => b.e.profit / b.e.due - a.e.profit / a.e.due);
+  if (best.length > 1) tips.push(['ti-trophy', `Самый выгодный приход — <b>${best[0].s.name}</b>: рентабельность ${(best[0].e.profit / best[0].e.due * 100).toFixed(1)}%. Самый слабый — <b>${best[best.length - 1].s.name}</b>: ${(best[best.length - 1].e.profit / best[best.length - 1].e.due * 100).toFixed(1)}%.`]);
+  const lowShip = ecs.filter(x => x.b && x.e.cargo > 0 && x.e.shipM < 0);
+  if (lowShip.length) tips.push(['ti-alert-triangle', `На доставке вы теряете в ${lowShip.length} ${cabPl(lowShip.length, 'приходе', 'приходах', 'приходах')} (${lowShip.slice(0, 3).map(x => x.s.name).join(', ')}): карго обходится дороже, чем платят клиенты. Проверьте «Доставку клиенту» в Ценах или «вес в цене».`]);
+  if (allProfit > 0 && Object.keys(cm).length > 8) tips.push(['ti-users', `5 лучших клиентов приносят <b>${Math.round(top5 / allProfit * 100)}%</b> наценки. ${top5 / allProfit > 0.5 ? 'Берегите их — это ваши чемпионы.' : 'Доход распределён ровно — хорошая устойчивость.'}`]);
+  if (T.items > 0 && T.kg > 0 && T.cargo > 0) tips.push(['ti-weight', `Средний товар весит <b>${(T.kg / T.items).toFixed(2)} кг</b> — доставка карго одной позиции обходится вам ≈ <b>${cabFmt2(T.cargo / T.items)} BYN</b>.`]);
+  if (O.n) tips.push(['ti-truck', `Ещё ${O.n} ${cabPl(O.n, 'приход', 'прихода', 'приходов')} в пути и в сборке: ≈ ${cabFmt(O.profit)} BYN наценки без учёта доставки. В итоги выше они не входят.`]);
+  const tipsBox = tips.length ? `<div class="cab-card cab-an-tips"><div class="cab-card-h"><i class="ti ti-bulb" style="color:#eab308;margin-right:6px"></i>Что видно из цифр</div>${tips.map(([ic, t]) => `<div class="cab-an-tip"><i class="ti ${ic}"></i><span>${t}</span></div>`).join('')}</div>` : '';
 
-    ${topClients.length > 0 ? `
-    <div class="cab-table-wrap">
-      <div class="cab-table-title">Частые клиенты</div>
-      <table class="cab-table">
-        <thead><tr><th>Клиент</th><th>Участвовал в приходах</th></tr></thead>
-        <tbody>
-          ${topClients.map(([name, cnt]) => `<tr><td style="font-weight:500">${name}</td><td>${cnt}</td></tr>`).join('')}
-        </tbody>
-      </table>
-    </div>` : ''}
-  `;
+  container.innerHTML = head + split + (billed.length ? kpis : '') + chart + `<div class="cab-an-two">${clientsBox}${tipsBox}</div>`;
 }
 
 // ============ НАСТРОЙКИ ============
