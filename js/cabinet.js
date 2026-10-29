@@ -101,7 +101,7 @@ async function cabTxMapField(shipId, field, name, value) {
   const fp = new firebase.firestore.FieldPath(field, name);
   await db.runTransaction(async t => {
     const doc = await t.get(ref);
-    if (!doc.exists) throw new Error('приход не найден');
+    if (!doc.exists) throw new Error('закупка не найдена');
     t.update(ref, fp, value === null ? firebase.firestore.FieldValue.delete() : value);
   });
   const ship = cabShipmentsCache.find(x => x.id === shipId);
@@ -233,7 +233,7 @@ function cabGetClientsFromShipment(ship) {
 // ============ ЗАГЛУШКА ============
 function renderCabStub(container, section) {
   const names = {
-    shipments: 'Приходы', clients: 'Клиенты', prices: 'Цены',
+    shipments: 'Закупки', clients: 'Клиенты', prices: 'Цены',
     calc: 'Расчёты', analytics: 'Аналитика', settings: 'Настройки', tariffs: 'Тариф', admin: 'Администрирование'
   };
   const icons = {
@@ -256,8 +256,8 @@ function cabShipTotalKg(ship) {
 // Долг клиентов считается только когда приход рассортирован или в архиве — до этого клиентам ещё не выставлено
 function cabIsBilled(ship) { return !!ship && (ship.status === 'sorted' || ship.status === 'done'); }
 // ДЕНЬГИ ВЛАДЕЛЬЦА (по всем приходам, любой статус; «Это я» не входит — это личные расходы):
-//  Вложено в товар = себестоимость (закупка ¥ × курс закупки + доставка карго после взвешивания), за которую клиенты ещё не рассчитались.
-//    Оплата клиента сначала гасит себестоимость; заплатил всё — деньги вернулись. Нет закупочной цены — берём цену клиента ¥ × курс закупки.
+//  Вложено в товар = себестоимость (выкуп ¥ × курс выкупа + доставка карго после взвешивания), за которую клиенты ещё не рассчитались.
+//    Оплата клиента сначала гасит себестоимость; заплатил всё — деньги вернулись. Нет цены выкупа — берём цену клиента ¥ × курс выкупа.
 //  Получено прибыли = наценка, которую клиенты уже заплатили (сверх себестоимости, не больше расчётной прибыли).
 //  Оборотка = вложено в товар + полученная прибыль.
 function cabMoney(ships) {
@@ -301,8 +301,8 @@ function cabTotalsStrip(ships, withClients) {
   const kg = cabDeliveredKg(ships);
   const inWork = ships.filter(s => s.status !== 'done' && s.status !== 'sorted').length;
   const segs = [
-    ['ti-package', 'Приходов всего', ships.length, inWork ? `${inWork} собирается или в пути` : 'все доставлены'],
-    ['ti-shirt', 'Привезено товаров', cabFmt(items), billed.length ? `≈ ${cabFmt(items / billed.length)} за приход` : ''],
+    ['ti-package', 'Закупок всего', ships.length, inWork ? `${inWork} собирается или в пути` : 'все доставлены'],
+    ['ti-shirt', 'Привезено товаров', cabFmt(items), billed.length ? `≈ ${cabFmt(items / billed.length)} за закупку` : ''],
     ['ti-weight', 'Привезено, кг', kg.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ' '), items ? `≈ ${(kg / items).toFixed(2)} кг на товар` : '']
   ];
   if (withClients) {
@@ -340,17 +340,17 @@ function cabMarkup(ships) {
 }
 // Подсказки «?» на блоках Обзора
 const CAB_HELP = {
-  money: ['Деньги в обороте', 'Сколько ваших денег сейчас крутится в заказах.<br><b>Вложено в товар</b> — сколько вы потратили на выкуп и доставку карго, а клиенты вам это ещё не вернули. Считается с момента выкупа на Pinduoduo, в любом статусе прихода.<br><b>Получено прибыли</b> — ваша наценка, которую клиенты уже заплатили.<br>Отметили оплату клиента — «вложено» уменьшается, «получено» растёт. Ваши личные покупки («Это я») сюда не входят.'],
-  markup: ['Наценка в заказах', 'Разница между тем, сколько платят клиенты, и вашей себестоимостью — по всем текущим заказам.<br><b>Уже получено</b> — клиенты заплатили.<br><b>Рассортировано</b> — товар взвешен, сумма точная, ждём оплаты.<br><b>В пути и в сборке (≈)</b> — только наценка на курс юаня. Наценку на доставку посчитаем, когда приход взвесят, поэтому итог может измениться.<br>Это не обещанная прибыль: если клиент не заберёт или не оплатит заказ, этих денег не будет.'],
-  todo: ['Что сделать сейчас', 'Помощник собирает дела, которые приносят деньги или экономят время: кто должен, какой приход собирается, кого из клиентов пора вернуть, какие имена похожи на дубли.<br>Нажмите на строку — откроется нужный раздел.'],
-  an_split: ['Куда идут деньги клиентов', 'Всё, что заплатят клиенты по рассортированным приходам, разложено на три части: сколько ушло на выкуп товара, сколько — на доставку карго, и сколько осталось вам (наценка).<br>Приходы в пути сюда не входят: пока нет веса, суммы неточные.'],
+  money: ['Деньги в обороте', 'Сколько ваших денег сейчас крутится в заказах.<br><b>Вложено в товар</b> — сколько вы потратили на выкуп и доставку карго, а клиенты вам это ещё не вернули. Считается с момента выкупа на Pinduoduo, в любом статусе закупки.<br><b>Получено прибыли</b> — ваша наценка, которую клиенты уже заплатили.<br>Отметили оплату клиента — «вложено» уменьшается, «получено» растёт. Ваши личные покупки («Это я») сюда не входят.'],
+  markup: ['Наценка в заказах', 'Разница между тем, сколько платят клиенты, и вашей себестоимостью — по всем текущим заказам.<br><b>Уже получено</b> — клиенты заплатили.<br><b>Рассортировано</b> — товар взвешен, сумма точная, ждём оплаты.<br><b>В пути и в сборке (≈)</b> — только наценка на курс юаня. Наценку на доставку посчитаем, когда закупку взвесят, поэтому итог может измениться.<br>Это не обещанная прибыль: если клиент не заберёт или не оплатит заказ, этих денег не будет.'],
+  todo: ['Что сделать сейчас', 'Помощник собирает дела, которые приносят деньги или экономят время: кто должен, какая закупка собирается, кого из клиентов пора вернуть, какие имена похожи на дубли.<br>Нажмите на строку — откроется нужный раздел.'],
+  an_split: ['Куда идут деньги клиентов', 'Всё, что заплатят клиенты по рассортированным закупкам, разложено на три части: сколько ушло на выкуп товара, сколько — на доставку карго, и сколько осталось вам (наценка).<br>Закупки в пути сюда не входят: пока нет веса, суммы неточные.'],
   an_src: ['Откуда наценка', 'Наценка складывается из двух частей: <b>на курсе</b> — разница между курсом для клиента и курсом закупки, и <b>на доставке</b> — разница между тем, что клиент платит за кг, и тарифом карго.<br>Если доля доставки маленькая или отрицательная — возможно, стоит поднять «Доставку клиенту» в Ценах.'],
   incl: ['Вес в цене', 'Доставка этого клиента уже заложена в цену товара — Piksta <b>не начисляет</b> ему доставку по весу.<br>Если включена «Тара 8%», такого клиента можно не взвешивать.'],
   tare8: ['Тара 8%', 'К весу каждого взвешенного клиента прибавляется 8% на коробки и упаковку. Тару по весу от карго в этом режиме не высчитываем.'],
-  departed: ['Отправка выехала с карго', 'Поставьте галочку, когда карго забрало посылки, — приход перейдёт в статус «В дороге». Снять её можно, пока приход в дороге: он вернётся в «Формируется».'],
+  departed: ['Отправка выехала с карго', 'Поставьте галочку, когда карго забрало посылки, — закупка перейдёт в статус «В дороге». Снять её можно, пока закупка в дороге: она вернётся в «Формируется».'],
   costGoods: ['Товар по себестоимости', 'Клиент платит за товар столько, сколько он стоил вам, — <b>без наценки</b> на курсе. Ваша прибыль с товара этого клиента — 0. Для своих, друзей и себя.'],
   costShip: ['Доставка по себестоимости', 'Клиент платит доставку по цене карго — <b>без вашей наценки</b> на доставке. Прибыль с доставки этого клиента — 0.'],
-  flow: ['Где сейчас товар', 'Все приходы по этапам: <b>собирается</b> → <b>в пути</b> → <b>на складе</b> → <b>рассортирован</b>.<br>До сортировки показана примерная наценка (без доставки). После сортировки — сколько клиенты ещё должны.<br>Нажмите на приход, чтобы открыть его. Архивные приходы — в разделе «Приходы».']
+  flow: ['Где сейчас товар', 'Все закупки по этапам: <b>собирается</b> → <b>в пути</b> → <b>на складе</b> → <b>рассортирована</b>.<br>До сортировки показана примерная наценка (без доставки). После сортировки — сколько клиенты ещё должны.<br>Нажмите на закупку, чтобы открыть её. Архивные закупки — в разделе «Закупки».']
 };
 function cabHelpBtn(k) { return `<button class="cab-help" title="Что это?" onclick="cabHelp(event,'${k}')"><i class="ti ti-help-circle"></i></button>`; }
 function cabHelp(ev, k) {
@@ -387,11 +387,11 @@ function renderCabOverview(container) {
   const dupes = cabFindDupes(S.list).length;
 
   const todo = [];
-  if (debtors) todo.push({ ic: 'ti-cash', tone: 'red', t: `${debtors} ${cabPl(debtors, 'клиент должен', 'клиента должны', 'клиентов должны')} <b>${cabFmt(debtSum)} BYN</b>`, s: 'По рассортированным приходам. Отметьте, кто уже заплатил', a: `cabClientFilter='all';cabNav('clients')`, btn: 'Отметить оплаты' });
+  if (debtors) todo.push({ ic: 'ti-cash', tone: 'red', t: `${debtors} ${cabPl(debtors, 'клиент должен', 'клиента должны', 'клиентов должны')} <b>${cabFmt(debtSum)} BYN</b>`, s: 'По рассортированным закупкам. Отметьте, кто уже заплатил', a: `cabClientFilter='all';cabNav('clients')`, btn: 'Отметить оплаты' });
   const cnb = cabCnBreak();
   if (cnb) todo.push({ ic: 'ti-calendar-event', tone: 'orange', t: `Через ${cnb.days} ${cabPl(cnb.days, 'день', 'дня', 'дней')} Китай уходит на <b>${cnb.name}</b>`, s: `Фабрики и склады встанут ${cnb.len}. Напишите клиентам заранее — пусть успеют заказать до ${cnb.fmt(cnb.orderBy)}`, a: `cabClientFilter='all';cabNav('clients')`, btn: 'Написать клиентам' });
-  for (const s of ships.filter(s => s.status === 'delayed')) todo.push({ ic: 'ti-clock-exclamation', tone: 'orange', t: `<b>${s.name || 'Приход'}</b> задерживается`, s: 'Предупредите клиентов — это сохраняет доверие', a: `cabOpenShip('${s.id}')`, btn: 'Открыть' });
-  for (const s of ships.filter(s => s.status === 'forming')) { const n = (s.data || []).length, k = cabGetClientsFromShipment(s).clients.length; todo.push({ ic: 'ti-shopping-cart', tone: 'blue', t: `<b>${s.name || 'Приход'}</b> собирается`, s: `${n} ${cabPl(n, 'позиция', 'позиции', 'позиций')} · ${k} ${cabPl(k, 'клиент', 'клиента', 'клиентов')}. Самое время позвать тех, кто давно не заказывал`, a: `cabOpenShip('${s.id}')`, btn: 'Открыть' }); }
+  for (const s of ships.filter(s => s.status === 'delayed')) todo.push({ ic: 'ti-clock-exclamation', tone: 'orange', t: `<b>${s.name || 'Закупка'}</b> задерживается`, s: 'Предупредите клиентов — это сохраняет доверие', a: `cabOpenShip('${s.id}')`, btn: 'Открыть' });
+  for (const s of ships.filter(s => s.status === 'forming')) { const n = (s.data || []).length, k = cabGetClientsFromShipment(s).clients.length; todo.push({ ic: 'ti-shopping-cart', tone: 'blue', t: `<b>${s.name || 'Закупка'}</b> собирается`, s: `${n} ${cabPl(n, 'позиция', 'позиции', 'позиций')} · ${k} ${cabPl(k, 'клиент', 'клиента', 'клиентов')}. Самое время позвать тех, кто давно не заказывал`, a: `cabOpenShip('${s.id}')`, btn: 'Открыть' }); }
   const once = segN('once'), forg = segN('forgotten');
   if (forg) todo.push({ ic: 'ti-zzz', tone: 'amber', t: `${forg} ${cabPl(forg, 'постоянный клиент пропал', 'постоянных клиента пропали', 'постоянных клиентов пропали')}`, s: 'Заказывали 2+ раза, но давно не было. Как вернуть — подскажем', a: `cabClientFilter='forgotten';cabNav('clients')`, btn: 'Вернуть' });
   if (once) todo.push({ ic: 'ti-repeat', tone: 'sky', t: `${once} ${cabPl(once, 'клиент купил', 'клиента купили', 'клиентов купили')} только один раз`, s: `${cl.length ? Math.round(once / cl.length * 100) : 0}% базы. Второй заказ — главный шаг к постоянному клиенту`, a: `cabClientFilter='once';cabNav('clients')`, btn: 'Как вернуть' });
@@ -402,7 +402,7 @@ function renderCabOverview(container) {
     ['Собирается', ['forming'], 'ti-shopping-cart', '#4a90d9'],
     ['В пути', ['transit', 'delayed'], 'ti-truck', '#d4a106'],
     ['На складе', ['warehouse'], 'ti-building-warehouse', '#3cb371'],
-    ['Рассортирован', ['sorted'], 'ti-checks', '#8b7fd4']
+    ['Рассортирована', ['sorted'], 'ti-checks', '#8b7fd4']
   ];
   const shipCard = s => {
     const { clients } = cabGetClientsFromShipment(s);
@@ -430,23 +430,23 @@ function renderCabOverview(container) {
   container.innerHTML = `
     <div class="cab-hello">
       <div class="cab-main-title" style="margin-bottom:2px">${cabGreeting()}</div>
-      <div class="cab-hello-sub">Вот как идут дела: деньги, приходы и что стоит сделать сегодня</div>
+      <div class="cab-hello-sub">Вот как идут дела: деньги, закупки и что стоит сделать сегодня</div>
     </div>
 
     <div class="cab-ov-top">
-      <div class="cab-card cab-money" title="Деньги в обороте = вложено в товар + полученная прибыль. Вложено — себестоимость товара (закупка + доставка карго), за который клиенты ещё не рассчитались; отсчёт с выкупа на Pinduoduo. Покупки «Это я» не входят">
+      <div class="cab-card cab-money" title="Деньги в обороте = вложено в товар + полученная прибыль. Вложено — себестоимость товара (выкуп + доставка карго), за который клиенты ещё не рассчитались; отсчёт с выкупа на Pinduoduo. Покупки «Это я» не входят">
         <div class="cab-card-l"><i class="ti ti-coins"></i> Деньги в обороте${cabHelpBtn('money')}</div>
         <div class="cab-money-v">${cabFmt(money.turnover)} <small>BYN</small></div>
         <div class="cab-money-bar"><span style="width:${frozenPct}%;background:#6C4DB8"></span>${realPct ? `<span style="width:${realPct}%;background:#16a34a"></span>` : ''}</div>
         <div class="cab-money-leg">
-          <div><i style="background:#6C4DB8"></i><span>Вложено в товар</span><b>${cabFmt(money.frozen)} BYN</b><em>ждёт оплаты клиентов · ${money.nShips} ${cabPl(money.nShips, 'приход', 'прихода', 'приходов')}</em></div>
+          <div><i style="background:#6C4DB8"></i><span>Вложено в товар</span><b>${cabFmt(money.frozen)} BYN</b><em>ждёт оплаты клиентов · ${money.nShips} ${cabPl(money.nShips, 'закупка', 'закупки', 'закупок')}</em></div>
           <div><i style="background:#16a34a"></i><span>Получено прибыли</span><b style="color:#16a34a">${cabFmt(money.realized)} BYN</b><em>уже ваши деньги</em></div>
         </div>
       </div>
       <div class="cab-card cab-wait">
         <div class="cab-card-l"><i class="ti ti-receipt-2"></i> Наценка в заказах${cabHelpBtn('markup')}</div>
         <div class="cab-wait-v">${mk.est > 0.5 ? '≈ ' : ''}${cabFmt(mk.total)} <small>BYN</small></div>
-        ${mk.est > 0.5 ? `<div class="cab-wait-warn"><i class="ti ti-scale"></i> Без учёта доставки</div><div class="cab-wait-s">${mk.estShips} ${cabPl(mk.estShips, 'приход ещё не взвешен', 'прихода ещё не взвешены', 'приходов ещё не взвешены')} — итог изменится</div>` : '<div class="cab-wait-s">все приходы взвешены — суммы точные</div>'}
+        ${mk.est > 0.5 ? `<div class="cab-wait-warn"><i class="ti ti-scale"></i> Без учёта доставки</div><div class="cab-wait-s">${mk.estShips} ${cabPl(mk.estShips, 'закупка ещё не взвешена', 'закупки ещё не взвешены', 'закупок ещё не взвешены')} — итог изменится</div>` : '<div class="cab-wait-s">все закупки взвешены — суммы точные</div>'}
         <div class="cab-wait-bar">${[[mk.got, '#16a34a'], [mk.sure, '#86efac'], [mk.est, 'est']].filter(x => x[0] > 0.5).map(([v, c]) => `<span style="flex:${v};${c === 'est' ? '' : 'background:' + c}" class="${c === 'est' ? 'est' : ''}"></span>`).join('')}</div>
         <div class="cab-wait-rows">
           <div><i style="background:#16a34a"></i><span>Уже получено</span><b>${cabFmt(mk.got)}</b></div>
@@ -466,7 +466,7 @@ function renderCabOverview(container) {
     </div>` : ''}
 
     <div class="cab-card">
-      <div class="cab-card-h">Где сейчас товар${cabHelpBtn('flow')}${archived ? `<a href="#" onclick="cabNav('shipments');return false" class="cab-card-link">Архив: ${archived} ${cabPl(archived, 'приход', 'прихода', 'приходов')} →</a>` : ''}</div>
+      <div class="cab-card-h">Где сейчас товар${cabHelpBtn('flow')}${archived ? `<a href="#" onclick="cabNav('shipments');return false" class="cab-card-link">Архив: ${archived} ${cabPl(archived, 'закупка', 'закупки', 'закупок')} →</a>` : ''}</div>
       <div class="cab-flow">${flow}</div>
     </div>
 
@@ -480,7 +480,7 @@ function renderCabOverview(container) {
 function cabShipsHero(ships) {
   const day = 864e5, now = Date.now();
   const age = s => { const t = s.created ? new Date(s.created).getTime() : NaN; return isFinite(t) ? Math.max(0, Math.round((now - t) / day)) : null; };
-  const stages = [['Собирается', ['forming'], 'ti-shopping-cart', '#4a90d9'], ['В пути', ['transit', 'delayed'], 'ti-truck', '#d4a106'], ['На складе', ['warehouse'], 'ti-building-warehouse', '#3cb371'], ['Рассортирован', ['sorted'], 'ti-checks', '#8b7fd4']];
+  const stages = [['Собирается', ['forming'], 'ti-shopping-cart', '#4a90d9'], ['В пути', ['transit', 'delayed'], 'ti-truck', '#d4a106'], ['На складе', ['warehouse'], 'ti-building-warehouse', '#3cb371'], ['Рассортирована', ['sorted'], 'ti-checks', '#8b7fd4']];
   const inWork = ships.filter(s => s.status !== 'done');
   const steps = stages.map(([l, keys, ic, c]) => {
     const list = ships.filter(s => keys.includes(s.status));
@@ -490,12 +490,12 @@ function cabShipsHero(ships) {
   // Дольше всех в пути — повод проверить
   const road = ships.filter(s => ['transit', 'delayed', 'warehouse'].includes(s.status)).map(s => ({ s, a: age(s) })).filter(x => x.a !== null).sort((a, b) => b.a - a.a)[0];
   const facts = [];
-  if (road) facts.push(`<div class="cab-fact${road.a > 30 ? ' warn' : ''}"><i class="ti ti-clock"></i><span>Дольше всех в пути</span><b>${road.s.name || 'Приход'} — ${road.a} ${cabDaysWord(road.a)}</b></div>`);
+  if (road) facts.push(`<div class="cab-fact${road.a > 30 ? ' warn' : ''}"><i class="ti ti-clock"></i><span>Дольше всех в пути</span><b>${road.s.name || 'Закупка'} — ${road.a} ${cabDaysWord(road.a)}</b></div>`);
   const big = ships.slice().sort((a, b) => (b.data || []).length - (a.data || []).length)[0];
-  if (big) facts.push(`<div class="cab-fact"><i class="ti ti-trophy"></i><span>Самый большой приход</span><b>${big.name || 'Приход'} — ${(big.data || []).length} поз.</b></div>`);
+  if (big) facts.push(`<div class="cab-fact"><i class="ti ti-trophy"></i><span>Самая большая закупка</span><b>${big.name || 'Закупка'} — ${(big.data || []).length} поз.</b></div>`);
   const billed = ships.filter(s => s.status === 'sorted' || s.status === 'done');
   const kg = cabDeliveredKg(ships), items = billed.reduce((n, s) => n + (s.data || []).length, 0);
-  if (items) facts.push(`<div class="cab-fact"><i class="ti ti-weight"></i><span>В среднем товар весит</span><b>${(kg / items).toFixed(2)} кг · приход ${cabFmt(kg / billed.length)} кг</b></div>`);
+  if (items) facts.push(`<div class="cab-fact"><i class="ti ti-weight"></i><span>В среднем товар весит</span><b>${(kg / items).toFixed(2)} кг · закупка ${cabFmt(kg / billed.length)} кг</b></div>`);
   // Столбики: позиции в каждом приходе, старые слева
   const chron = ships.slice().reverse().slice(-12);
   const maxN = Math.max(1, ...chron.map(s => (s.data || []).length));
@@ -507,14 +507,14 @@ function cabShipsHero(ships) {
   }).join('');
   return `<div class="cab-ov-top cab-sh-top">
     <div class="cab-card">
-      <div class="cab-card-l"><i class="ti ti-route"></i> Сейчас в работе<b class="cab-base-n">${inWork.length} ${cabPl(inWork.length, 'приход', 'прихода', 'приходов')}</b></div>
+      <div class="cab-card-l"><i class="ti ti-route"></i> Сейчас в работе<b class="cab-base-n">${inWork.length} ${cabPl(inWork.length, 'закупка', 'закупки', 'закупок')}</b></div>
       <div class="cab-steps">${steps}</div>
       <div class="cab-facts">${facts.join('')}</div>
     </div>
     <div class="cab-card">
-      <div class="cab-card-l"><i class="ti ti-chart-bar"></i> Позиций в приходах</div>
+      <div class="cab-card-l"><i class="ti ti-chart-bar"></i> Позиций в закупках</div>
       <div class="cab-bars">${bars}</div>
-      <div class="cab-bars-sum"><span><b>${ships.length}</b> ${cabPl(ships.length, 'приход', 'прихода', 'приходов')}</span><span><b>${cabFmt(items)}</b> товаров привезено</span><span><b>${kg.toFixed(1)}</b> кг</span></div>
+      <div class="cab-bars-sum"><span><b>${ships.length}</b> ${cabPl(ships.length, 'закупка', 'закупки', 'закупок')}</span><span><b>${cabFmt(items)}</b> товаров привезено</span><span><b>${kg.toFixed(1)}</b> кг</span></div>
     </div>
   </div>`;
 }
@@ -545,13 +545,13 @@ function renderCabShipments(container) {
   }).join('');
 
   container.innerHTML = `
-    <div class="cab-main-title">Приходы</div>
+    <div class="cab-main-title">Закупки</div>
     ${cabShipsHero(ships)}
     <div class="cab-table-wrap">
       <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
-        <thead><tr><th>Название</th><th title="Когда приход создан в Piksta">Создан</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет приходов</td></tr>'}</tbody>
+        <thead><tr><th>Название</th><th title="Когда закупка создана в Piksta">Создана</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет закупок</td></tr>'}</tbody>
       </table>
     </div>`;
 }
@@ -602,7 +602,7 @@ function cabRenderShip() {
   else if (cabShipTab === 'calc') body = cabShipCalcHtml(calc);
   else body = cabShipRatesHtml();
   document.getElementById('cabMain').innerHTML = `
-    <a href="#" onclick="cabCloseShip();return false" style="display:inline-flex;align-items:center;gap:4px;color:#6C4DB8;text-decoration:none;font-size:14px;margin-bottom:10px"><i class="ti ti-arrow-left"></i> Все приходы</a>
+    <a href="#" onclick="cabCloseShip();return false" style="display:inline-flex;align-items:center;gap:4px;color:#6C4DB8;text-decoration:none;font-size:14px;margin-bottom:10px"><i class="ti ti-arrow-left"></i> Все закупки</a>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
       <div class="cab-main-title" style="margin:0">${ship.name || 'Без названия'}</div>
       <button onclick="cabRenameShip()" title="Переименовать" style="border:none;background:none;color:#6b7280;cursor:pointer;font-size:16px"><i class="ti ti-pencil"></i></button>
@@ -652,7 +652,7 @@ async function cabRenameShip() {
 }
 
 // ---- Товары и цены ----
-let cabItemSort = 'track';  // 'track' — как в приходе (по трек-кодам), 'wh' — по складам
+let cabItemSort = 'track';  // 'track' — как в закупке (по трек-кодам), 'wh' — по складам
 
 function cabSetItemSort(m) { cabItemSort = m; cabRenderShip(); }
 
@@ -699,7 +699,7 @@ function cabShipItemsHtml() {
       </div>
     </div>
     <table class="cab-table">
-      <thead><tr><th></th><th>Трек</th><th>Клиент</th><th>Закупка ¥</th><th>Клиент ¥</th></tr></thead>
+      <thead><tr><th></th><th>Трек</th><th>Клиент</th><th>Выкуп ¥</th><th>Клиент ¥</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
     </table>
   </div>`;
@@ -829,7 +829,7 @@ function cabSetCargo(inp) {
 
 async function cabSetDeparted(inp) {
   const st = (cabShipmentsCache.find(s => s.id === cabShipId) || {}).status || 'forming';
-  if (!inp.checked && st !== 'transit') { alert('Приход уже дальше дороги — статус меняйте в списке статусов вверху'); cabRenderShip(); return; }
+  if (!inp.checked && st !== 'transit') { alert('Закупка уже дальше дороги — статус меняйте в списке статусов вверху'); cabRenderShip(); return; }
   shipmentDeparted = inp.checked;
   const key = shipmentDeparted ? 'transit' : 'forming';
   await shipmentsRef().doc(cabShipId).update({ departed: shipmentDeparted });
@@ -929,7 +929,7 @@ function cabShipPDF() {
 
 // ---- Курсы ----
 function cabShipRatesHtml() {
-  const f = [['clientRate','Курс клиента, BYN за ¥'],['buyRate','Курс закупки, BYN за ¥'],['shipClient','Доставка клиенту, BYN/кг'],['shipCargo','Доставка карго, BYN/кг']];
+  const f = [['clientRate','Курс клиента, BYN за ¥'],['buyRate','Курс выкупа, BYN за ¥'],['shipClient','Доставка клиенту, BYN/кг'],['shipCargo','Доставка карго, BYN/кг']];
   return `<div class="cab-table-wrap" style="max-width:520px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       ${f.map(([k, l]) => `<label style="font-size:13px;color:#5f6470">${l}<br><input value="${currentRates[k]}" onchange="cabSetRate('${k}',this)" inputmode="decimal" style="${cabInp};width:100%;margin-top:4px"></label>`).join('')}
@@ -1037,7 +1037,7 @@ async function cabMergeClients(fromName, toName) {
   const fl = fromName.toLowerCase(), tl = toName.toLowerCase();
   if (fl === tl) return;
   const touched = cabShipmentsCache.filter(s => (s.data || []).some(row => splitWarehouses((Array.isArray(row) ? row[1] : row.w) || '').some(p => p.toLowerCase() === fl)));
-  if (!cabMergeSkipConfirm && !confirm(`Объединить клиента «${fromName}» с «${toName}»?\n\nВо всех приходах (${touched.length}) имя «${fromName}» заменится на «${toName}», вместе с весами и оплатами.\nОтменить автоматически нельзя.`)) return;
+  if (!cabMergeSkipConfirm && !confirm(`Объединить клиента «${fromName}» с «${toName}»?\n\nВо всех закупках (${touched.length}) имя «${fromName}» заменится на «${toName}», вместе с весами и оплатами.\nОтменить автоматически нельзя.`)) return;
   const MAPS = ['weights', 'payments', 'dueOverride', 'owners', 'costGoods', 'costShip', 'priceInclWeight'];
   try {
     for (const ship of touched) {
@@ -1092,7 +1092,7 @@ function cabMergeDupe(encFrom, encTo) { cabMergeClients(decodeURIComponent(encFr
 // Группа: присоединить все варианты к основному имени по очереди (подтверждение — одно на всю группу)
 async function cabMergeGroup(encList, encTo) {
   const from = JSON.parse(decodeURIComponent(encList)), to = decodeURIComponent(encTo);
-  if (!confirm(`Объединить в «${to}» клиентов: ${from.map(x => '«' + x + '»').join(', ')}?\n\nВо всех приходах эти имена заменятся на «${to}», вместе с весами и оплатами. Отменить автоматически нельзя.`)) return;
+  if (!confirm(`Объединить в «${to}» клиентов: ${from.map(x => '«' + x + '»').join(', ')}?\n\nВо всех закупках эти имена заменятся на «${to}», вместе с весами и оплатами. Отменить автоматически нельзя.`)) return;
   cabMergeSkipConfirm = true;
   try { for (const f of from) await cabMergeClients(f, to); } finally { cabMergeSkipConfirm = false; }
 }
@@ -1177,7 +1177,7 @@ const CAB_ADVICE = {
   },
   forgotten: {
     ic: 'ti-zzz', title: n => `${n} ${cabPl(n, 'постоянный клиент пропал', 'постоянных клиента пропали', 'постоянных клиентов пропали')}`,
-    why: 'Заказывали 2+ раза, но в трёх последних приходах их нет. Обычно причина простая: забыли, нашли дешевле или что-то не понравилось. Часто хватает одного личного сообщения.',
+    why: 'Заказывали 2+ раза, но в трёх последних закупках их нет. Обычно причина простая: забыли, нашли дешевле или что-то не понравилось. Часто хватает одного личного сообщения.',
     tips: [
       ['Напишите лично, по имени', '«Давно вас не было — всё в порядке?» Спросите, что можно улучшить. Ответ подскажет, как вернуть и других.'],
       ['Предложение на возвращение', 'Бонус или скидка, которые действуют только до ближайшей отправки — есть повод не откладывать.'],
@@ -1187,7 +1187,7 @@ const CAB_ADVICE = {
     msg: 'Здравствуйте, {имя}! Давно вас не было в наших заказах — всё хорошо? Собираю отправку до {дата}. Для тех, кто с нами давно, — {бонус}. Если в прошлый раз что-то не понравилось, напишите — исправлю.'
   },
   new: {
-    ic: 'ti-sparkles', title: n => `${n} ${cabPl(n, 'новый клиент', 'новых клиента', 'новых клиентов')} в последнем приходе`,
+    ic: 'ti-sparkles', title: n => `${n} ${cabPl(n, 'новый клиент', 'новых клиента', 'новых клиентов')} в последней закупке`,
     why: 'Первый опыт решает, будет ли второй заказ. Новичку важно понимать, что происходит с его посылкой.',
     tips: [
       ['Поприветствуйте', 'Коротко расскажите, как всё устроено: сроки, когда платить, как забрать.'],
@@ -1198,7 +1198,7 @@ const CAB_ADVICE = {
     msg: 'Здравствуйте, {имя}! Спасибо за первый заказ. Напишу, как только посылка выедет, — обычно доставка занимает {срок}. Анонсы следующих отправок — в нашем канале: {ссылка}.'
   },
   active: {
-    ic: 'ti-heart', title: n => `${n} ${cabPl(n, 'клиент заказывает', 'клиента заказывают', 'клиентов заказывают')} каждый приход`,
+    ic: 'ti-heart', title: n => `${n} ${cabPl(n, 'клиент заказывает', 'клиента заказывают', 'клиентов заказывают')} каждую закупку`,
     why: 'Это ядро вашего дохода. Задача — не потерять их и сделать вашими «амбассадорами».',
     tips: [
       ['Ранний доступ', 'Сообщайте о следующей отправке им первым — это приятно и ничего не стоит.'],
@@ -1210,7 +1210,7 @@ const CAB_ADVICE = {
   },
   regular: {
     ic: 'ti-calendar-repeat', title: n => `${n} ${cabPl(n, 'клиент заказывает', 'клиента заказывают', 'клиентов заказывают')} время от времени`,
-    why: 'Были в 2+ приходах и недавно. Цель — чтобы заказывали каждый приход, как активные.',
+    why: 'Были в 2+ закупках и недавно. Цель — чтобы заказывали в каждой закупке, как активные.',
     tips: [
       ['Анонсы с датой отсечки', 'Регулярно сообщайте, до какого числа собирается отправка.'],
       ['Подборки', '«Что сейчас выгодно брать» — помогает найти повод заказать.'],
@@ -1400,7 +1400,7 @@ function renderCabClients(container) {
     <div class="cab-main-title">Клиенты</div>
     ${(() => {
       const cl = all.filter(c => !c.isOwner), tot = cl.length || 1;
-      const segs = [['new', 'Новые', 'Впервые в самом свежем приходе'], ['active', 'Активные', 'Есть в двух последних приходах'], ['regular', 'Обычные', 'Заказывают время от времени, были недавно'], ['once', 'Разовые', 'Заказывали только в одном приходе'], ['forgotten', 'Забытые', 'Были в 2+ приходах, но в трёх последних их нет']]
+      const segs = [['new', 'Новые', 'Впервые в самой свежей закупке'], ['active', 'Активные', 'Есть в двух последних закупках'], ['regular', 'Обычные', 'Заказывают время от времени, были недавно'], ['once', 'Разовые', 'Заказывали только в одной закупке'], ['forgotten', 'Забытые', 'Были в 2+ закупках, но в трёх последних их нет']]
         .map(([k, l, t]) => ({ k, l, t, n: cl.filter(c => c.status === k).length }));
       const bar = segs.filter(x => x.n).map(x => `<span class="${cabClientFilter === x.k ? 'on' : ''}" style="flex:${x.n};background:${CAB_SEG_BAR[x.k]}" title="${x.l}: ${x.n} — ${x.t}" onclick="cabSetClientFilter(cabClientFilter === '${x.k}' ? 'all' : '${x.k}')"></span>`).join('');
       const leg = segs.map(x => `<span class="cab-base-chip${cabClientFilter === x.k ? ' on' : ''}" title="${x.t}. Нажмите — показать в списке" onclick="cabSetClientFilter(cabClientFilter === '${x.k}' ? 'all' : '${x.k}')"><i style="background:${CAB_SEG_BAR[x.k]}"></i>${x.l}<b>${x.n}</b><em>${Math.round(x.n / tot * 100)}%</em></span>`).join('')
@@ -1415,12 +1415,12 @@ function renderCabClients(container) {
           let billed = 0, paid = 0;
           for (const ship of cabShipmentsCache) { if (!cabIsBilled(ship)) continue; for (const c of cabGetClientsFromShipment(ship).clients) { if (c.isOwner) continue; billed += c.due; paid += Math.min(c.due, c.payPaid || 0); } }
           const pct = billed > 0 ? Math.round(paid / billed * 100) : 100;
-          return `<div class="cab-card cab-debt" title="Только по рассортированным и архивным приходам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре">
+          return `<div class="cab-card cab-debt" title="Только по рассортированным и архивным закупкам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре">
           <div class="cab-card-l"><i class="ti ti-cash"></i> Должны вам</div>
           <div class="cab-debt-v">${cabFmt(totalUnpaid)} <small>BYN</small></div>
           <div class="cab-debt-bar"><span style="width:${Math.max(pct, paid > 0 ? 2 : 0)}%"></span></div>
           <div class="cab-debt-p"><span>Собрано <b>${cabFmt(paid)}</b> из ${cabFmt(billed)} BYN</span><b>${pct}%</b></div>
-          <div class="cab-debt-s">${debtors} ${cabPl(debtors, 'клиент', 'клиента', 'клиентов')} · по рассортированным приходам<a href="#" onclick="document.getElementById('cabClientsTable').scrollIntoView({behavior:'smooth'});return false">к списку ↓</a></div>
+          <div class="cab-debt-s">${debtors} ${cabPl(debtors, 'клиент', 'клиента', 'клиентов')} · по рассортированным закупкам<a href="#" onclick="document.getElementById('cabClientsTable').scrollIntoView({behavior:'smooth'});return false">к списку ↓</a></div>
         </div>`;
         })()}
       </div>`;
@@ -1451,7 +1451,7 @@ function renderCabClients(container) {
       ${folderRow}
       <div id="cabSelBar" class="cab-selbar" style="display:none"></div>
       <table class="cab-table" id="cabClientsTable">
-        <thead><tr><th class="cab-sel-td"><input type="checkbox" title="Отметить всех в списке" onchange="cabSelAllVisible(this.checked)"></th><th>Клиент</th><th>Статус</th><th>Приходов</th><th>Позиций</th><th>Вес</th><th>Долг (не оплачено)</th><th>Всего BYN</th><th>Прибыль</th></tr></thead>
+        <thead><tr><th class="cab-sel-td"><input type="checkbox" title="Отметить всех в списке" onchange="cabSelAllVisible(this.checked)"></th><th>Клиент</th><th>Статус</th><th>Закупок</th><th>Позиций</th><th>Вес</th><th>Долг (не оплачено)</th><th>Всего BYN</th><th>Прибыль</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
       </table>
     </div>`;
@@ -1505,7 +1505,7 @@ function cabRenderClientCard(container, name) {
     const paidHtml = c.isOwner ? '<div onclick="event.stopPropagation()" style="grid-column:5/9;font-size:13px;color:#dc2626;cursor:default">свой склад</div>'
       : `<div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></div>
         <div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></div>
-        <b onclick="event.stopPropagation()" ${cabIsBilled(ship) ? '' : 'title="Приход ещё не рассортирован — в долг не входит"'} style="justify-self:end;font-size:14px;cursor:default;color:${!cabIsBilled(ship) ? '#9aa0ab' : c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b>
+        <b onclick="event.stopPropagation()" ${cabIsBilled(ship) ? '' : 'title="Закупка ещё не рассортирована — в долг не входит"'} style="justify-self:end;font-size:14px;cursor:default;color:${!cabIsBilled(ship) ? '#9aa0ab' : c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b>
         <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')" style="width:16px;height:16px;margin:0;cursor:pointer">${cabPayBadge(c.payStatus)}</label>`;
     let items = '';
     if (open) {
@@ -1519,7 +1519,7 @@ function cabRenderClientCard(container, name) {
           return `<tr><td style="width:52px">${img}</td><td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${shared}</td><td>${price ? cabFmt2(price) + ' ¥' : '—'}${(parseInt(r[5]) || 1) > 1 ? ' ×' + r[5] : ''}</td></tr>`;
         }).join('');
       items = `<div style="padding:4px 0 6px">
-        <div style="font-size:13px;color:#6b7280;margin:6px 0 8px">Вес клиента в приходе: <b style="color:#1a1a2e">${c.weight > 0 ? c.weight.toFixed(2) + ' кг' : 'не взвешен'}</b>${c.shipWeight > 0 ? ' · с тарой ' + c.shipWeight.toFixed(2) + ' кг' : ''} (вес вводится на клиента целиком, не по товарам)</div>
+        <div style="font-size:13px;color:#6b7280;margin:6px 0 8px">Вес клиента в закупке: <b style="color:#1a1a2e">${c.weight > 0 ? c.weight.toFixed(2) + ' кг' : 'не взвешен'}</b>${c.shipWeight > 0 ? ' · с тарой ' + c.shipWeight.toFixed(2) + ' кг' : ''} (вес вводится на клиента целиком, не по товарам)</div>
         <table class="cab-table"><thead><tr><th></th><th>Трек-код</th><th>Цена клиента</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="color:#6b7280">Нет товаров</td></tr>'}</tbody></table>
       </div>`;
     }
@@ -1555,19 +1555,19 @@ function cabRenderClientCard(container, name) {
       <div style="display:flex;gap:24px;flex-wrap:wrap;row-gap:6px">
         ${ruleChk('owner', 'Это я')}${ruleChk('costGoods', 'Товар по себестоимости')}${ruleChk('costShip', 'Доставка по себестоимости')}
       </div>
-      <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют начиная со следующего формирующегося прихода. Для уже созданных приходов — галочки во вкладке «Расчёт» конкретного прихода.</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют начиная со следующей формирующейся закупки. Для уже созданных закупок — галочки во вкладке «Расчёт» конкретной закупки.</div>
     </div>
     <div class="cab-stats" style="grid-template-columns:repeat(4,1fr)">
       <div class="cab-stat-card"><div class="cab-stat-val">${m.totalItems}</div><div class="cab-stat-label">Позиций всего</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${m.ships.length}</div><div class="cab-stat-label">Приходов</div></div>
+      <div class="cab-stat-card"><div class="cab-stat-val">${m.ships.length}</div><div class="cab-stat-label">Закупок</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt2(m.unpaidDue)}</div><div class="cab-stat-label">Не оплачено, BYN</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt2(m.totalDue)}</div><div class="cab-stat-label">Всего за всё время, BYN</div></div>
     </div>
-    <div class="cab-table-title">Приходы клиента</div>
+    <div class="cab-table-title">Закупки клиента</div>
     <div style="overflow-x:auto;padding-bottom:2px">
       <div class="cab-cships">
         <div class="cab-cship cab-cship-head"><div class="cab-cship-row">
-          <span></span><span>Приход</span><span>Статус</span><span style="justify-self:end">Позиций</span><span>Итого, BYN</span><span>Оплачено, BYN</span><span style="justify-self:end">Остаток</span><span>Оплата</span>
+          <span></span><span>Закупка</span><span>Статус</span><span style="justify-self:end">Позиций</span><span>Итого, BYN</span><span>Оплачено, BYN</span><span style="justify-self:end">Остаток</span><span>Оплата</span>
         </div></div>
         ${shipsHtml}
       </div>
@@ -1602,7 +1602,7 @@ async function cabSetClientRule(encName, kind, on) {
       if (cur.costGoods) currentCostGoods = { ...cur.costGoods };
       if (cur.costShip) currentCostShip = { ...cur.costShip };
     }
-    alert('Данное условие будет действовать начиная со следующего формирующегося прихода. Если вы хотите изменить условия в уже сформированных отправках, зайдите в конкретную отправку и проставьте эти условия во вкладке «Расчёт».');
+    alert('Данное условие будет действовать начиная со следующей формирующейся закупки. Если вы хотите изменить условия в уже сформированных закупках, зайдите в конкретную закупку и проставьте эти условия во вкладке «Расчёт».');
   } catch (e) { alert('Не удалось сохранить: ' + e.message); }
   renderCabClients(document.getElementById('cabMain'));
 }
@@ -1626,10 +1626,10 @@ async function cabShipAllPaid() {
   const ship = cabShipmentsCache.find(s => s.id === cabShipId); if (!ship) return;
   const { clients } = cabGetClientsFromShipment(ship);
   const left = clients.filter(c => !c.isOwner && c.payRest > 0.004);
-  if (!left.length) { alert('Все клиенты этого прихода уже оплатили.'); return; }
+  if (!left.length) { alert('Все клиенты этой закупки уже оплатили.'); return; }
   const sum = left.reduce((n, c) => n + c.payRest, 0);
-  const warn = cabIsBilled(ship) ? '' : '\n\nВнимание: приход ещё не рассортирован — суммы могут измениться после взвешивания.';
-  if (!confirm(`Отметить оплатившими полностью ${left.length} клиентов прихода «${ship.name || ''}»?\nОстаток к оплате: ${cabFmt2(sum)} BYN.${warn}\n\nОтменить можно у каждого клиента вручную.`)) return;
+  const warn = cabIsBilled(ship) ? '' : '\n\nВнимание: закупка ещё не рассортирована — суммы могут измениться после взвешивания.';
+  if (!confirm(`Отметить оплатившими полностью ${left.length} клиентов закупки «${ship.name || ''}»?\nОстаток к оплате: ${cabFmt2(sum)} BYN.${warn}\n\nОтменить можно у каждого клиента вручную.`)) return;
   try {
     for (const c of left) await cabSavePayment(ship.id, cabClientKey(ship, c.name), Math.round(c.due * 100) / 100);
   } catch (e) { alert('Не удалось сохранить: ' + e.message); }
@@ -1656,10 +1656,10 @@ function cabShipTotals(ship) {
 }
 const cabPct = v => (v === null || !isFinite(v)) ? '—' : v.toFixed(1) + '%';
 
-// ---- БАЗОВЫЕ КУРСЫ: users/{uid}.baseRates — с ними создаются новые приходы (и в мобильной версии) ----
+// ---- БАЗОВЫЕ КУРСЫ: users/{uid}.baseRates — с ними создаются новые закупки (и в мобильной версии) ----
 const CAB_RATE_FIELDS = [
   ['clientRate', 'Курс для клиента', 'BYN за 1 ¥', 2],
-  ['buyRate', 'Курс закупки', 'BYN за 1 ¥', 2],
+  ['buyRate', 'Курс выкупа', 'BYN за 1 ¥', 2],
   ['shipClient', 'Доставка клиенту', 'BYN за 1 кг', 0],
   ['shipCargo', 'Доставка карго', 'BYN за 1 кг', 0]
 ];
@@ -1682,7 +1682,7 @@ async function cabSetBaseRate(key, inp) {
   } catch (e) { alert('Не удалось сохранить: ' + e.message); return; }
   // Формирующиеся приходы ещё никому не выставлены — предлагаем сразу перевести их на новый курс
   const forming = cabShipmentsCache.filter(s => s.status === 'forming' && (s.rates || {})[key] !== v);
-  if (forming.length && confirm(`Базовый курс сохранён.\n\nПрименить его и к формирующимся приходам (${forming.map(s => '«' + (s.name || 'Без названия') + '»').join(', ')})?`)) {
+  if (forming.length && confirm(`Базовый курс сохранён.\n\nПрименить его и к формирующимся закупкам (${forming.map(s => '«' + (s.name || 'Без названия') + '»').join(', ')})?`)) {
     for (const s of forming) {
       const r = { ...DEFAULT_RATES, ...(s.rates || {}), [key]: v };
       try { await shipmentsRef().doc(s.id).update({ rates: r }); s.rates = r; cabSyncMobileRates(s.id, r); } catch (e) { alert('Не удалось обновить «' + s.name + '»: ' + e.message); }
@@ -1707,7 +1707,7 @@ function cabRowMenu(ev, id) {
     <button ${done ? 'disabled title="Архив — курсы не меняем, иначе изменится вся статистика"' : ''} onclick="cabRowMenuClose();cabRatesEdit('${id}')"><i class="ti ti-pencil"></i>Изменить курсы${done ? '<em>архив</em>' : ''}</button>
     <button onclick="cabRowMenuClose();cabRatesToBase('${id}')"><i class="ti ti-arrow-bar-to-up"></i>Сделать курсы базовыми</button>
     <button onclick="cabRowMenuClose();cabShipCSV('${id}')"><i class="ti ti-file-spreadsheet"></i>Скачать расчёт (Excel / CSV)</button>
-    ${done ? '' : `<button onclick="cabRowMenuClose();cabOpenShip('${id}')"><i class="ti ti-external-link"></i>Открыть приход</button>`}`;
+    ${done ? '' : `<button onclick="cabRowMenuClose();cabOpenShip('${id}')"><i class="ti ti-external-link"></i>Открыть закупку</button>`}`;
   document.body.appendChild(m);
   const r = ev.currentTarget.getBoundingClientRect();
   const mw = 270;
@@ -1720,7 +1720,7 @@ function cabRowMenuClose() { const m = document.getElementById('cabRowMenu'); if
 async function cabRatesToBase(id) {
   const ship = cabShipmentsCache.find(s => s.id === id); if (!ship) return;
   const r = { ...DEFAULT_RATES, ...(ship.rates || {}) };
-  if (!confirm(`Сделать курсы прихода «${ship.name || 'Без названия'}» базовыми?\nС ними будут создаваться новые приходы.`)) return;
+  if (!confirm(`Сделать курсы закупки «${ship.name || 'Без названия'}» базовыми?\nС ними будут создаваться новые закупки.`)) return;
   try { await db.collection('users').doc(savedUid).update({ baseRates: r }); userProfile.baseRates = r; } catch (e) { alert('Не удалось сохранить: ' + e.message); return; }
   renderCabPrices(document.getElementById('cabMain'));
 }
@@ -1730,7 +1730,7 @@ function cabShipCSV(id) {
   const { clients, rates } = cabGetClientsFromShipment(ship);
   const n = v => (Math.round((v || 0) * 100) / 100).toFixed(2).replace('.', ',');
   const lines = [
-    [`Приход: ${ship.name || ''}`], [`Курс для клиента ${rates.clientRate} BYN/¥; курс закупки ${rates.buyRate} BYN/¥; доставка клиенту ${rates.shipClient} BYN/кг; карго ${rates.shipCargo} BYN/кг`], [],
+    [`Закупка: ${ship.name || ''}`], [`Курс для клиента ${rates.clientRate} BYN/¥; курс выкупа ${rates.buyRate} BYN/¥; доставка клиенту ${rates.shipClient} BYN/кг; карго ${rates.shipCargo} BYN/кг`], [],
     ['Клиент', 'Позиций', 'Вес, кг', 'Сумма, ¥', 'Должен, BYN', 'Оплачено, BYN', 'Остаток, BYN', 'Прибыль, BYN']
   ];
   for (const c of clients) lines.push([c.name + (c.isOwner ? ' (свой)' : ''), c.items, n(c.weight), n(c.clientYuan), n(c.due), n(c.payPaid), n(c.payRest), n(c.profit)]);
@@ -1739,7 +1739,7 @@ function cabShipCSV(id) {
   const csv = String.fromCharCode(0xFEFF) + lines.map(r => r.map(x => { const s = String(x); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `Piksta — ${(ship.name || 'приход').replace(/[\\/:*?"<>|]/g, '-')}.csv`;
+  a.download = `Piksta — ${(ship.name || 'закупка').replace(/[\\/:*?"<>|]/g, '-')}.csv`;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 
@@ -1756,7 +1756,7 @@ function cabRatesEdit(id) {
   ov.className = 'cab-ovl'; ov.id = 'cabRatesOvl';
   ov.onclick = e => { if (e.target === ov) cabRatesClose(); };
   ov.innerHTML = `<div class="cab-dlg">
-    <div class="cab-dlg-h">Курсы прихода «${ship.name || 'Без названия'}» ${cabShipPill(ship.status)}<button class="cab-dlg-x" onclick="cabRatesClose()"><i class="ti ti-x"></i></button></div>
+    <div class="cab-dlg-h">Курсы закупки «${ship.name || 'Без названия'}» ${cabShipPill(ship.status)}<button class="cab-dlg-x" onclick="cabRatesClose()"><i class="ti ti-x"></i></button></div>
     <div class="cab-rates-grid">${CAB_RATE_FIELDS.map(([k, l, u, d]) => `<label class="cab-rate-f"><span>${l}</span><input data-k="${k}" value="${cabRateStr(r[k], d)}" inputmode="decimal" oninput="cabRatesPreview()"><em>${u}</em></label>`).join('')}</div>
     <div class="cab-rates-prev" id="cabRatesPrev"></div>
     ${paidN ? `<div class="cab-rates-who">
@@ -1807,7 +1807,7 @@ async function cabRatesSave() {
   try {
     await db.runTransaction(async t => {
       const doc = await t.get(ref);
-      if (!doc.exists) throw new Error('приход не найден');
+      if (!doc.exists) throw new Error('закупка не найдена');
       const upd = { rates: r };
       if (Object.keys(freeze).length) upd.dueOverride = { ...(doc.data().dueOverride || {}), ...freeze };
       t.update(ref, upd);
@@ -1849,25 +1849,25 @@ function renderCabPrices(container) {
   container.innerHTML = `
     <div class="cab-main-title">Цены и курсы</div>
     <div class="cab-rates-bar">
-      <div class="cab-rates-bar-h"><b>Базовые курсы</b><span>с ними создаются новые приходы — и в мобильной версии</span></div>
+      <div class="cab-rates-bar-h"><b>Базовые курсы</b><span>с ними создаются новые закупки — и в мобильной версии</span></div>
       <div class="cab-rates-bar-f">
         ${CAB_RATE_FIELDS.map(([k, l, u, d]) => `<label class="cab-rate-f"><span>${l}</span><input value="${cabRateStr(base[k], d)}" inputmode="decimal" onchange="cabSetBaseRate('${k}',this)" onkeydown="if(event.key==='Enter')this.blur()"><em>${u}</em></label>`).join('')}
-        <div class="cab-rate-f cab-rate-ro" title="Прибыль ÷ сколько должны клиенты × 100%, среднее по приходам (кроме формирующихся)"><span>Средняя рентабельность</span><b>${cabPct(avgRent)}</b><em>по приходам</em></div>
+        <div class="cab-rate-f cab-rate-ro" title="Прибыль ÷ сколько должны клиенты × 100%, среднее по закупкам (кроме формирующихся)"><span>Средняя рентабельность</span><b>${cabPct(avgRent)}</b><em>по закупкам</em></div>
       </div>
     </div>
     <div class="cab-table-wrap">
-      <div class="cab-table-title">Курсы по приходам</div>
+      <div class="cab-table-title">Курсы по закупкам</div>
       <table class="cab-table cab-prices">
-        <thead><tr><th>Приход</th><th>Статус</th>
+        <thead><tr><th>Закупка</th><th>Статус</th>
           ${th('Курс для клиента', 'BYN за 1 ¥', 'Сколько BYN клиент платит за 1 юань')}
-          ${th('Курс закупки', 'BYN за 1 ¥', 'Сколько BYN стоит вам 1 юань при выкупе')}
+          ${th('Курс выкупа', 'BYN за 1 ¥', 'Сколько BYN стоит вам 1 юань при выкупе')}
           ${th('Доставка клиенту', 'BYN за 1 кг', 'Сколько клиент платит за доставку 1 кг')}
           ${th('Доставка карго', 'BYN за 1 кг', 'Сколько вы платите карго за 1 кг')}
           ${th('Рентабельность', 'прибыль ÷ оборот', 'Прибыль ÷ сколько должны клиенты × 100%')}
           <th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px">Нет данных</td></tr>'}</tbody>
       </table>
-      <div style="font-size:13px;color:#9aa0ab;margin-top:12px">Карандаш — изменить курсы прихода (архив не меняется). Формирующиеся приходы — «—», в среднюю рентабельность не входят.</div>
+      <div style="font-size:13px;color:#9aa0ab;margin-top:12px">Карандаш — изменить курсы закупки (архив не меняется). Формирующиеся закупки — «—», в среднюю рентабельность не входят.</div>
     </div>`;
 }
 
@@ -1911,7 +1911,7 @@ function renderCabCalc(container) {
     // правая часть шапки: после сортировки — сколько собрано; до — что будет к оплате
     const right = billed
       ? `<div class="cab-cc-pay"><div class="cab-cc-pay-t"><span>Собрано <b>${cabFmt(paid)}</b> из ${cabFmt(due)}</span><b class="${rest > 0.5 ? 'red' : 'ok'}">${rest > 0.5 ? 'осталось ' + cabFmt(rest) : '<i class="ti ti-check"></i> всё оплачено'}</b></div><div class="cab-cc-bar"><span style="width:${Math.max(pct, paid > 0 ? 2 : 0)}%"></span></div></div>`
-      : `<div class="cab-cc-pay est"><div class="cab-cc-pay-t"><span>К оплате будет</span><b>${approx}${cabFmt(due)} BYN</b></div><div class="cab-cc-note">${kg > 0 ? 'предварительно — приход ещё не рассортирован' : 'без доставки — посчитаем после взвешивания'}</div></div>`;
+      : `<div class="cab-cc-pay est"><div class="cab-cc-pay-t"><span>К оплате будет</span><b>${approx}${cabFmt(due)} BYN</b></div><div class="cab-cc-note">${kg > 0 ? 'предварительно — закупка ещё не рассортирована' : 'без доставки — посчитаем после взвешивания'}</div></div>`;
     const cell = (l, v, cls) => `<div class="cab-cc-cell"><span>${l}</span><b class="${cls || ''}">${v}</b></div>`;
     const cells = cell('Клиенты должны', approx + cabFmt(due) + ' BYN')
       + cell('Оплачено', billed ? cabFmt(paid) + ' BYN' : '—', billed ? 'ok' : 'mut')
@@ -1957,7 +1957,7 @@ function renderCabCalc(container) {
   const totPct = sumBilled > 0 ? Math.round(sumPaid / sumBilled * 100) : 100;
   container.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      <div class="cab-main-title" style="margin:0">Расчёты по приходам</div>
+      <div class="cab-main-title" style="margin:0">Расчёты по закупкам</div>
       <button class="cab-filter-btn" style="margin-left:auto" onclick="cabCalcAll(true)"><i class="ti ti-arrows-maximize"></i> Развернуть все</button>
       <button class="cab-filter-btn" onclick="cabCalcAll(false)"><i class="ti ti-arrows-minimize"></i> Свернуть все</button>
     </div>
@@ -1965,7 +1965,7 @@ function renderCabCalc(container) {
       <div class="cab-seg">${seg('all', 'Все', rows.length)}${seg('wait', 'Ждут оплаты', nWait)}${seg('work', 'До сортировки', nWork)}${seg('done', 'Архив', nDone)}</div>
       <div class="cab-cc-sum"><span>По рассортированным собрано <b>${cabFmt(sumPaid)}</b> из ${cabFmt(sumBilled)} BYN</span><div class="cab-cc-bar"><span style="width:${Math.max(totPct, sumPaid > 0 ? 2 : 0)}%"></span></div><b>${totPct}%</b></div>
     </div>
-    ${blocks.length > 0 ? blocks.join('') : rows.length ? '<div class="cab-cc-empty">В этом фильтре приходов нет</div>' : '<div class="cab-stub"><i class="ti ti-calculator"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">Создайте приход в Сканере</div></div>'}
+    ${blocks.length > 0 ? blocks.join('') : rows.length ? '<div class="cab-cc-empty">В этом фильтре закупок нет</div>' : '<div class="cab-stub"><i class="ti ti-calculator"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">Создайте закупку в Сканере</div></div>'}
   `;
 }
 
@@ -2020,7 +2020,7 @@ function renderCabAnalytics(container) {
   const seg = CAB_PERIODS.map(p => `<button class="cab-seg-b${cabAnPeriod === p[0] ? ' on' : ''}" onclick="cabSetAnPeriod('${p[0]}')">${p[1]}</button>`).join('');
   const head = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap"><div class="cab-main-title" style="margin:0">Аналитика</div><div class="cab-seg" style="margin-left:auto">${seg}</div></div>`;
   if (ships.length === 0) {
-    container.innerHTML = head + `<div class="cab-stub"><i class="ti ti-chart-bar"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">За выбранный период приходов нет</div></div>`;
+    container.innerHTML = head + `<div class="cab-stub"><i class="ti ti-chart-bar"></i><div class="cab-stub-title">Нет данных</div><div class="cab-stub-text">За выбранный период закупок нет</div></div>`;
     return;
   }
   // Деньги — только рассортированные приходы (вес известен, суммы точные). Остальные — отдельно, как оценка
@@ -2034,7 +2034,7 @@ function renderCabAnalytics(container) {
   // 1. Из каждых 100 BYN клиента
   const gP = pctOf(T.goods, T.due), cP = pctOf(T.cargo, T.due), mP = Math.max(0, 100 - gP - cP);
   const split = T.due > 0 ? `<div class="cab-card cab-an-split">
-      <div class="cab-card-l"><i class="ti ti-coins"></i> Куда идут деньги клиентов${cabHelpBtn('an_split')}<span class="cab-an-scope">${billed.length} ${cabPl(billed.length, 'рассортированный приход', 'рассортированных прихода', 'рассортированных приходов')}</span></div>
+      <div class="cab-card-l"><i class="ti ti-coins"></i> Куда идут деньги клиентов${cabHelpBtn('an_split')}<span class="cab-an-scope">${billed.length} ${cabPl(billed.length, 'рассортированная закупка', 'рассортированные закупки', 'рассортированных закупок')}</span></div>
       <div class="cab-an-big">${cabFmt(T.due)} <small>BYN заплатят клиенты</small></div>
       <div class="cab-an-bar"><span style="flex:${T.goods};background:#a99be0"><b>${gP}%</b></span><span style="flex:${T.cargo};background:#f5c518"><b>${cP}%</b></span><span style="flex:${Math.max(0, T.profit)};background:#16a34a"><b>${mP}%</b></span></div>
       <div class="cab-an-leg">
@@ -2043,12 +2043,12 @@ function renderCabAnalytics(container) {
         <div><i style="background:#16a34a"></i><span>Ваша наценка</span><b style="color:#16a34a">${cabFmt(T.profit)} BYN</b></div>
       </div>
       <div class="cab-an-say">Из каждых <b>100 BYN</b>, которые платит клиент: <b>${gP}</b> уходят на товар, <b>${cP}</b> — карго, <b class="g">${mP}</b> остаются вам.</div>
-    </div>` : `<div class="cab-card cab-an-split"><div class="cab-card-l"><i class="ti ti-coins"></i> Куда идут деньги клиентов</div><div class="cab-an-say">За этот период ещё нет рассортированных приходов — точные суммы появятся после взвешивания.</div></div>`;
+    </div>` : `<div class="cab-card cab-an-split"><div class="cab-card-l"><i class="ti ti-coins"></i> Куда идут деньги клиентов</div><div class="cab-an-say">За этот период ещё нет рассортированных закупок — точные суммы появятся после взвешивания.</div></div>`;
 
   // 2. Откуда наценка: курс или доставка
   const kpis = `<div class="cab-an-kpis">
       <div class="cab-card"><div class="cab-card-l"><i class="ti ti-receipt-2"></i> Наценка</div><div class="cab-an-kv g">${cabFmt(T.profit)} <small>BYN</small></div><div class="cab-an-ks">рентабельность ${cabPct(rent)}</div>${delta(T.profit, P.profit)}</div>
-      <div class="cab-card"><div class="cab-card-l"><i class="ti ti-package"></i> Средний приход</div><div class="cab-an-kv">${cabFmt(T.n ? T.profit / T.n : 0)} <small>BYN наценки</small></div><div class="cab-an-ks">${cabFmt(T.n ? T.items / T.n : 0)} поз. · ${(T.n ? T.kg / T.n : 0).toFixed(0)} кг</div></div>
+      <div class="cab-card"><div class="cab-card-l"><i class="ti ti-package"></i>Средняя закупка</div><div class="cab-an-kv">${cabFmt(T.n ? T.profit / T.n : 0)} <small>BYN наценки</small></div><div class="cab-an-ks">${cabFmt(T.n ? T.items / T.n : 0)} поз. · ${(T.n ? T.kg / T.n : 0).toFixed(0)} кг</div></div>
       <div class="cab-card"><div class="cab-card-l"><i class="ti ti-user"></i> Средний заказ клиента</div><div class="cab-an-kv">${cabFmt(billed.reduce((n, s) => n + cabShipEcon(s).n, 0) ? T.due / billed.reduce((n, s) => n + cabShipEcon(s).n, 0) : 0)} <small>BYN</small></div><div class="cab-an-ks">наценка с заказа ≈ ${cabFmt(billed.reduce((n, s) => n + cabShipEcon(s).n, 0) ? T.profit / billed.reduce((n, s) => n + cabShipEcon(s).n, 0) : 0)} BYN</div></div>
       <div class="cab-card"><div class="cab-card-l"><i class="ti ti-arrows-split"></i> Откуда наценка${cabHelpBtn('an_src')}</div>
         <div class="cab-an-src"><span style="flex:${Math.max(0, T.rateM)};background:#6C4DB8"></span><span style="flex:${Math.max(0, T.shipM)};background:#f59e0b"></span></div>
@@ -2056,7 +2056,7 @@ function renderCabAnalytics(container) {
         <div class="cab-an-src-l"><span><i style="background:#f59e0b"></i>на доставке</span><b class="${T.shipM < 0 ? 'red' : ''}">${T.shipM >= 0 ? '+' : ''}${cabFmt(T.shipM)}</b></div></div>
     </div>`;
 
-  // 3. Наценка по приходам: столбики, оценка штриховкой
+  // 3. Наценка по закупкам: столбики, оценка штриховкой
   const chron = ships.slice().reverse();
   const ecs = chron.map(s => ({ s, e: cabShipEcon(s), b: cabIsBilled(s) }));
   const maxP = Math.max(1, ...ecs.map(x => Math.abs(x.e.profit)));
@@ -2065,7 +2065,7 @@ function renderCabAnalytics(container) {
     const est = !b;
     return `<div class="cab-bar" title="${s.name || ''}: наценка ${est ? '≈ ' : ''}${cabFmt(e.profit)} BYN${est ? ' (оценка, без доставки)' : ''}, ${e.items} поз."><em class="${est ? 'est' : ''}">${est ? '≈' : '+'}${cabFmt(e.profit)}</em><span class="${est ? 'est' : ''}" style="height:${Math.max(4, Math.abs(e.profit) / maxP * 100)}%;${est ? '' : 'background:' + (e.profit >= 0 ? '#16a34a' : '#dc2626')}"></span><i>${lbl}</i></div>`;
   }).join('');
-  const chart = `<div class="cab-card"><div class="cab-card-h">Наценка по приходам<span class="cab-an-chips"><span><i style="background:#16a34a"></i>точно</span><span><i class="est"></i>оценка — ещё не взвешен</span></span></div><div class="cab-bars cab-an-bars">${bars}</div></div>`;
+  const chart = `<div class="cab-card"><div class="cab-card-h">Наценка по закупкам<span class="cab-an-chips"><span><i style="background:#16a34a"></i>точно</span><span><i class="est"></i>оценка — ещё не взвешена</span></span></div><div class="cab-bars cab-an-bars">${bars}</div></div>`;
 
   // 4. Лучшие клиенты по наценке за период
   const cm = {};
@@ -2081,12 +2081,12 @@ function renderCabAnalytics(container) {
   // 5. Выводы словами
   const tips = [];
   const best = ecs.filter(x => x.b && x.e.due > 0).sort((a, b) => b.e.profit / b.e.due - a.e.profit / a.e.due);
-  if (best.length > 1) tips.push(['ti-trophy', `Самый выгодный приход — <b>${best[0].s.name}</b>: рентабельность ${(best[0].e.profit / best[0].e.due * 100).toFixed(1)}%. Самый слабый — <b>${best[best.length - 1].s.name}</b>: ${(best[best.length - 1].e.profit / best[best.length - 1].e.due * 100).toFixed(1)}%.`]);
+  if (best.length > 1) tips.push(['ti-trophy', `Самая выгодная закупка — <b>${best[0].s.name}</b>: рентабельность ${(best[0].e.profit / best[0].e.due * 100).toFixed(1)}%. Самая слабая — <b>${best[best.length - 1].s.name}</b>: ${(best[best.length - 1].e.profit / best[best.length - 1].e.due * 100).toFixed(1)}%.`]);
   const lowShip = ecs.filter(x => x.b && x.e.cargo > 0 && x.e.shipM < 0);
-  if (lowShip.length) tips.push(['ti-alert-triangle', `На доставке вы теряете в ${lowShip.length} ${cabPl(lowShip.length, 'приходе', 'приходах', 'приходах')} (${lowShip.slice(0, 3).map(x => x.s.name).join(', ')}): карго обходится дороже, чем платят клиенты. Проверьте «Доставку клиенту» в Ценах или «вес в цене».`]);
+  if (lowShip.length) tips.push(['ti-alert-triangle', `На доставке вы теряете в ${lowShip.length} ${cabPl(lowShip.length, 'закупке', 'закупках', 'закупках')} (${lowShip.slice(0, 3).map(x => x.s.name).join(', ')}): карго обходится дороже, чем платят клиенты. Проверьте «Доставку клиенту» в Ценах или «вес в цене».`]);
   if (allProfit > 0 && Object.keys(cm).length > 8) tips.push(['ti-users', `5 лучших клиентов приносят <b>${Math.round(top5 / allProfit * 100)}%</b> наценки. ${top5 / allProfit > 0.5 ? 'Берегите их — это ваши чемпионы.' : 'Доход распределён ровно — хорошая устойчивость.'}`]);
   if (T.items > 0 && T.kg > 0 && T.cargo > 0) tips.push(['ti-weight', `Средний товар весит <b>${(T.kg / T.items).toFixed(2)} кг</b> — доставка карго одной позиции обходится вам ≈ <b>${cabFmt2(T.cargo / T.items)} BYN</b>.`]);
-  if (O.n) tips.push(['ti-truck', `Ещё ${O.n} ${cabPl(O.n, 'приход', 'прихода', 'приходов')} в пути и в сборке: ≈ ${cabFmt(O.profit)} BYN наценки без учёта доставки. В итоги выше они не входят.`]);
+  if (O.n) tips.push(['ti-truck', `Ещё ${O.n} ${cabPl(O.n, 'закупка', 'закупки', 'закупок')} в пути и в сборке: ≈ ${cabFmt(O.profit)} BYN наценки без учёта доставки. В итоги выше они не входят.`]);
   const tipsBox = tips.length ? `<div class="cab-card cab-an-tips"><div class="cab-card-h"><i class="ti ti-bulb" style="color:#eab308;margin-right:6px"></i>Что видно из цифр</div>${tips.map(([ic, t]) => `<div class="cab-an-tip"><i class="ti ${ic}"></i><span>${t}</span></div>`).join('')}</div>` : '';
 
   container.innerHTML = head + split + (billed.length ? kpis : '') + chart + `<div class="cab-an-two">${clientsBox}${tipsBox}</div>`;
@@ -2199,8 +2199,8 @@ function renderCabTariffs(container) {
     admin:   { icon: 'ti-shield-check', color: '#6C4DB8', bg: '#f0ecf9', title: 'Администратор', text: 'Доступ без ограничений' },
     sub:     { icon: 'ti-circle-check', color: '#16a34a', bg: '#f0fdf4', title: 'Подписка активна', text: A.end ? `До ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}` : '' },
     trial:   { icon: 'ti-hourglass',    color: '#ea580c', bg: '#fff7ed', title: 'Пробный период', text: A.end ? `До ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}` : '' },
-    expired: { icon: 'ti-alert-triangle', color: '#dc2626', bg: '#fef2f2', title: 'Подписка закончилась', text: A.end ? `${d(A.end)} · сейчас видно только 5 треков в приходе, данные сохранены` : '' },
-    demo:    { icon: 'ti-lock',         color: '#4a5260', bg: '#f3f4f6', title: 'Пробный период закончился', text: 'Сейчас видно только 5 треков в приходе, данные сохранены' }
+    expired: { icon: 'ti-alert-triangle', color: '#dc2626', bg: '#fef2f2', title: 'Подписка закончилась', text: A.end ? `${d(A.end)} · сейчас видно только 5 треков в закупке, данные сохранены` : '' },
+    demo:    { icon: 'ti-lock',         color: '#4a5260', bg: '#f3f4f6', title: 'Пробный период закончился', text: 'Сейчас видно только 5 треков в закупке, данные сохранены' }
   }[A.kind];
   const V = cabTrackVolume();
   const vol = Math.max(V.nCur, V.nPrev);
@@ -2323,7 +2323,7 @@ async function cabLoadAdminUsers(box) {
         <div class="cab-urow">
           <div class="cab-uwho"><span class="cab-uav">${ini}</span><div style="min-width:0"><div class="cab-uname">${u.name || '—'}</div><div class="cab-umail">${u.email || u.id}</div></div></div>
           <div class="cab-umeta"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
-          <div class="cab-umeta"><span>Приходов</span><b>${shipCount}</b></div>
+          <div class="cab-umeta"><span>Закупок</span><b>${shipCount}</b></div>
           <div class="cab-umeta"><span>Доступ до</span><b>${accessEnd.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em></b></div>
           <span class="cab-upill" style="color:${st[1]};background:${st[2]}">${st[0]}</span>
         </div>

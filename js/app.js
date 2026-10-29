@@ -247,7 +247,7 @@ function toggleCostShip(name) {
 
 // ============ РЕДАКТОР ЦЕН ============
 function openPriceEditor() {
-  if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
+  if (!TABLE.length) { alert('Нет товаров в закупке'); return; }
   document.getElementById('peSearch').value = '';
   peExactWh = null;
   document.getElementById('peHints').innerHTML = '';
@@ -321,7 +321,7 @@ function renderPriceEditor() {
   const emptyPrices = TABLE.filter(r => !String(r[3]||'').trim()).length;
   let warnHtml = '';
   if (emptyPrices > 0) {
-    warnHtml = `<div style="background:#fffaeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#b45309;line-height:1.5"><i class="ti ti-alert-triangle" style="margin-right:4px"></i> Не заполнены цены у <b>${emptyPrices}</b> товаров. Для достоверного отчёта заполните закупочные цены.</div>`;
+    warnHtml = `<div style="background:#fffaeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#b45309;line-height:1.5"><i class="ti ti-alert-triangle" style="margin-right:4px"></i> Не заполнены цены у <b>${emptyPrices}</b> товаров. Для достоверного отчёта заполните цены выкупа.</div>`;
   }
   const byWh = peSortMode === 'warehouse';
   let lastWh = null;
@@ -343,7 +343,7 @@ function renderPriceEditor() {
         ${byWh ? '' : `<div style="position:relative"><input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" oninput="showClientHints(this)" onfocus="showClientHints(this)" onblur="hideClientHints(this)" onclick="event.stopPropagation()" autocomplete="off"></div>`}
       </div>
       <div class="pe-prices">
-        <label class="pe-price-field"><span>Закупка ¥</span><input type="number" step="0.01" inputmode="decimal" class="buy" data-idx="${r.idx}" value="${r.buy}" placeholder="—" onchange="onEditBuy(this)"></label>
+        <label class="pe-price-field"><span>Выкуп ¥</span><input type="number" step="0.01" inputmode="decimal" class="buy" data-idx="${r.idx}" value="${r.buy}" placeholder="—" onchange="onEditBuy(this)"></label>
         <label class="pe-price-field"><span>Клиент ¥</span><input type="number" step="0.01" inputmode="decimal" class="client" data-idx="${r.idx}" value="${r.client}" placeholder="${r.buy||'—'}" onchange="onEditClient(this)"></label>
       </div>
     </div>`;
@@ -470,7 +470,7 @@ async function savePriceAt(idx) {
 function exportCalcPDF() {
   const { clients, grandDue, grandProfit, ourWeight, tareTotal } = computeClientCalc();
   const editShip = (typeof allShipments !== 'undefined') ? allShipments.find(x => x.id === (editingShipmentId || activeShipmentId)) : null;
-  const shipName = (editShip && editShip.name) || document.getElementById('shipmentSelect').selectedOptions[0]?.text || 'Приход';
+  const shipName = (editShip && editShip.name) || document.getElementById('shipmentSelect').selectedOptions[0]?.text || 'Закупка';
   const totalWeight = (ourWeight + tareTotal);
   const dateStr = new Date().toLocaleDateString('ru-RU');
   // ВСЕГО ПРИБЫЛЬ = прибыль товаров + прибыль доставки по весу карго
@@ -590,7 +590,7 @@ function getClientsInShipment() {
 }
 
 function openWeighing() {
-  if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
+  if (!TABLE.length) { alert('Нет товаров в закупке'); return; }
   renderWeighList();
   document.getElementById('tareInput').value = currentTare ? Math.round(currentTare * 1000) : '';
   const tpi = document.getElementById('tarePctChk'); if (tpi) tpi.checked = currentTarePct > 0;
@@ -692,8 +692,8 @@ function computeClientCalc() {
   const canon = {};
   for (const n of names) canon[n.toLowerCase()] = n;
 
-  // Собираем по клиентам: сумма закупки (юани), сумма цены клиента (юани)
-  const buyYuan = {};   // клиент -> Σ цена закупки
+  // Собираем по клиентам: сумма выкупа (юани), сумма цены клиента (юани)
+  const buyYuan = {};   // клиент -> Σ цена выкупа
   const clientYuan = {}; // клиент -> Σ цена клиента
   for (const row of TABLE) {
     const wh = row[1] || '';
@@ -787,7 +787,7 @@ function computeClientCalc() {
 function openCalc() {
   // просто скрываем экран взвешивания БЕЗ restoreActiveEditing — остаёмся на том же приходе (editingShipmentId не сбрасываем)
   document.getElementById('weighScreen').classList.remove('show');
-  if (!TABLE.length) { alert('Нет товаров в приходе'); return; }
+  if (!TABLE.length) { alert('Нет товаров в закупке'); return; }
   renderCalc();
   document.getElementById('calcScreen').classList.add('show');
 }
@@ -934,7 +934,7 @@ const SHIP_STATUSES = {
   transit:   { label: 'В дороге',    color: '#f5c518', text: '#b8860b' },
   delayed:   { label: 'Задерживается', color: '#f97316', text: '#c2410c' },
   warehouse: { label: 'На складе',   color: '#3cb371', text: '#2e8b57' },
-  sorted:    { label: 'Рассортирован', color: '#8b7fd4', text: '#6C4DB8' },
+  sorted:    { label: 'Рассортирована', color: '#8b7fd4', text: '#6C4DB8' },
   done:      { label: 'Архив',       color: '#b0b4bb', text: '#9aa0ab' },
 };
 
@@ -970,7 +970,7 @@ async function loadShipments() {
 function renderShipmentCards() {
   const box = document.getElementById('shipmentCards');
   if (!box) return;
-  if (!allShipments.length) { box.innerHTML = '<div style="font-size:13px;color:#9aa0ab;padding:8px 0">Нет приходов. Добавьте через меню.</div>'; return; }
+  if (!allShipments.length) { box.innerHTML = '<div style="font-size:13px;color:#9aa0ab;padding:8px 0">Нет закупок. Добавьте через меню.</div>'; return; }
   // В свёрнутом режиме показываем только активный приход
   const list = shipCollapsed ? allShipments.filter(s => s.id === activeShipmentId) : allShipments;
   box.innerHTML = list.map(s => {
@@ -1023,7 +1023,7 @@ let shipMenuTargetId = null;
 async function renameShipment(id) {
   const ship = allShipments.find(s => s.id === id);
   const oldName = ship ? ship.name : '';
-  const newName = prompt('Новое название прихода:', oldName);
+  const newName = prompt('Новое название закупки:', oldName);
   if (newName === null) return;  // отмена
   const trimmed = newName.trim();
   if (!trimmed || trimmed === oldName) return;  // пусто или не изменилось
@@ -1044,12 +1044,12 @@ function openShipMenu(id, ev) {
     <button onclick="loadForAction('${id}').then(()=>openPriceEditor());closeShipMenu()"><i class="ti ti-currency-yuan" aria-hidden="true"></i> Редактор цен</button>
     <button onclick="loadForAction('${id}').then(()=>openWeighing());closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
     <button onclick="loadForAction('${id}').then(()=>openCalc());closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
-    <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
+    <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы закупки</button>
     ${pkOfflineMenuBtn(id)}
     <button onclick="loadForAction('${id}').then(()=>resetAll()).then(restoreActiveEditing);closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
     <button onclick="exportForInventory('${id}');closeShipMenu()"><i class="ti ti-file-export" aria-hidden="true"></i> Выгрузить для описи</button>
     <button onclick="openCargoCompare('${id}');closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
-    <button onclick="loadForAction('${id}').then(()=>deleteShipment());closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить приход</button>`;
+    <button onclick="loadForAction('${id}').then(()=>deleteShipment());closeShipMenu()" class="danger"><i class="ti ti-trash" aria-hidden="true"></i> Удалить закупку</button>`;
   // позиционируем меню под шестерёнкой
   const rect = ev.currentTarget.getBoundingClientRect();
   menu.style.top = (rect.bottom + 4) + 'px';
@@ -1159,7 +1159,7 @@ async function deleteShipment() {
   const delId = editingShipmentId || activeShipmentId;
   if (!delId) return;
   const ship = allShipments.find(s => s.id === delId);
-  const text = ship ? ship.name : 'приход';
+  const text = ship ? ship.name : 'закупку';
   if (!confirm('Удалить "' + text + '"?')) return;
   await shipmentsRef().doc(delId).delete();
   await scannedRef(delId).delete().catch(() => {});
@@ -1219,12 +1219,12 @@ async function exportForInventory(shipId) {
   // берём данные прихода
   let doc;
   try { doc = await fsGet('users/' + savedUid + '/shipments/' + shipId); }
-  catch(e) { alert('Не удалось загрузить приход'); return; }
-  if (!doc.exists) { alert('Приход не найден'); return; }
+  catch(e) { alert('Не удалось загрузить закупку'); return; }
+  if (!doc.exists) { alert('Закупка не найдена'); return; }
   const d = doc.data();
-  const shipName = d.name || 'приход';
+  const shipName = d.name || 'закупка';
   const rows = (d.data || []).map(r => Array.isArray(r) ? {t:r[0],w:r[1]||'',img:r[2]||'',p:r[3]||'',pc:r[4]||'',q:r[5]||'1'} : r);
-  if (!rows.length) { alert('В приходе нет товаров'); return; }
+  if (!rows.length) { alert('В закупке нет товаров'); return; }
 
   // индикатор прогресса
   const prog = document.createElement('div');
@@ -1235,8 +1235,8 @@ async function exportForInventory(shipId) {
 
   const zip = new JSZip();
   const imgFolder = zip.folder('картинки');
-  // таблица CSV: трек, клиент, цена закупки, цена клиента, кол-во, есть_картинка
-  let csv = 'Трек;Клиент;Цена закупки;Цена клиента;Кол-во;Картинка\n';
+  // таблица CSV: трек, клиент, цена выкупа, цена клиента, кол-во, есть_картинка
+  let csv = 'Трек;Клиент;Цена выкупа;Цена клиента;Кол-во;Картинка\n';
   let imgOk = 0, imgFail = 0;
 
   for (let i = 0; i < rows.length; i++) {
@@ -1325,7 +1325,7 @@ async function handleCargoFile(e) {
 
       // текущий приход
       const doc = await shipmentsRef().doc(cargoCompareShipId).get();
-      if (!doc.exists) { alert('Приход не найден'); return; }
+      if (!doc.exists) { alert('Закупка не найдена'); return; }
       const shipData = doc.data().data || [];
       // нормализуем товары прихода в объекты
       const items = shipData.map(r => Array.isArray(r) ? {t:r[0],w:r[1]||'',img:r[2]||'',p:r[3]||'',pc:r[4]||'',q:r[5]||'1'} : r);
@@ -1354,13 +1354,13 @@ function showCargoResult(notInCargo, staying, notInShip, cargoTotal) {
   const modal = document.getElementById('cargoResultModal');
   const body = document.getElementById('cargoResultBody');
   body.innerHTML = `
-    <div style="font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.6">Файл карго: <b>${cargoTotal}</b> треков. Приход: <b>${staying.length + notInCargo.length}</b> товаров.</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.6">Файл карго: <b>${cargoTotal}</b> треков. В закупке: <b>${staying.length + notInCargo.length}</b> товаров.</div>
     <div style="display:flex;flex-direction:column;gap:12px">
-      <div style="background:#ecfdf3;border:1px solid #a7f3d0;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#22a05c;margin-bottom:2px"><i class="ti ti-check"></i> Совпали: ${staying.length}</div><div style="font-size:12px;color:#6b7280">Остаются в этом приходе</div></div>
-      <div style="background:#fffaeb;border:1px solid #fde68a;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#b45309;margin-bottom:2px"><i class="ti ti-arrow-right"></i> Не доехали: ${notInCargo.length}</div><div style="font-size:12px;color:#6b7280">Нет в карго → переедут в НОВЫЙ приход (со всеми данными)</div></div>
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#2563a8;margin-bottom:2px"><i class="ti ti-plus"></i> Другой маркетплейс: ${notInShip.length}</div><div style="font-size:12px;color:#6b7280">Есть в карго, нет в приходе → добавятся в конец блоком (цены вручную)</div></div>
+      <div style="background:#ecfdf3;border:1px solid #a7f3d0;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#22a05c;margin-bottom:2px"><i class="ti ti-check"></i> Совпали: ${staying.length}</div><div style="font-size:12px;color:#6b7280">Остаются в этой закупке</div></div>
+      <div style="background:#fffaeb;border:1px solid #fde68a;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#b45309;margin-bottom:2px"><i class="ti ti-arrow-right"></i> Не доехали: ${notInCargo.length}</div><div style="font-size:12px;color:#6b7280">Нет в карго → переедут в НОВУЮ закупку (со всеми данными)</div></div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px"><div style="font-size:14px;font-weight:600;color:#2563a8;margin-bottom:2px"><i class="ti ti-plus"></i> Другой маркетплейс: ${notInShip.length}</div><div style="font-size:12px;color:#6b7280">Есть в карго, нет в закупке → добавятся в конец блоком (цены вручную)</div></div>
     </div>
-    ${notInCargo.length > 0 ? '<div style="margin-top:16px"><div style="font-size:12px;color:#9aa0ab;margin-bottom:6px">Название нового прихода (для не доехавших):</div><input id="cargoNewShipName" placeholder="Партия ' + new Date().toLocaleDateString('ru') + '" style="width:100%;border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:14px;outline:none;box-sizing:border-box"></div>' : ''}
+    ${notInCargo.length > 0 ? '<div style="margin-top:16px"><div style="font-size:12px;color:#9aa0ab;margin-bottom:6px">Название новой закупки (для не доехавших):</div><input id="cargoNewShipName" placeholder="Закупка ' + new Date().toLocaleDateString('ru') + '" style="width:100%;border:1px solid #d5d8dd;border-radius:8px;padding:10px;font-size:14px;outline:none;box-sizing:border-box"></div>' : ''}
   `;
   modal.classList.add('show');
 }
@@ -1393,7 +1393,7 @@ async function applyCargoCompare() {
     await updateShipmentStats();
     let msg = 'Сверка выполнена!\n';
     msg += '• Совпало: ' + staying.length + '\n';
-    if (notInCargo.length) msg += '• Не доехали (в новый приход): ' + notInCargo.length + '\n';
+    if (notInCargo.length) msg += '• Не доехали (в новую закупку): ' + notInCargo.length + '\n';
     if (notInShip.length) msg += '• С другого маркетплейса (в конец): ' + notInShip.length;
     alert(msg);
   } catch(err) {
@@ -1572,7 +1572,7 @@ async function checkCacheStatus() {
   const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))];
   if (urls.length === 0) {
     btn.classList.remove('cached');
-    btn.title = 'В этом приходе нет картинок';
+    btn.title = 'В этой закупке нет картинок';
     return;
   }
   if (!('caches' in window)) return;
@@ -1621,7 +1621,7 @@ async function cacheShipmentImages(shipId) {
   const btn = document.getElementById('btnCacheImages') || document.createElement('button');
   const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))];
   if (urls.length === 0) {
-    showToast('В этом приходе нет картинок');
+    showToast('В этой закупке нет картинок');
     return;
   }
   if (!('caches' in window)) {
