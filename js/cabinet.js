@@ -237,21 +237,28 @@ function cabShipTotalKg(ship) {
 }
 // Долг клиентов считается только когда приход рассортирован или в архиве — до этого клиентам ещё не выставлено
 function cabIsBilled(ship) { return !!ship && (ship.status === 'sorted' || ship.status === 'done'); }
-// «Вложено в товар»: деньги владельца в закупке приходов, которые формируются / едут / на складе.
-// Закупка ¥ (если нет — цена клиента ¥) × курс закупки этого прихода
-function cabFrozen(ships) {
-  let byn = 0, yuan = 0, n = 0;
+// ДЕНЬГИ ВЛАДЕЛЬЦА (по всем приходам, любой статус; «Это я» не входит — это личные расходы):
+//  Вложено в товар = себестоимость (закупка ¥ × курс закупки + доставка карго после взвешивания), за которую клиенты ещё не рассчитались.
+//    Оплата клиента сначала гасит себестоимость; заплатил всё — деньги вернулись. Нет закупочной цены — берём цену клиента ¥ × курс закупки.
+//  Получено прибыли = наценка, которую клиенты уже заплатили (сверх себестоимости, не больше расчётной прибыли).
+//  Оборотка = вложено в товар + полученная прибыль.
+function cabMoney(ships) {
+  let frozen = 0, realized = 0, nShips = 0;
   for (const ship of ships) {
-    if (cabIsBilled(ship)) continue;
-    const rates = ship.rates ? { ...DEFAULT_RATES, ...ship.rates } : { ...DEFAULT_RATES };
-    let y = 0;
-    for (const row of (ship.data || [])) {
-      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || ''];
-      y += parseFloat(r[3]) || parseFloat(r[4]) || 0;
+    const { clients, rates } = cabGetClientsFromShipment(ship);
+    let f = 0;
+    for (const c of clients) {
+      if (c.isOwner) continue;
+      const goods = c.buyYuan > 0 ? c.goodsCost : c.clientYuan * rates.buyRate;
+      const cost = goods + c.shipCo;
+      const paid = c.payPaid || 0;
+      f += Math.max(0, cost - paid);
+      realized += Math.min(Math.max(0, c.profit), Math.max(0, paid - cost));
     }
-    yuan += y; byn += y * rates.buyRate; n++;
+    if (f > 0.5) nShips++;
+    frozen += f;
   }
-  return { byn, yuan, n };
+  return { frozen, realized, turnover: frozen + realized, nShips };
 }
 function cabDeliveredKg(ships) {
   return ships.filter(s => s.status === 'sorted' || s.status === 'done').reduce((n, s) => n + cabShipTotalKg(s), 0);
@@ -296,18 +303,28 @@ function renderCabOverview(container) {
     }
   }
   const topDebtors = Object.entries(clientDebt).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const frozen = cabFrozen(ships);
+  const money = cabMoney(ships);
 
   container.innerHTML = `
     <div class="cab-main-title">Обзор</div>
-    <div class="cab-stats" style="grid-template-columns:repeat(5,1fr)">
+    <div class="cab-stats" style="grid-template-columns:repeat(3,1fr)">
+      <div class="cab-stat-card" title="Себестоимость товара (закупка по курсу закупки + доставка карго после взвешивания), за который клиенты ещё не рассчитались. Отсчёт — с выкупа на Pinduoduo, в любом статусе прихода (${money.nShips} прих.). Покупки «Это я» не входят">
+        <div class="cab-stat-val">${cabFmt(money.frozen)}</div>
+        <div class="cab-stat-label">Вложено в товар, BYN</div>
+      </div>
+      <div class="cab-stat-card" title="Наценка, которую клиенты уже заплатили — сверх себестоимости">
+        <div class="cab-stat-val" style="color:#16a34a">${cabFmt(money.realized)}</div>
+        <div class="cab-stat-label">Получено прибыли, BYN</div>
+      </div>
+      <div class="cab-stat-card" title="Вложено в товар + полученная прибыль">
+        <div class="cab-stat-val">${cabFmt(money.turnover)}</div>
+        <div class="cab-stat-label">Оборотка, BYN</div>
+      </div>
+    </div>
+    <div class="cab-stats" style="grid-template-columns:repeat(4,1fr)">
       <div class="cab-stat-card">
         <div class="cab-stat-val">${ships.length}</div>
         <div class="cab-stat-label">Всего приходов</div>
-      </div>
-      <div class="cab-stat-card" title="Закупка товара в приходах, которые формируются, едут или на складе (${frozen.n} шт., ${cabFmt(frozen.yuan)} ¥ по курсу закупки). Клиентам ещё не выставлено">
-        <div class="cab-stat-val" style="color:#b45309">${cabFmt(frozen.byn)}</div>
-        <div class="cab-stat-label">Вложено в товар, BYN</div>
       </div>
       <div class="cab-stat-card">
         <div class="cab-stat-val">${ships.filter(s=>s.status==='sorted'||s.status==='done').reduce((n,s)=>n+(s.data||[]).length,0)}</div>
@@ -899,7 +916,7 @@ function renderCabClients(container) {
       <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt(totalUnpaid)}</div><div class="cab-stat-label">Задолженность, BYN</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val">${debtors}</div><div class="cab-stat-label">Должников</div></div>
     </div>
-    <div style="font-size:13px;color:#6b7280;margin:-14px 0 4px">Задолженность — только по рассортированным и архивным приходам. Формирующиеся и едущие — это «Вложено в товар» в Обзоре</div>
+    <div style="font-size:13px;color:#6b7280;margin:-14px 0 4px">Задолженность — только по рассортированным и архивным приходам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре</div>
     <div style="font-size:13px;color:${okSum ? '#4a5260' : '#dc2626'};margin:0 0 16px">
       Сверка позиций: в базе ${S.totalItemsDb} = у клиентов ${S.clientItemsSum}${S.sharedExtra ? ' − повторы общих ' + S.sharedExtra : ''}${S.noClientItems ? ' + без клиента ' + S.noClientItems : ''} ${okSum ? '✓' : '— не сходится'}
     </div>
