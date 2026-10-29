@@ -1112,6 +1112,49 @@ function cabCopy(text, btn) {
   const fallback = () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (e) {} t.remove(); done(); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
 }
+// ---- Готовые сообщения меняются по поводу: распродажи в Китае (11.11, 618), праздники, сезон, конец месяца ----
+const CAB_MSG_OPEN = {
+  once: 'Здравствуйте, {имя}! Как вам прошлый заказ — всё подошло?',
+  forgotten: 'Здравствуйте, {имя}! Давно вас не было в наших заказах — всё хорошо?',
+  new: 'Здравствуйте, {имя}! Спасибо за первый заказ.',
+  active: 'Здравствуйте, {имя}! Спасибо, что заказываете с нами постоянно.',
+  regular: 'Здравствуйте, {имя}!',
+  champ: 'Здравствуйте, {имя}! Вы один из самых постоянных наших клиентов — спасибо!'
+};
+const CAB_MSG_CTA = {
+  once: 'Если захотите что-то добавить — доставка одной позиции в подарок.',
+  forgotten: 'Для тех, кто с нами давно, — {бонус}. Если в прошлый раз что-то не понравилось, напишите — исправлю.',
+  new: 'Напишу, как только ваша посылка выедет. Анонсы отправок — в нашем канале: {ссылка}.',
+  active: 'Вы узнаёте первыми. А если приведёте подругу — {бонус} вам обеим.',
+  regular: 'Если закажете и в этой, и в следующей отправке — {бонус}.',
+  champ: 'Для вас — {бонус}. И если кому-то из знакомых нужен заказ из Китая — буду рад помочь.'
+};
+// Поводы: [метка, проверка даты, фраза]. Порядок = приоритет
+const CAB_MSG_CTX = [
+  ['Распродажа 11.11', d => (d.m === 10 && d.d >= 15) || (d.m === 11 && d.d <= 11), 'Скоро 11.11 — главная распродажа в Китае, цены на Pinduoduo самые низкие в году. Собираю заказы до {дата}.'],
+  ['Распродажа 618', d => (d.m === 5 && d.d >= 25) || (d.m === 6 && d.d <= 18), 'В июне в Китае распродажа 618 — хорошие скидки на всё. Собираю заказы до {дата}.'],
+  ['Новый год', d => (d.m === 11 && d.d >= 20) || d.m === 12 || (d.m === 1 && d.d <= 7), 'Скоро Новый год — самое время заказать подарки, чтобы точно успели приехать. Собираю отправку до {дата}.'],
+  ['14 февраля и 8 Марта', d => (d.m === 1 && d.d >= 20) || d.m === 2 || (d.m === 3 && d.d <= 8), 'Скоро праздники — подарки лучше заказать заранее, чтобы точно успели. Собираю отправку до {дата}.'],
+  ['1 сентября', d => d.m === 8 || (d.m === 7 && d.d >= 15), 'Скоро 1 сентября — одежда, рюкзаки и канцелярия из Китая обходятся заметно дешевле. Собираю отправку до {дата}.'],
+  ['Сезон', d => true, d => ({ 12: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 3, 10: 3, 11: 3 })[d.m] !== undefined ? ['Зима в разгаре — тёплые вещи и домашний уют из Китая выходят заметно дешевле. Собираю отправку до {дата}.', 'Весна — время обновить гардероб к теплу. Собираю отправку до {дата}.', 'Лето — купальники, лёгкая одежда и всё для отдыха. Собираю отправку до {дата}.', 'Начинается холодный сезон — куртки, обувь и тёплые вещи из Китая обходятся заметно дешевле. Собираю отправку до {дата}.'][({ 12: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2, 9: 3, 10: 3, 11: 3 })[d.m]] : ''],
+  ['Конец месяца', d => d.d >= 22, 'В конце месяца закрываю отправку — до {дата} ещё можно добавить заказ.'],
+  ['', d => true, 'Собираю следующую отправку до {дата}.']
+];
+const cabMsgIdx = {};
+function cabMsgVariants(seg) {
+  const now = new Date(), d = { m: now.getMonth() + 1, d: now.getDate() };
+  const out = [];
+  if (seg === 'new') out.push({ tag: 'Приветствие', text: CAB_ADVICE.new.msg });
+  for (const [tag, ok, ph] of CAB_MSG_CTX) {
+    if (!ok(d)) continue;
+    const phrase = typeof ph === 'function' ? ph(d) : ph; if (!phrase) continue;
+    out.push({ tag: tag === 'Сезон' ? ['Зима', 'Весна', 'Лето', 'Осень'][[0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 0][d.m - 1]] : tag, text: `${CAB_MSG_OPEN[seg]} ${phrase} ${CAB_MSG_CTA[seg]}` });
+  }
+  if (seg !== 'new' && CAB_ADVICE[seg].msg) out.push({ tag: '', text: CAB_ADVICE[seg].msg });
+  return out;
+}
+function cabMsgNext(seg) { cabMsgIdx[seg] = (cabMsgIdx[seg] || 0) + 1; renderCabClients(document.getElementById('cabMain')); }
+
 // Блок «Что делать с этими клиентами»: сегмент = текущий фильтр, на «Все» — главная возможность
 function cabAdviceHtml(all, champs) {
   const cl = all.filter(c => !c.isOwner);
@@ -1130,7 +1173,8 @@ function cabAdviceHtml(all, champs) {
       <span class="cab-adv-more">${cabAdviceOpen ? 'Свернуть <i class="ti ti-chevron-up"></i>' : 'Как с ними работать <i class="ti ti-chevron-down"></i>'}</span>
     </div>`;
   if (!cabAdviceOpen) return `<div class="cab-card cab-adv">${head}</div>`;
-  const msgEnc = encodeURIComponent(A.msg).replace(/'/g, '%27'), namesEnc = encodeURIComponent(people.map(c => c.name).join('\n')).replace(/'/g, '%27');
+  const vars = cabMsgVariants(seg), vi = (cabMsgIdx[seg] || 0) % vars.length, V = vars[vi];
+  const msgEnc = encodeURIComponent(V.text).replace(/'/g, '%27'), namesEnc = encodeURIComponent(people.map(c => c.name).join('\n')).replace(/'/g, '%27');
   return `<div class="cab-card cab-adv">
     ${head}
     <div class="cab-adv-tabs">${tabs}</div>
@@ -1138,8 +1182,8 @@ function cabAdviceHtml(all, champs) {
     <div class="cab-adv-body">
       <ol class="cab-adv-tips">${A.tips.map(([t, d]) => `<li><b>${t}</b><span>${d}</span></li>`).join('')}</ol>
       <div class="cab-adv-msg">
-        <div class="cab-adv-msg-l"><i class="ti ti-message-2"></i> Готовое сообщение</div>
-        <div class="cab-adv-msg-t">${A.msg.replace(/\{([^}]+)\}/g, '<mark>$1</mark>')}</div>
+        <div class="cab-adv-msg-l"><i class="ti ti-message-2"></i> Готовое сообщение${V.tag ? `<span class="cab-adv-msg-tag">повод: ${V.tag}</span>` : ''}${vars.length > 1 ? `<button class="cab-adv-next" onclick="event.stopPropagation();cabMsgNext('${seg}')" title="Показать другой текст"><i class="ti ti-refresh"></i> ${vi + 1}/${vars.length}</button>` : ''}</div>
+        <div class="cab-adv-msg-t">${V.text.replace(/\{([^}]+)\}/g, '<mark>$1</mark>')}</div>
         <div class="cab-adv-msg-b">
           <button class="cab-filter-btn" onclick="event.stopPropagation();cabCopy(decodeURIComponent('${msgEnc}'),this)"><i class="ti ti-copy"></i> Скопировать текст</button>
           ${people.length ? `<button class="cab-filter-btn" onclick="event.stopPropagation();cabCopy(decodeURIComponent('${namesEnc}'),this)"><i class="ti ti-users"></i> Имена (${people.length})</button>` : ''}
@@ -1216,11 +1260,18 @@ function renderCabClients(container) {
           <div class="cab-base-bar">${bar}</div>
           <div class="cab-base-leg">${leg}</div>
         </div>
-        <div class="cab-card cab-debt" title="Только по рассортированным и архивным приходам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре">
+        ${(() => {
+          let billed = 0, paid = 0;
+          for (const ship of cabShipmentsCache) { if (!cabIsBilled(ship)) continue; for (const c of cabGetClientsFromShipment(ship).clients) { if (c.isOwner) continue; billed += c.due; paid += Math.min(c.due, c.payPaid || 0); } }
+          const pct = billed > 0 ? Math.round(paid / billed * 100) : 100;
+          return `<div class="cab-card cab-debt" title="Только по рассортированным и архивным приходам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре">
           <div class="cab-card-l"><i class="ti ti-cash"></i> Должны вам</div>
           <div class="cab-debt-v">${cabFmt(totalUnpaid)} <small>BYN</small></div>
-          <div class="cab-debt-s">${debtors} ${cabPl(debtors, 'клиент', 'клиента', 'клиентов')} · по рассортированным приходам</div>
-        </div>
+          <div class="cab-debt-bar"><span style="width:${Math.max(pct, paid > 0 ? 2 : 0)}%"></span></div>
+          <div class="cab-debt-p"><span>Собрано <b>${cabFmt(paid)}</b> из ${cabFmt(billed)} BYN</span><b>${pct}%</b></div>
+          <div class="cab-debt-s">${debtors} ${cabPl(debtors, 'клиент', 'клиента', 'клиентов')} · по рассортированным приходам<a href="#" onclick="document.getElementById('cabClientsTable').scrollIntoView({behavior:'smooth'});return false">к списку ↓</a></div>
+        </div>`;
+        })()}
       </div>`;
     })()}
     ${cabAdviceHtml(all, champs)}
