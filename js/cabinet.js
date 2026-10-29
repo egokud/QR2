@@ -1374,6 +1374,22 @@ const PIKSTA_TARIFFS = {
     { id: 'pro', name: 'Профи', tracks: 3000, rub: { 1: 1190, 3: 3210, 6: 6070, 12: 10710 } },
     { id: 'enterprise', name: 'Крупный / карго', tracks: null, rub: null }
   ],
+  // ЧЕРНОВИК состава тарифов (обсуждается, ограничения в коде пока не включены): [название, в каких тарифах]
+  features: [
+    ['Импорт треков из Pinduoduo', ['start', 'main', 'pro']],
+    ['Сканер с фото товара', ['start', 'main', 'pro']],
+    ['Картинки без интернета', ['start', 'main', 'pro']],
+    ['Клиенты и взвешивание', ['start', 'main', 'pro']],
+    ['Расчёт по клиентам и PDF', ['start', 'main', 'pro']],
+    ['Учёт оплат и долгов', ['main', 'pro']],
+    ['Себестоимость и прибыль', ['main', 'pro']],
+    ['Аналитика по периодам', ['main', 'pro']],
+    ['«Вложено в товар», дубли', ['main', 'pro']],
+    ['Таможенная опись', ['pro']],
+    ['Второй пользователь', ['pro']],
+    ['Выгрузка в Excel', ['pro']],
+    ['Новинки первыми, поддержка', ['pro']]
+  ],
   founderDiscountPct: 30,  // цена первых клиентов (участники пилота, userProfile.founder) — пока подписка без перерыва
   trialDays: 90,           // сейчас в app.js 90; по плану для новых после пилота — 30
   tg: 'ekudinof',
@@ -1475,6 +1491,8 @@ function renderCabTariffs(container) {
       <div class="cab-plan-limit">${limit}</div>
       <div class="cab-plan-body">${price}</div>
       <div class="cab-plan-foot">${isFit ? '<span class="cab-plan-fit"><i class="ti ti-check"></i> Под ваш объём</span>' : ''}</div>
+      ${t.rub ? `<ul class="cab-plan-feats">${T.features.map(([f, tiersIn]) => tiersIn.includes(t.id)
+        ? `<li><i class="ti ti-check"></i>${f}</li>` : `<li class="off"><i class="ti ti-minus"></i>${f}</li>`).join('')}</ul>` : ''}
     </div>`;
   }).join('');
 
@@ -1495,7 +1513,7 @@ function renderCabTariffs(container) {
       </div>
     </div>
     <div class="cab-filter-row" style="align-items:center">${periodBtns}
-      <span style="margin-left:auto;font-size:13px;color:#6b7280">Все функции во всех тарифах — отличается только объём</span></div>
+      ${userProfile && userProfile.role === 'admin' ? '<span style="margin-left:auto;font-size:13px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:3px 8px">Состав тарифов — черновик, видят все; ограничения пока не включены</span>' : ''}</div>
     ${founder ? `<div class="cab-founder"><i class="ti ti-star"></i> Цена первых клиентов: −${T.founderDiscountPct}% навсегда, пока подписка продлевается без перерыва</div>` : ''}
     <div class="cab-plans" style="grid-template-columns:repeat(${tiers.length},minmax(0,1fr))">${cards}</div>
     <div class="cab-table-wrap">
