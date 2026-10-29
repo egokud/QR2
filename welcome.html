@@ -126,6 +126,25 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
 .imp-zero{margin-top:8px;align-self:flex-start;background:#e7f8ee;color:#15803d;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px}
 @media (max-width:900px){.imp{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:600px){.imp-vis{flex-direction:column;align-items:stretch}.imp-arrow{flex-direction:row;justify-content:center}.imp-arrow svg{transform:rotate(90deg)}}
+
+/* Было → стало */
+.cmp2{display:flex;flex-direction:column;gap:10px}
+.cmp2-h,.cmp2-r{display:grid;grid-template-columns:200px minmax(0,1fr) minmax(0,1.15fr);gap:10px;align-items:stretch}
+.cmp2-h span{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b6780;padding:0 18px}
+.cmp2-h .p{color:#6C4DB8}
+.cmp2-r b{display:flex;align-items:center;font-size:17px}
+.cmp2-r .o,.cmp2-r .n{display:flex;align-items:center;gap:10px;border-radius:16px;padding:16px 18px;font-size:16px}
+.cmp2-r .o{background:#fff;color:#8b879c;border:1px solid #ebe7f3}
+.cmp2-r .n{background:#6C4DB8;color:#fff;font-weight:600;box-shadow:0 14px 28px -18px rgba(108,77,184,.8)}
+.cmp2-r svg{flex:0 0 22px;width:22px;height:22px;padding:4px;box-sizing:border-box;border-radius:50%;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.cmp2-r .o svg{background:#f1eef6;stroke:#a19cb5}
+.cmp2-r .n svg{background:#f5c518;stroke:#17142a}
+@media (max-width:760px){
+  .cmp2-h{display:none}
+  .cmp2-r{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:6px}
+  .cmp2-r b{grid-column:1/-1;font-size:15px}
+  .cmp2-r .o,.cmp2-r .n{font-size:14px;padding:12px}
+}
 /* Живые блоки Кабинета (настоящий cabinet.css, вымышленные данные) */
 .pk-scale{position:relative;overflow:hidden}
 .pk-scale-in{transform-origin:0 0}
@@ -172,7 +191,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
         <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>Перепутали пакет — минус клиент и минус деньги</span></li>
       </ul>
       <p class="lead" style="margin: 0">С Piksta: скан — и на экране фото товара и имя клиента. Вес, доставка и долги считаются сами.</p>
-      <div class="hero-proof"><b>45 минут</b><span>столько занял разбор нашего последнего прихода — само сканирование 30–40 минут</span></div>
+      <div class="hero-proof"><b>1 час</b><span>столько занял разбор нашего последнего прихода — само сканирование 30–40 минут</span></div>
       <div style="display: flex; gap: 12px; flex-wrap: wrap">
         <a href="/?login" class="btn btn-p">Попробовать 30 дней бесплатно</a>
         <a href="#how" class="btn btn-s">Как это работает</a>
@@ -272,7 +291,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
   </div>
   <div class="wrap" style="margin-top: 36px">
     <div class="grid4" style="background: #fff; border: 1px solid #ebe7f3; border-radius: 22px; padding: 22px 26px">
-      <div><div class="disp" style="font-size: 26px; font-weight: 700; color: #6C4DB8">0</div><div style="font-size: 14px; color: #4b4760">треков вручную — их подтягивает импорт Piksta</div></div>
+      <div><div class="disp" style="font-size: 26px; font-weight: 700; color: #6C4DB8">Минуты</div><div style="font-size: 14px; color: #4b4760">вместо часов ручного ввода — заказы подтягивает импорт Piksta</div></div>
       <div><div class="disp" style="font-size: 26px; font-weight: 700; color: #6C4DB8">1 скан</div><div style="font-size: 14px; color: #4b4760">и видно фото товара и имя клиента</div></div>
       <div><div class="disp" style="font-size: 26px; font-weight: 700; color: #6C4DB8">Офлайн</div><div style="font-size: 14px; color: #4b4760">склад без интернета — не проблема, фото уже в телефоне</div></div>
       <div><div class="disp" style="font-size: 26px; font-weight: 700; color: #6C4DB8">BYN · RUB · KZT</div><div style="font-size: 14px; color: #4b4760">для Беларуси, России и Казахстана</div></div>
@@ -287,13 +306,13 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
       <div class="imp-txt">
         <span class="kick" style="background: rgba(255,255,255,.14); color: #fff">Главная фишка Piksta</span>
         <h2 class="disp h2" style="font-weight: 800; color: #fff">Сотня заказов — в&nbsp;приход одной кнопкой</h2>
-        <p style="margin: 0; font-size: 18px; color: #e6defb; max-width: 520px">Треки, фото товаров и цены сами переносятся из ваших заказов в Piksta. Ничего не вбиваете и не копируете по одному.</p>
+        <p style="margin: 0; font-size: 18px; color: #e6defb; max-width: 520px">Треки, фото товаров и цены переезжают из ваших заказов в Piksta пачкой — а не по одному.</p>
         <ul class="imp-list">
-          <li>Ни одного трека вручную</li>
-          <li>У каждой посылки фото и цена — сразу видно, что внутри</li>
-          <li>Как мы это делаем — наш секрет. Покажем вживую на созвоне</li>
+          <li>Минимум ручной работы там, где раньше уходил вечер</li>
+          <li>Фото и цена приходят вместе с треком — сразу видно, что внутри посылки</li>
+          <li>Как это устроено — наш секрет. Проще попробовать самим</li>
         </ul>
-        <a href="https://t.me/ekudinof" class="btn btn-y" style="align-self: flex-start">Посмотреть импорт вживую</a>
+        <a href="/?login" class="btn btn-y" style="align-self: flex-start">Попробовать импорт бесплатно</a>
       </div>
       <div class="imp-vis" aria-hidden="true">
         <div class="imp-col">
@@ -309,7 +328,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
           <b>Отправка 29.10</b>
           <div class="imp-big">131</div>
           <span>позиция в приходе</span>
-          <div class="imp-zero">0 вбито вручную</div>
+          <div class="imp-zero">одной кнопкой</div>
         </div>
       </div>
     </div>
@@ -320,7 +339,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
 <section id="pain" class="sec">
   <div class="wrap">
     <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 48px">
-      <span class="kick">Знакомо?</span>
+      <span class="kick" style="background: #fde8e8; color: #b91c1c; font-size: 16px; padding: 8px 16px">Знакомо?</span>
       <h2 class="disp h2" style="font-weight: 800; max-width: 820px">Приход приехал. И&nbsp;начинается…</h2>
     </div>
     <div class="grid2">
@@ -337,8 +356,8 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
         <div style="display: flex; gap: 12px; align-items: flex-start; background: #f1edfb; border-radius: 14px; padding: 14px 16px"><span style="font-weight: 700; color: #6C4DB8">→</span><span>Взвесили — Piksta сама делит тару между клиентами и считает доставку каждому.</span></div>
       </div>
       <div class="card" style="display: flex; flex-direction: column; gap: 18px">
-        <div class="disp" style="font-size: 24px; font-weight: 700">«„Я же переводила?“ — и&nbsp;никто не&nbsp;помнит»</div>
-        <div style="display: flex; gap: 12px; align-items: flex-start; background: #f1edfb; border-radius: 14px; padding: 14px 16px"><span style="font-weight: 700; color: #6C4DB8">→</span><span>По каждому клиенту видно: оплатил полностью, частично или ещё должен.</span></div>
+        <div class="disp" style="font-size: 24px; font-weight: 700">«„Я же переводила!“ — а&nbsp;в&nbsp;записях пусто»</div>
+        <div style="display: flex; gap: 12px; align-items: flex-start; background: #f1edfb; border-radius: 14px; padding: 14px 16px"><span style="font-weight: 700; color: #6C4DB8">→</span><span>По каждому клиенту видно: оплатил полностью, частично или ещё должен. Спорить больше не о чем.</span></div>
       </div>
     </div>
   </div>
@@ -349,7 +368,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
   <div class="wrap">
     <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 52px">
       <span class="kick" style="background: rgba(255,255,255,.08); color: #cfc5f1">Как это работает</span>
-      <h2 class="disp h2" style="font-weight: 800; max-width: 860px">От заказа на&nbsp;Pinduoduo до&nbsp;оплаты клиента — в&nbsp;одном месте</h2>
+      <h2 class="disp h2" style="font-weight: 800; max-width: 860px">От заказа в&nbsp;Китае до&nbsp;оплаты клиента — в&nbsp;одном месте</h2>
     </div>
     <div class="grid4">
       <div style="display: flex; flex-direction: column; gap: 12px; border-top: 2px solid #ffcf3f; padding-top: 20px">
@@ -445,7 +464,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
           <span style="padding: 6px 12px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 14px; font-weight: 600">Забытые</span>
           <span style="padding: 6px 12px; border-radius: 999px; background: #fefce8; color: #854d0e; font-size: 14px; font-weight: 600">Чемпионы</span>
         </div>
-        <p style="margin: 0; color: #4b4760">Готовые сообщения меняются под повод: распродажи 11.11 и 618, Новый год, сезон, конец месяца. Скопировали — отправили.</p>
+        <p style="margin: 0; color: #4b4760">Готовые сообщения меняются под повод: распродажа 11.11, Новый год, сезон, конец месяца. Скопировали — отправили.</p>
       </div>
       <div class="shot"><div class="pk-scale" data-w="940"><div class="pk-scale-in" style="width:940px"><div class="cabinet-screen show pk-cabin"><div class="cab-main"><div class="cab-card cab-adv">
 <div class="cab-adv-head">
@@ -509,18 +528,14 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
       <span class="kick" style="background: #fff">Было → стало</span>
       <h2 class="disp h2" style="font-weight: 800">Тетрадь, Excel и&nbsp;память — больше не&nbsp;нужны</h2>
     </div>
-    <div style="overflow-x: auto; background: #fff; border-radius: 22px; border: 1px solid #ebe7f3">
-      <table class="cmp">
-        <thead><tr><th></th><th>Как обычно</th><th style="color: #6C4DB8">С Piksta</th></tr></thead>
-        <tbody>
-          <tr><td style="font-weight: 600">Треки</td><td style="color: #6b6780">Вбиваете вручную</td><td style="font-weight: 600">Приходят из Pinduoduo сами</td></tr>
-          <tr><td style="font-weight: 600">Чей пакет</td><td style="color: #6b6780">Ищете глазами по таблице</td><td style="font-weight: 600">Скан → фото и имя клиента</td></tr>
-          <tr><td style="font-weight: 600">Склад без интернета</td><td style="color: #6b6780">Таблица не открывается</td><td style="font-weight: 600">Работает офлайн</td></tr>
-          <tr><td style="font-weight: 600">Вес, тара, доставка</td><td style="color: #6b6780">Формулы, которые ломаются</td><td style="font-weight: 600">Считается само</td></tr>
-          <tr><td style="font-weight: 600">Кто должен</td><td style="color: #6b6780">В голове и в переписке</td><td style="font-weight: 600">По каждому клиенту и приходу</td></tr>
-          <tr><td style="font-weight: 600; border-bottom: none">Повторные заказы</td><td style="color: #6b6780; border-bottom: none">Как вспомните</td><td style="font-weight: 600; border-bottom: none">Подсказки и готовые сообщения</td></tr>
-        </tbody>
-      </table>
+    <div class="cmp2">
+      <div class="cmp2-h"><span></span><span>Как обычно</span><span class="p">С Piksta</span></div>
+      <div class="cmp2-r"><b>Треки</b><span class="o"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>Вбиваете по одному</span><span class="n"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Заказы переезжают пачкой</span></div>
+      <div class="cmp2-r"><b>Чей пакет</b><span class="o"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>Ищете глазами по таблице</span><span class="n"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Скан — и фото с именем клиента</span></div>
+      <div class="cmp2-r"><b>Склад без интернета</b><span class="o"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>Таблица не открывается</span><span class="n"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Работает офлайн</span></div>
+      <div class="cmp2-r"><b>Вес, тара, доставка</b><span class="o"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>Формулы, которые ломаются</span><span class="n"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Считается само</span></div>
+      <div class="cmp2-r"><b>Кто должен</b><span class="o"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>В голове и в переписке</span><span class="n"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>По каждому клиенту и приходу</span></div>
+      <div class="cmp2-r"><b>Повторные заказы</b><span class="o"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>Как вспомните</span><span class="n"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Подсказки и готовые сообщения</span></div>
     </div>
   </div>
 </section>
@@ -535,7 +550,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
     <div class="grid3">
       <div class="card"><div style="font-size: 20px; font-weight: 700; margin-bottom: 8px">Только ваш доступ</div><div style="color: #4b4760">Приходы, клиенты и суммы открываются только в вашем аккаунте.</div></div>
       <div class="card"><div style="font-size: 20px; font-weight: 700; margin-bottom: 8px">Тариф — по количеству</div><div style="color: #4b4760">Для тарифа считаем только число треков в месяц — не то, что вы заказываете.</div></div>
-      <div class="card"><div style="font-size: 20px; font-weight: 700; margin-bottom: 8px">Не передаём данные</div><div style="color: #4b4760">Ваши данные не продаются и не передаются третьим лицам. <a href="/privacy">Политика конфиденциальности</a></div></div>
+      <div class="card"><div style="font-size: 20px; font-weight: 700; margin-bottom: 8px">Защищённое хранение</div><div style="color: #4b4760">Данные хранятся в облаке Google и шифруются при передаче и хранении. Не продаём и не передаём их третьим лицам. <a href="/privacy">Политика конфиденциальности</a></div></div>
     </div>
   </div>
 </section>
