@@ -1048,7 +1048,7 @@ function openShipMenu(id, ev) {
     <button onclick="loadForAction('${id}').then(()=>openWeighing());closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
     <button onclick="loadForAction('${id}').then(()=>openCalc());closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
     <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы прихода</button>
-    <button onclick="loadForAction('${id}').then(()=>cacheShipmentImages());closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Офлайн-режим (картинки)</button>
+    ${pkOfflineMenuBtn(id)}
     <button onclick="loadForAction('${id}').then(()=>resetAll());closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
     <button onclick="exportForInventory('${id}');closeShipMenu()"><i class="ti ti-file-export" aria-hidden="true"></i> Выгрузить для описи</button>
     <button onclick="openCargoCompare('${id}');closeShipMenu()"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Сверка с карго</button>
@@ -1590,8 +1590,35 @@ async function checkCacheStatus() {
 }
 
 
-async function cacheShipmentImages() {
-  const btn = document.getElementById('btnCacheImages');
+// Пункт меню шестерёнки: показывает, скачаны ли фото этого прихода
+function pkOfflineMenuBtn(id) {
+  let n = 0; try { n = +localStorage.getItem('pk_off_' + id) || 0; } catch (e) {}
+  return n
+    ? `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}'));closeShipMenu()" style="color:#15803d"><i class="ti ti-cloud-check" aria-hidden="true"></i> Фото скачаны (${n}) · обновить</button>`
+    : `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}'));closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Скачать фото для работы без интернета</button>`;
+}
+// Полоса прогресса скачивания фото (внизу экрана)
+function pkCacheBar(state, done, total) {
+  let el = document.getElementById('pkCacheBar');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'pkCacheBar';
+    el.style.cssText = 'position:fixed;left:50%;bottom:20px;transform:translateX(-50%);width:min(360px,calc(100vw - 32px));box-sizing:border-box;background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 18px 40px -12px rgba(23,20,42,.35);z-index:10000;font-family:inherit';
+    document.body.appendChild(el);
+  }
+  clearTimeout(window.__pkCacheT);
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const c = state === 'done' ? '#16a34a' : state === 'part' ? '#d97706' : '#6C4DB8';
+  const txt = state === 'done' ? `Фото скачаны: ${done} из ${total} — можно работать без интернета`
+    : state === 'part' ? `Скачано ${done} из ${total}. Проверьте интернет и нажмите ещё раз`
+    : `Скачиваю фото: ${done} из ${total}`;
+  const ic = state === 'done' ? 'ti-circle-check' : state === 'part' ? 'ti-alert-triangle' : 'ti-cloud-download';
+  el.innerHTML = `<div style="display:flex;gap:10px;align-items:center;font-size:14px;font-weight:600;color:#17142a"><i class="ti ${ic}" style="font-size:20px;color:${c}"></i><span style="flex:1">${txt}</span></div><div style="margin-top:10px;height:8px;border-radius:4px;background:#efecf6;overflow:hidden"><div style="height:100%;width:${pct}%;background:${c};border-radius:4px;transition:width .3s"></div></div>`;
+  el.style.display = 'block';
+  if (state !== 'run') window.__pkCacheT = setTimeout(() => { el.style.display = 'none'; }, state === 'done' ? 4000 : 7000);
+}
+
+async function cacheShipmentImages(shipId) {
+  const btn = document.getElementById('btnCacheImages') || document.createElement('button');
   const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))];
   if (urls.length === 0) {
     showToast('В этом приходе нет картинок');
@@ -1604,9 +1631,7 @@ async function cacheShipmentImages() {
 
   btn.classList.add('caching');
   btn.classList.remove('cached');
-  const icon = btn.querySelector('i');
-  const origClass = icon.className;
-  icon.className = 'ti ti-loader-2';
+  pkCacheBar('run', 0, urls.length);
 
   const cache = await caches.open('piksta-images-v1');
 
@@ -1646,20 +1671,21 @@ async function cacheShipmentImages() {
       }
     }));
     btn.title = `Загружаю картинки: ${loaded}/${urls.length}`;
+    pkCacheBar('run', loaded, urls.length);
   }
 
   btn.classList.remove('caching');
-  icon.className = origClass;
 
   // Проверяем реально сколько в кэше
   const finalCount = await countCachedForShipment(urls);
   if (finalCount >= urls.length * 0.9) {
     btn.classList.add('cached');
     btn.title = `Картинки загружены (${finalCount} из ${urls.length}) — работают без интернета`;
-    showToast(`✅ Загружено ${finalCount} картинок для работы офлайн`);
+    pkCacheBar('done', finalCount, urls.length);
+    try { const sid = shipId || editingShipmentId || activeShipmentId; Object.keys(localStorage).filter(k => k.startsWith('pk_off_')).forEach(k => localStorage.removeItem(k)); if (sid) localStorage.setItem('pk_off_' + sid, String(finalCount)); } catch (e) {} // в кэше только один приход — флаг только у него
   } else {
     btn.title = `Загружено ${finalCount} из ${urls.length}. Нажмите ещё раз чтобы догрузить`;
-    showToast(`Загружено ${finalCount} из ${urls.length}. Проверьте интернет и нажмите ещё раз`);
+    pkCacheBar('part', finalCount, urls.length);
   }
 }
 
