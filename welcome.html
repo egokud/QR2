@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Piksta — разбор приходов из Китая для байеров и СП</title>
+<title>Piksta — разбор посылок из Китая для организаторов СП</title>
 <meta name="description" content="Треки и фото сами приходят из Pinduoduo. Сканируете посылку — видите товар и клиента. Вес, доставка и долги считаются без Excel. 30 дней бесплатно.">
 <meta name="theme-color" content="#6C4DB8">
-<meta property="og:title" content="Piksta — разберите приход из Китая за вечер">
-<meta property="og:description" content="Импорт из Pinduoduo, сканер с фото товара, расчёт веса, доставки и долгов. Для байеров и СП в Беларуси, России и Казахстане.">
+<meta property="og:title" content="Piksta — разберите посылки из Китая за час">
+<meta property="og:description" content="Импорт из Pinduoduo, сканер с фото товара, расчёт веса, доставки и долгов. Для организаторов СП и всех, кто выкупает товары из Китая для клиентов, — в Беларуси, России и Казахстане.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://piksta.online/">
 <link rel="icon" type="image/x-icon" href="/favicon.ico?v=5">
@@ -60,10 +60,42 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
   .grid2,.grid4{grid-template-columns:minmax(0,1fr)}
   .cmp th,.cmp td{padding:12px 10px;font-size:14px}
   .tape{display:none}
-  .hero-phone{width:168px !important;left:-4px !important}
+
   #pkLogin{display:none}
 }
 
+
+/* Первый экран: боли и iPhone */
+.hero-pains{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.hero-pains li{display:flex;gap:10px;align-items:flex-start;font-size:clamp(15px,1.4vw,17px);color:#17142a;font-weight:500}
+.hero-pains svg{flex:0 0 22px;width:22px;height:22px;padding:3px;box-sizing:border-box;border-radius:50%;background:#fde8e8;stroke:#c2410c;stroke-width:3;fill:none;stroke-linecap:round;margin-top:1px}
+.hero-proof{align-self:flex-start;display:flex;gap:12px;align-items:center;background:#e7f8ee;border-radius:16px;padding:10px 16px;color:#14532d;font-size:14px;max-width:520px}
+.hero-proof b{font-family:Unbounded,sans-serif;font-size:22px;white-space:nowrap;color:#15803d}
+.hero-phone{position:absolute;left:-18px;bottom:6px;z-index:2;width:206px;aspect-ratio:71.5/149.6;box-sizing:border-box;padding:8px;border-radius:46px;background:linear-gradient(145deg,#3a3646,#17142a 40%,#2b2836);box-shadow:0 0 0 1.5px #55506a inset,0 40px 70px -24px rgba(23,20,42,.6)}
+.ph-btn{position:absolute;width:3px;background:#2b2836;border-radius:2px}
+.ph-act{left:-3px;top:17%;height:5%}.ph-v1{left:-3px;top:25%;height:8%}.ph-v2{left:-3px;top:35%;height:8%}.ph-pw{right:-3px;top:28%;height:13%}
+.ph-screen{position:relative;height:100%;border-radius:38px;overflow:hidden;background:#f6f5fa;display:flex;flex-direction:column;font-family:Inter,sans-serif}
+.ph-status{height:38px;flex:0 0 38px;display:flex;align-items:center;justify-content:space-between;padding:0 20px 0 26px;font-size:12px;color:#17142a}
+.ph-island{position:absolute;left:50%;top:9px;width:72px;height:21px;margin-left:-36px;border-radius:12px;background:#0b0a10}
+.ph-ic{display:flex;align-items:flex-end;gap:1.5px}.ph-ic i{width:3px;background:#17142a;border-radius:1px}
+.ph-ic i:nth-child(1){height:4px}.ph-ic i:nth-child(2){height:6px}.ph-ic i:nth-child(3){height:8px}.ph-ic i:nth-child(4){height:10px}
+.ph-ic em{width:20px;height:10px;margin-left:5px;border:1.5px solid #17142a;border-radius:3px;box-sizing:border-box;background:linear-gradient(90deg,#17142a 75%,transparent 75%) content-box;padding:1px}
+.ph-top{display:flex;justify-content:space-between;align-items:baseline;padding:4px 14px 6px;font-size:11px;font-weight:600;color:#4b4760}
+.ph-top b{font-family:Unbounded,sans-serif;font-size:13px;color:#17142a}.ph-top small{color:#a19cb5;font-size:11px}
+.ph-prog{margin:0 14px;height:4px;border-radius:2px;background:#e4e0ef;overflow:hidden}.ph-prog span{display:block;height:100%;background:#16a34a}
+.ph-card{margin:10px 10px 0;flex:1;background:#fff;border-radius:22px;padding:10px;display:flex;flex-direction:column;gap:6px;box-shadow:0 0 0 2px #bbf7d0}
+.ph-card img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:14px;background:#f1eef8;display:block}
+.ph-ok{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:999px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:700}
+.ph-ok svg{width:12px;height:12px;stroke:#15803d;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ph-name{font-family:Unbounded,sans-serif;font-weight:800;font-size:22px;line-height:1.05;color:#17142a}
+.ph-desc{font-size:11px;color:#4b4760}.ph-track{font-size:10px;color:#8b879c;font-family:ui-monospace,monospace}
+.ph-next{margin-top:auto;height:34px;border-radius:12px;background:#6C4DB8;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.ph-home{display:block;width:84px;height:4px;border-radius:2px;background:#17142a;margin:8px auto 7px}
+@media (max-width:600px){
+  .hero-phone{width:176px;left:-6px;border-radius:36px;padding:6px}
+  .ph-screen{border-radius:30px}.ph-name{font-size:19px}.ph-status{height:30px;flex-basis:30px;padding:0 14px 0 18px}.ph-island{top:7px;width:56px;margin-left:-28px;height:17px}
+  .ph-card{padding:8px;gap:4px}
+}
 /* Живые блоки Кабинета (настоящий cabinet.css, вымышленные данные) */
 .pk-scale{position:relative;overflow:hidden}
 .pk-scale-in{transform-origin:0 0}
@@ -101,9 +133,15 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
 <section id="top" style="padding: 72px 0 40px">
   <div class="wrap hero-grid">
     <div style="display: flex; flex-direction: column; gap: 26px">
-      <span class="kick">Для байеров и организаторов СП из Китая · BY · RU · KZ</span>
-      <h1 class="disp" style="font-size: clamp(36px, 4.4vw, 60px); font-weight: 800">Разберите приход из&nbsp;Китая за&nbsp;вечер, а не за выходные</h1>
-      <p class="lead" style="margin: 0">Треки и фото сами приходят из Pinduoduo. Сканируете посылку — на экране товар и имя клиента. Вес, доставка и долги считаются без Excel.</p>
+      <span class="kick">Для организаторов СП и закупок из Китая на заказ · BY · RU · KZ</span>
+      <h1 class="disp" style="font-size: clamp(34px, 3.9vw, 54px); font-weight: 800">Разберите посылки из&nbsp;Китая за&nbsp;час, а&nbsp;не за выходные</h1>
+      <ul class="hero-pains">
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>Гора пакетов, 150 треков, 20 клиентов — и над каждым «а это чьё?»</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>Выходные уходят на таблицы и сверку, а не на семью</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>Перепутали пакет — минус клиент и минус деньги</span></li>
+      </ul>
+      <p class="lead" style="margin: 0">С Piksta: скан — и на экране фото товара и имя клиента. Вес, доставка и долги считаются сами.</p>
+      <div class="hero-proof"><b>45 минут</b><span>столько занял разбор нашего последнего прихода — само сканирование 30–40 минут</span></div>
       <div style="display: flex; gap: 12px; flex-wrap: wrap">
         <a href="/?login" class="btn btn-p">Попробовать 30 дней бесплатно</a>
         <a href="#how" class="btn btn-s">Как это работает</a>
@@ -181,15 +219,22 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
 </div></div>
 </div></div></div></div></div>
       </div>
-      <!-- Телефон: экран сканера -->
-      <div class="hero-phone" style="position: absolute; left: -8px; bottom: 0; z-index: 2; width: 220px; background: #17142a; border-radius: 34px; padding: 9px; box-shadow: 0 30px 60px -20px rgba(23,20,42,.55)">
-        <div style="background: #fff; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column">
-          <div style="padding: 16px 14px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #6b6780"><span style="font-weight: 600; color: #17142a">Отправка 12.10</span><span>87 / 121</span></div>
-          <div style="margin: 0 12px; height: 150px; border-radius: 14px; background: repeating-linear-gradient(135deg,#efeaf9 0 10px,#f7f4fc 10px 20px); display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8b7fd4; text-align: center; padding: 10px">[фото товара из Pinduoduo]</div>
-          <div style="padding: 12px 14px 4px; font-size: 11px; color: #8b879c">Трек YT26•••4819</div>
-          <div class="disp" style="padding: 0 14px; font-size: 22px; font-weight: 700; color: #6C4DB8">Марина</div>
-          <div style="padding: 2px 14px 12px; font-size: 12px; color: #4b4760">Худи серое, р. M · 1 шт</div>
-          <div style="margin: 0 12px 14px; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border-radius: 12px; background: #e7f8ee; color: #15803d; font-weight: 600; font-size: 13px">✓ Отсканировано</div>
+      <!-- Телефон: iPhone, экран результата скана -->
+      <div class="hero-phone" aria-label="Piksta на телефоне: посылка отмечена, клиент Марина">
+        <span class="ph-btn ph-act"></span><span class="ph-btn ph-v1"></span><span class="ph-btn ph-v2"></span><span class="ph-btn ph-pw"></span>
+        <div class="ph-screen">
+          <div class="ph-status"><b>9:41</b><span class="ph-island"></span><span class="ph-ic"><i></i><i></i><i></i><i></i><em></em></span></div>
+          <div class="ph-top"><span>Отправка 12.10</span><b>88 <small>/ 121</small></b></div>
+          <div class="ph-prog"><span style="width:73%"></span></div>
+          <div class="ph-card">
+            <img src="https://img.pddpic.com/mms-material-img/2024-03-05/0cec20c7-958b-41dc-a6b8-33ee1d22e26b.jpeg" alt="Детский комбинезон" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">
+            <div class="ph-ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>Отмечено</div>
+            <div class="ph-name">Марина</div>
+            <div class="ph-desc">Комбинезон, 80 см · 1 шт</div>
+            <div class="ph-track">YT2681•••4819</div>
+            <div class="ph-next">Следующая посылка</div>
+          </div>
+          <span class="ph-home"></span>
         </div>
       </div>
     </div>
@@ -312,7 +357,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
       <div style="display: flex; flex-direction: column; gap: 18px">
         <span class="kick">Кабинет на компьютере</span>
         <h2 class="disp h2" style="font-weight: 800">Открыли — и&nbsp;сразу ясно, где деньги</h2>
-        <p class="lead" style="margin: 0">Не таблица с сотней столбцов, а ответы на главные вопросы байера.</p>
+        <p class="lead" style="margin: 0">Не таблица с сотней столбцов, а ответы на главные вопросы организатора.</p>
         <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 6px">
           <div style="display: flex; gap: 14px"><span style="flex: 0 0 34px; height: 34px; border-radius: 10px; background: #f1edfb; color: #6C4DB8; display: flex; align-items: center; justify-content: center; font-weight: 700">₽</span><div><b>Деньги в обороте.</b> Сколько ваших денег сейчас в товаре и сколько уже вернулось.</div></div>
           <div style="display: flex; gap: 14px"><span style="flex: 0 0 34px; height: 34px; border-radius: 10px; background: #f1edfb; color: #6C4DB8; display: flex; align-items: center; justify-content: center; font-weight: 700">≈</span><div><b>Честная наценка.</b> Что уже точно, а что пока оценка — до взвешивания.</div></div>
@@ -522,7 +567,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
   <div class="wrap" style="display: flex; gap: 28px; flex-wrap: wrap; justify-content: space-between">
     <div style="display: flex; flex-direction: column; gap: 6px">
       <span class="disp" style="font-size: 18px; font-weight: 700; color: #17142a">Piksta</span>
-      <span>Разбор приходов из Китая для байеров и СП</span>
+      <span>Разбор посылок из Китая для организаторов СП</span>
       <span>© 2026 Piksta · ИП Кудинов Е. А.</span>
     </div>
     <div style="display: flex; flex-direction: column; gap: 6px">
