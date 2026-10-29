@@ -529,3 +529,65 @@
 .cab-an-src-l b{margin-left:auto;color:#1a1a2e;font-size:13.5px}
 .cab-an-src-l b.red{color:#dc2626}
 .cab-an-kpis .cab-an-src{margin:12px 0 8px}
+
+/* ===== Свёрнутое боковое меню (только значки) ===== */
+.cab-side-tg{margin-left:auto;border:none;background:none;color:#9aa0ab;font-size:20px;cursor:pointer;padding:4px;border-radius:7px;display:flex;align-items:center}
+.cab-side-tg:hover{background:#f0ecf9;color:#6C4DB8}
+.cab-sidebar{transition:width .18s ease}
+.cabinet-screen.cab-mini .cab-sidebar{width:68px}
+.cab-mini .cab-sidebar-logo{flex-direction:column;gap:10px;padding:18px 0 12px}
+.cab-mini .cab-sidebar-logo span{display:none}
+.cab-mini .cab-side-tg{margin:0}
+.cab-mini .cab-nav{padding:8px 10px}
+.cab-mini .cab-nav-item{font-size:0;justify-content:center;padding:10px 0;gap:0}
+.cab-mini .cab-nav-item i{font-size:20px}
+.cab-mini .cab-nav-badge,.cab-mini .cab-sidebar-user,.cab-mini .cab-sidebar-role{display:none}
+.cab-mini .cab-nav-divider{margin:10px 6px}
+.cab-mini .cab-sidebar-bottom{padding:10px}
+.cab-mini .cab-sidebar-logout{font-size:0;justify-content:center;padding:9px 0;gap:0}
+.cab-mini .cab-sidebar-logout i{font-size:18px !important}
+@media(max-width:640px){.cabinet-screen.cab-mini .cab-sidebar{width:100%}.cab-mini .cab-nav-item{font-size:13px;padding:8px 12px;gap:10px}.cab-side-tg{display:none}}
+
+/* ===== Адаптивность: текст в карточках переносится, таблицы листаются внутри своих блоков ===== */
+.cab-main{container-type:inline-size}
+.cab-card *,.cab-cc-head *,.cab-cc-cells *,.cab-cc-debt,.cab-cc-debt *,.cab-cc-top *,.cab-strip *,.cab-step *,.cab-flow-card *,.cab-hello *,.cab-dupe *,.cab-rates-bar *,.cab-plan *{white-space:normal}
+.cab-main table,.cab-main table *,.cab-pill,.cab-seg,.cab-seg *,.cab-todo-btn,.cab-todo-btn *,.cab-adv-cta,.cab-adv-cta *,.cab-base-chip,.cab-base-chip *,.cab-fchip,.cab-fchip *,.cab-filter-btn,.cab-adv-tab,.cab-adv-next,.cab-delta,.cab-cc-debt em,.cab-step b,.cab-step span,.cab-card-link{white-space:nowrap}
+.cab-main .cab-table-wrap{overflow-x:auto}
+.cab-frow,.cab-filter-row,.cab-base-leg,.cab-cc-debt,.cab-adv-tabs,.cab-an-chips,.cab-bars-sum,.cab-card-h{flex-wrap:wrap}
+.cab-debt .cab-debt-s{flex-wrap:wrap;row-gap:2px}
+.cab-debt-p{flex-wrap:wrap;gap:4px}
+.cab-card-h{row-gap:4px}
+@container (max-width:900px){
+  .cab-ov-top,.cab-sh-top,.cab-an-two{grid-template-columns:minmax(0,1fr)}
+  .cab-an-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cab-cc-head{flex-wrap:wrap}
+  .cab-cc-pay{width:auto;flex:1 1 100%;margin-left:32px}
+  .cab-cc-top{flex-wrap:wrap;gap:10px}
+  .cab-cc-sum{flex-basis:100%;justify-content:flex-start;flex-wrap:wrap}
+  .cab-cc-cells{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));row-gap:8px;padding-left:32px}
+  .cab-cc-cell,.cab-cc-cell:first-child{border-left:none;padding-left:0}
+  .cab-cc-debt{padding-left:32px;row-gap:4px}
+  .cab-plans{min-width:0 !important;grid-template-columns:repeat(auto-fit,minmax(220px,1fr)) !important}
+  .cab-adv-body{grid-template-columns:minmax(0,1fr)}
+}
+@container (max-width:640px){
+  .cab-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cab-flow-arrow,.cab-step-arr{display:none}
+  .cab-steps{flex-wrap:wrap;gap:6px}
+  .cab-step{flex:1 1 40%}
+  .cab-adv-tips{grid-template-columns:minmax(0,1fr)}
+  .cab-money-leg,.cab-an-leg{grid-template-columns:minmax(0,1fr);gap:8px}
+  .cab-rates-bar-f{flex-wrap:wrap;row-gap:12px}
+  .cab-rates-bar-f .cab-rate-f{flex:1 1 40%;padding:0 12px 0 0;border-left:none !important}
+  .cab-strip{flex-wrap:wrap}
+  .cab-strip-seg{flex:1 1 40%}
+  .cab-an-kpis{grid-template-columns:minmax(0,1fr)}
+}
+@container (max-width:960px){.cab-sh-top{grid-template-columns:minmax(0,1fr)}}
+/* Старые сетки цифр (карточка клиента, приход): на узком — сколько влезает, остальное переносится */
+@container (max-width:900px){
+  .cab-main .cab-stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)) !important}
+}
+.cab-main .cab-stat-card{min-width:0}
+.cab-main .cab-stat-card *{white-space:normal}
+.cab-main .cab-stat-val{white-space:nowrap !important}
