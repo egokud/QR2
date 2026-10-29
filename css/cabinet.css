@@ -168,3 +168,8 @@
 .cab-plan-feats li i{font-size:16px;color:#16a34a;flex-shrink:0}
 .cab-plan-feats li.off{color:#a3a8b1}
 .cab-plan-feats li.off i{color:#c5c9cf}
+/* Тариф: цена — акцентный красный (как у продающих страниц), рекомендуемый тариф заметно выделен */
+.cab-plan-price{color:#e11d48}
+.cab-plan.rec{border:2px solid #6C4DB8;padding:17px;box-shadow:0 12px 32px rgba(108,77,184,.18);transform:translateY(-6px);position:relative}
+.cab-plan.rec .cab-plan-badge{background:#6C4DB8;color:#fff;font-weight:700;padding:3px 10px}
+.cab-plans{padding-top:6px}
