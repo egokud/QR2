@@ -774,14 +774,15 @@ function cabLev(a, b) {
   }
   return prev[b.length];
 }
-// Пары похожих имён: exact — отличаются только пробелами/знаками/регистром; near — 1–2 буквы разницы (длинные имена)
+// Пары похожих имён: exact — отличаются только пробелами/знаками/регистром; near — 1–2 буквы разницы в длинном имени
 function cabFindDupes(list) {
   const out = [];
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
     const a = list[i], b = list[j], na = cabNameNorm(a.name), nb = cabNameNorm(b.name);
     if (!na || !nb) continue;
     const exact = na === nb;
-    if (exact || (Math.min(na.length, nb.length) >= 6 && cabLev(na, nb) <= 2)) {
+    // похожие: только длинные имена (10+ знаков), одинаковые первые 2 буквы и не больше 2 букв разницы — «Марина/Карина» не предлагаем
+    if (exact || (Math.min(na.length, nb.length) >= 10 && na.slice(0, 2) === nb.slice(0, 2) && cabLev(na, nb) <= 2)) {
       const [keep, drop] = (b.ships.length > a.ships.length) ? [b, a] : [a, b];   // остаётся имя, у кого больше приходов
       out.push({ keep, drop, exact });
     }
@@ -1443,7 +1444,7 @@ function renderCabTariffs(container) {
     else if (t.recommended) flags.push('<span class="cab-plan-badge">Рекомендуем</span>');
     const limit = t.tracks ? `до ${cabFmt(t.tracks)} треков в месяц` : `больше ${cabFmt(T.tiers[T.tiers.length - 2].tracks)} треков`;
     let price;
-    if (!t.rub) price = `<div class="cab-plan-price" style="font-size:24px">Индивидуально</div><div class="cab-plan-note"><a href="https://t.me/${T.tg}" target="_blank" rel="noopener" style="color:#6C4DB8;text-decoration:none">Обсудить в Telegram</a></div>`;
+    if (!t.rub) price = `<div class="cab-plan-price" style="font-size:24px">Индивидуально</div><div class="cab-plan-note"><a href="https://t.me/${T.tg}" target="_blank" rel="noopener" style="color:#6C4DB8;text-decoration:none;font-weight:500">Обсудить в Telegram</a></div>`;
     else {
       // Крупно — цена в месяц (главное, что видит человек), мелко — сумма за весь срок
       const full = t.rub[per[0]];
@@ -1451,13 +1452,15 @@ function renderCabTariffs(container) {
       const month = Math.round(pay / per[0]);
       const base = t.rub[1];                       // обычная цена месяца без скидок
       const old = month < base ? `<span class="cab-plan-old">${cabRub(base)}</span>` : '';
-      price = `<div class="cab-plan-price">${cabRub(month)}<span class="cab-plan-unit">/ мес</span>${old}</div>
-        <div class="cab-plan-note">${per[0] === 1 ? 'оплата помесячно' : `${cabRub(pay)} при оплате за ${per[0] === 12 ? 'год' : per[1].toLowerCase()}`}</div>`;
+      price = `<div class="cab-plan-price">${cabRub(month)}</div>
+        <div class="cab-plan-sub">в месяц ${old}</div>
+        <div class="cab-plan-note">${per[0] === 1 ? 'оплата помесячно' : `<b>${cabRub(pay)}</b> при оплате за ${per[0] === 12 ? 'год' : per[1].toLowerCase()}`}</div>`;
     }
     return `<div class="cab-plan${(curTier === t.id) ? ' current' : t.recommended && !curTier ? ' rec' : ''}">
       <div class="cab-plan-head"><span class="cab-plan-title">${t.name}</span>${flags.join('')}</div>
-      <div class="cab-plan-limit">${limit}${isFit ? ' <span class="cab-plan-fit"><i class="ti ti-check"></i> под ваш объём</span>' : ''}</div>
-      ${price}
+      <div class="cab-plan-limit">${limit}</div>
+      <div class="cab-plan-body">${price}</div>
+      <div class="cab-plan-foot">${isFit ? '<span class="cab-plan-fit"><i class="ti ti-check"></i> Под ваш объём</span>' : ''}</div>
     </div>`;
   }).join('');
 
@@ -1480,7 +1483,7 @@ function renderCabTariffs(container) {
     <div class="cab-filter-row" style="align-items:center">${periodBtns}
       <span style="margin-left:auto;font-size:13px;color:#6b7280">Все функции во всех тарифах — отличается только объём</span></div>
     ${founder ? `<div class="cab-founder"><i class="ti ti-star"></i> Цена первых клиентов: −${T.founderDiscountPct}% навсегда, пока подписка продлевается без перерыва</div>` : ''}
-    <div class="cab-plans" style="grid-template-columns:repeat(${T.tiers.length},1fr)">${cards}</div>
+    <div class="cab-plans" style="grid-template-columns:repeat(${T.tiers.length},minmax(0,1fr))">${cards}</div>
     <div class="cab-table-wrap">
       <div class="cab-table-title">Как оплатить</div>
       <div class="cab-pay-text">Онлайн-оплата пока не подключена. Напишите нам: пришлём сумму${country ? ` для страны «${country}»` : ''} и способ оплаты,</div>
