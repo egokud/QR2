@@ -2219,45 +2219,44 @@ async function cabLoadAdminUsers(box) {
       else if (daysLeft > 0) trial++;
       let shipCount = '—';
       try { const ss = await db.collection('users').doc(u.id).collection('shipments').get(); shipCount = ss.size; } catch (e) {}
-      const status = isBlocked ? '<span style="color:#dc2626;font-weight:600">Заблокирован</span>'
-        : daysLeft <= 0 ? '<span style="color:#dc2626">Доступ истёк</span>'
-        : subEnd && subEnd > now ? '<span style="color:#16a34a">Подписка</span>' : '<span style="color:#f59e0b">Пробный</span>';
+      const st = isBlocked ? ['Заблокирован', '#b91c1c', '#fde8e8']
+        : daysLeft <= 0 ? ['Доступ истёк', '#b91c1c', '#fde8e8']
+        : subEnd && subEnd > now ? ['Подписка', '#15803d', '#dcfce7'] : ['Пробный', '#92400e', '#fef3c7'];
       const safeName = String(u.name || u.email || '').replace(/['"<>]/g, '');
-      const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" style="padding:5px 6px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;background:#fff">
-          <option value="">—</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-      const ind = `<label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)" style="margin:0"> да</label>`;
-      const fnd = `<label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="Цена первых клиентов: −${PIKSTA_TARIFFS.founderDiscountPct}% (участник пилота)"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked)" style="margin:0"> −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
-      rows.push(`<tr>
-        <td style="font-weight:500">${u.name || '—'}</td>
-        <td>${u.email || u.id}</td>
-        <td>${created.toLocaleDateString('ru-RU')}</td>
-        <td>${ctry}</td>
-        <td>${fnd}</td>
-        <td>${ind}</td>
-        <td>${shipCount}</td>
-        <td>${accessEnd.toLocaleDateString('ru-RU')} <span style="color:${daysLeft > 7 ? '#16a34a' : '#dc2626'};font-size:13px">(${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'})</span></td>
-        <td>${status}</td>
-        <td style="white-space:nowrap">
-          <button class="cab-filter-btn" style="padding:6px 12px;color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}','${safeName}')">Продлить</button>
-          ${isBlocked
-            ? `<button class="cab-filter-btn" style="padding:6px 12px" onclick="cabAdminBlock('${u.id}',false)">Разблокировать</button>`
-            : `<button class="cab-filter-btn" style="padding:6px 12px;color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)">Заблокировать</button>`}
-        </td>
-      </tr>`);
+      const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" class="cab-usel">
+          <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+      const fnd = `<label class="cab-uopt" title="Цена первых клиентов: −${PIKSTA_TARIFFS.founderDiscountPct}% (участник пилота)"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked)"> Пилот −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
+      const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индивидуальный тариф</label>`;
+      const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
+      rows.push(`<div class="cab-ucard${isBlocked || daysLeft <= 0 ? ' off' : ''}">
+        <div class="cab-urow">
+          <div class="cab-uwho"><span class="cab-uav">${ini}</span><div style="min-width:0"><div class="cab-uname">${u.name || '—'}</div><div class="cab-umail">${u.email || u.id}</div></div></div>
+          <div class="cab-umeta"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
+          <div class="cab-umeta"><span>Приходов</span><b>${shipCount}</b></div>
+          <div class="cab-umeta"><span>Доступ до</span><b>${accessEnd.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em></b></div>
+          <span class="cab-upill" style="color:${st[1]};background:${st[2]}">${st[0]}</span>
+        </div>
+        <div class="cab-urow cab-urow2">
+          ${ctry}${fnd}${ind}
+          <div class="cab-uact">
+            <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}','${safeName}')"><i class="ti ti-calendar-plus"></i> Продлить</button>
+            ${isBlocked
+              ? `<button class="cab-filter-btn" onclick="cabAdminBlock('${u.id}',false)"><i class="ti ti-lock-open"></i> Разблокировать</button>`
+              : `<button class="cab-filter-btn" style="color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)"><i class="ti ti-lock"></i> Заблокировать</button>`}
+          </div>
+        </div>
+      </div>`);
     }
     box.innerHTML = `
       <div class="cab-table-wrap">
         <div class="cab-table-title"><i class="ti ti-shield-lock" style="margin-right:6px"></i>Пользователи Piksta</div>
-        <div class="cab-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        <div class="cab-ustats">
           <div class="cab-stat-card"><div class="cab-stat-val">${users.length}</div><div class="cab-stat-label">Всего пользователей</div></div>
           <div class="cab-stat-card"><div class="cab-stat-val" style="color:#16a34a">${active}</div><div class="cab-stat-label">С подпиской</div></div>
           <div class="cab-stat-card"><div class="cab-stat-val" style="color:#f59e0b">${trial}</div><div class="cab-stat-label">На пробном</div></div>
           <div class="cab-stat-card"><div class="cab-stat-val" style="color:#dc2626">${blocked}</div><div class="cab-stat-label">Заблокировано</div></div>
         </div>
-        <table class="cab-table">
-          <thead><tr><th>Имя</th><th>Email</th><th>Регистрация</th><th>Страна</th><th title="Цена первых клиентов (участник пилота)">Первый клиент</th><th title="Показать тариф «Крупный / карго»">Индивид.</th><th>Приходов</th><th>Доступ до</th><th>Статус</th><th></th></tr></thead>
-          <tbody>${rows.join('') || '<tr><td colspan="10" style="text-align:center;color:#6b7280;padding:20px">Пользователей нет</td></tr>'}</tbody>
-        </table>
+        <div class="cab-users">${rows.join('') || '<div class="cab-stub-text" style="text-align:center;padding:20px">Пользователей нет</div>'}</div>
       </div>`;
   } catch (e) {
     box.innerHTML = `<div class="cab-table-wrap"><div class="cab-stub-text">Не удалось загрузить пользователей: ${e.message}</div></div>`;
