@@ -127,7 +127,7 @@
 .cab-plan-sub{font-size:13px;color:#6b7280;margin-top:2px}
 .cab-plan-old{color:#9aa0ab;text-decoration:line-through;margin-left:4px}
 .cab-plan-note{font-size:14px;color:#4a5260;margin-top:10px}
-.cab-plan-note b{color:#1a1a2e;font-weight:700}
+.cab-plan-note b{color:#1a1a2e;font-weight:700;font-size:21px;margin-right:2px}
 .cab-plan-foot{height:28px;display:flex;align-items:center;justify-content:center}
 .cab-plan-fit{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:#16a34a;background:#f0fdf4;padding:3px 10px;border-radius:7px}
 .cab-pay-text{font-size:14px;color:#4a5260;line-height:1.6}
@@ -169,7 +169,26 @@
 .cab-plan-feats li.off{color:#a3a8b1}
 .cab-plan-feats li.off i{color:#c5c9cf}
 /* Тариф: цена — акцентный красный (как у продающих страниц), рекомендуемый тариф заметно выделен */
-.cab-plan-price{color:#e11d48}
+.cab-plan-price{color:#a3122e}
 .cab-plan.rec{border:2px solid #6C4DB8;padding:17px;box-shadow:0 12px 32px rgba(108,77,184,.18);transform:translateY(-6px);position:relative}
 .cab-plan.rec .cab-plan-badge{background:#6C4DB8;color:#fff;font-weight:700;padding:3px 10px}
 .cab-plans{padding-top:6px}
+
+/* Клиенты: папки */
+.cab-frow{display:flex;align-items:center;gap:6px;margin:0 0 10px;flex-wrap:nowrap}
+.cab-frow-l{font-size:13px;color:#6b7280;margin-right:4px;display:flex;align-items:center;gap:4px}
+.cab-fchip{display:inline-flex;align-items:center;gap:5px;font-size:13px;padding:4px 10px;border:1px solid #e1e4e8;border-radius:999px;cursor:pointer;color:#4a5260;background:#fff}
+.cab-fchip i{font-style:normal;color:#9aa0ab;font-size:12px}
+.cab-fchip:hover{background:#f7f8fa}
+.cab-fchip.on{background:#1f2430;border-color:#1f2430;color:#fff}
+.cab-fchip.on i{color:#c5c9cf}
+.cab-fchip b{display:inline-flex;margin-left:2px;opacity:.75}
+.cab-fchip b:hover{opacity:1}
+.cab-fchip b .ti{font-size:13px;color:inherit}
+.cab-fchip.add{border-style:dashed;color:#6C4DB8}
+.cab-selbar{align-items:center;gap:10px;padding:8px 12px;margin-bottom:10px;background:#f0ecf9;border-radius:8px;font-size:14px}
+.cab-sel-select{padding:6px 8px;border:1px solid #d5d8dd;border-radius:7px;font-size:14px;background:#fff}
+.cab-sel-td{width:28px}
+.cab-grp td{background:#f7f8fa;font-weight:600;color:#1f2430;font-size:13px;padding:8px 10px !important;border-bottom:1px solid #dfe2e7}
+.cab-grp td span{color:#9aa0ab;font-weight:500;margin-left:4px}
+.cab-grp td .ti{color:#6b7280;margin-right:4px}
