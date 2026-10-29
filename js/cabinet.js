@@ -345,6 +345,11 @@ const CAB_HELP = {
   todo: ['Что сделать сейчас', 'Помощник собирает дела, которые приносят деньги или экономят время: кто должен, какой приход собирается, кого из клиентов пора вернуть, какие имена похожи на дубли.<br>Нажмите на строку — откроется нужный раздел.'],
   an_split: ['Куда идут деньги клиентов', 'Всё, что заплатят клиенты по рассортированным приходам, разложено на три части: сколько ушло на выкуп товара, сколько — на доставку карго, и сколько осталось вам (наценка).<br>Приходы в пути сюда не входят: пока нет веса, суммы неточные.'],
   an_src: ['Откуда наценка', 'Наценка складывается из двух частей: <b>на курсе</b> — разница между курсом для клиента и курсом закупки, и <b>на доставке</b> — разница между тем, что клиент платит за кг, и тарифом карго.<br>Если доля доставки маленькая или отрицательная — возможно, стоит поднять «Доставку клиенту» в Ценах.'],
+  incl: ['Вес в цене', 'Доставка этого клиента уже заложена в цену товара — Piksta <b>не начисляет</b> ему доставку по весу.<br>Если включена «Тара 8%», такого клиента можно не взвешивать.'],
+  tare8: ['Тара 8%', 'К весу каждого взвешенного клиента прибавляется 8% на коробки и упаковку. Тару по весу от карго в этом режиме не высчитываем.'],
+  departed: ['Отправка выехала с карго', 'Поставьте галочку, когда карго забрало посылки, — приход перейдёт в статус «В дороге». Снять её можно, пока приход в дороге: он вернётся в «Формируется».'],
+  costGoods: ['Товар по себестоимости', 'Клиент платит за товар столько, сколько он стоил вам, — <b>без наценки</b> на курсе. Ваша прибыль с товара этого клиента — 0. Для своих, друзей и себя.'],
+  costShip: ['Доставка по себестоимости', 'Клиент платит доставку по цене карго — <b>без вашей наценки</b> на доставке. Прибыль с доставки этого клиента — 0.'],
   flow: ['Где сейчас товар', 'Все приходы по этапам: <b>собирается</b> → <b>в пути</b> → <b>на складе</b> → <b>рассортирован</b>.<br>До сортировки показана примерная наценка (без доставки). После сортировки — сколько клиенты ещё должны.<br>Нажмите на приход, чтобы открыть его. Архивные приходы — в разделе «Приходы».']
 };
 function cabHelpBtn(k) { return `<button class="cab-help" title="Что это?" onclick="cabHelp(event,'${k}')"><i class="ti ti-help-circle"></i></button>`; }
@@ -603,15 +608,32 @@ function cabRenderShip() {
       <button onclick="cabRenameShip()" title="Переименовать" style="border:none;background:none;color:#6b7280;cursor:pointer;font-size:16px"><i class="ti ti-pencil"></i></button>
       <select onchange="cabSetStatus(this.value)" style="${cabInp};margin-left:auto">${opts}</select>
     </div>
-    <div class="cab-stats" style="grid-template-columns:repeat(5,1fr)">
-      <div class="cab-stat-card"><div class="cab-stat-val">${TABLE.length}</div><div class="cab-stat-label">Позиций</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${calc.clients.length}</div><div class="cab-stat-label">Клиентов</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt2(calc.ourWeight)}</div><div class="cab-stat-label">Вес клиентов, кг</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt(calc.grandDue)}</div><div class="cab-stat-label">Должны, BYN</div></div>
-      <div class="cab-stat-card"><div class="cab-stat-val ${calc.grandProfit >= 0 ? 'green' : ''}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt(calc.grandProfit)}</div><div class="cab-stat-label">Прибыль, BYN</div></div>
-    </div>
+    ${cabShipHeadHtml(ship, calc)}
     <div class="cab-filter-row" style="align-items:center">${tabs}${cabShipTab === 'calc' ? `<button onclick="cabShipAllPaid()" style="margin-left:auto;flex-shrink:0;background:#fff;color:#16a34a;border:1px solid #86efac;border-radius:8px;padding:8px 14px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-checks"></i> Все оплатили</button><button onclick="cabShipPDF()" style="margin-left:8px;flex-shrink:0;background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>` : ''}</div>
     ${body}`;
+}
+
+// Шапка прихода: этапы пути + главные цифры цветными плитками
+function cabShipHeadHtml(ship, calc) {
+  const st = ship.status || 'forming';
+  const steps = [['forming', 'ti-shopping-cart'], ['transit', 'ti-truck'], ['warehouse', 'ti-building-warehouse'], ['sorted', 'ti-checks']];
+  const cur = { forming: 0, transit: 1, delayed: 1, warehouse: 2, sorted: 3, done: 3 }[st] ?? 0;
+  const stepHtml = steps.map(([k, ic], i) => {
+    const kk = (i === 1 && st === 'delayed') ? 'delayed' : k, S = SHIP_STATUSES[kk];
+    const cls = i < cur ? 'done' : i === cur ? 'cur' : '';
+    return `${i ? '<i class="ti ti-chevron-right cab-sp-arr"></i>' : ''}<div class="cab-sp-step ${cls}" style="--c:${S.color};--t:${S.text}"><span class="dot"><i class="ti ${i < cur ? 'ti-check' : ic}"></i></span>${S.label}</div>`;
+  }).join('');
+  const weighed = calc.ourWeight > 0;
+  const fact = (ic, l, v, cls, sub) => `<div class="cab-sp-f ${cls}"><span class="ic"><i class="ti ${ic}"></i></span><div><div class="l">${l}</div><div class="v">${v}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div></div>`;
+  const facts = [
+    fact('ti-package', 'Позиций', TABLE.length, ''),
+    fact('ti-users', 'Клиентов', calc.clients.length, ''),
+    weighed ? fact('ti-scale', 'Вес клиентов', cabFmt2(calc.ourWeight) + ' кг', '') : fact('ti-scale', 'Вес клиентов', 'не взвешено', 'muted', `<a href="#" onclick="cabShipTabSet('weigh');return false">Взвесить →</a>`),
+    fact('ti-cash', 'Клиенты должны', cabFmt(calc.grandDue) + ' BYN', 'due', weighed ? '' : 'пока без доставки'),
+    fact('ti-trending-up', 'Прибыль', (calc.grandProfit >= 0 ? '+' : '') + cabFmt(calc.grandProfit) + ' BYN', calc.grandProfit >= 0 ? 'ok' : 'bad', weighed ? '' : '≈ до взвешивания')
+  ].join('');
+  const go = st === 'forming' ? `<button class="cab-sp-go" onclick="cabSetDeparted({checked:true})"><i class="ti ti-truck-delivery"></i> Отправка выехала с карго</button>` : '';
+  return `<div class="cab-sp"><div class="cab-sp-row"><div class="cab-sp-steps">${stepHtml}</div>${go}</div><div class="cab-sp-facts">${facts}</div></div>`;
 }
 
 async function cabSetStatus(key) {
@@ -659,10 +681,10 @@ function cabShipItemsHtml() {
       }
     }
     const qty = parseInt(r[5]) || 1;
-    const img = r[2] ? `<img src="${r[2]}" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
+    const img = r[2] ? `<img src="${r[2]}" loading="lazy" onclick="cabImgZoom(event,this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
     return head + `<tr class="cab-item-row" data-q="${((r[0] || '') + ' ' + (r[1] || '')).toLowerCase()}">
       <td style="width:52px">${img}</td>
-      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span>` : ''}</td>
+      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком — из одного магазина, могут быть разными</div>` : ''}</td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
       <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
       <td><input data-idx="${i}" value="${r[4] || ''}" onchange="cabEditCell(this,4)" inputmode="decimal" placeholder="${r[3] || '—'}" style="${cabInp};width:80px;color:#6C4DB8"></td>
@@ -681,6 +703,26 @@ function cabShipItemsHtml() {
       <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
     </table>
   </div>`;
+}
+
+// Увеличение фото товара: карточка рядом с картинкой, закрывается кликом или Esc
+function cabImgZoom(ev, src) {
+  ev.stopPropagation();
+  let z = document.getElementById('cabZoom');
+  if (!z) {
+    z = document.createElement('div'); z.id = 'cabZoom'; z.className = 'cab-zoom';
+    z.onclick = () => z.remove();
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { const q = document.getElementById('cabZoom'); if (q) q.remove(); } });
+    document.addEventListener('click', function out(e) { const q = document.getElementById('cabZoom'); if (q && !q.contains(e.target)) q.remove(); });
+    document.body.appendChild(z);
+  }
+  z.innerHTML = `<img src="${src}" alt="">`;
+  const size = Math.min(380, innerWidth - 32, innerHeight - 32);
+  const r = ev.target.getBoundingClientRect();
+  let x = r.right + 12, y = r.top + r.height / 2 - size / 2;
+  if (x + size > innerWidth - 16) x = Math.max(16, r.left - size - 12);
+  y = Math.max(16, Math.min(y, innerHeight - size - 16));
+  z.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px`;
 }
 
 function cabFilterItems(q) {
@@ -716,6 +758,7 @@ async function cabEditCell(inp, col) {
 // ---- Взвешивание ----
 function cabShipWeighHtml() {
   const { names, counts } = getClientsInShipment();
+  const ship = cabShipmentsCache.find(x => x.id === cabShipId) || {};
   const rows = names.map(n => {
     const enc = encodeURIComponent(n);
     const g = currentWeights[n] ? Math.round(currentWeights[n] * 1000) : '';
@@ -727,17 +770,36 @@ function cabShipWeighHtml() {
       <td><label style="font-size:13px;color:#5f6470;display:flex;align-items:center;gap:6px"><input type="checkbox" data-name="${enc}" ${incl ? 'checked' : ''} onchange="cabSetIncl(this)"> вес в цене</label></td>
     </tr>`;
   }).join('');
-  return `<div class="cab-table-wrap">
+  // сводка
+  let needW = 0, doneW = 0;
+  for (const n of names) { if (currentTarePct > 0 && currentPriceInclWeight[n] && !(currentWeights[n] > 0)) continue; needW++; if ((currentWeights[n] || 0) > 0) doneW++; }
+  const calc = computeClientCalc();
+  const pct = needW ? Math.round(doneW / needW * 100) : 0;
+  const tareHow = currentTarePct > 0 ? 'Тара 8% к весу клиентов' : currentCargoWeight > 0 ? 'Тара = вес от карго − вес клиентов' : 'Тара вручную';
+  const diff = currentCargoWeight > 0 ? currentCargoWeight - calc.ourWeight - (currentTarePct > 0 ? calc.tareTotal : 0) : null;
+  const departed = (ship.status || 'forming') !== 'forming';
+  const side = `<aside class="cab-wg-side">
+      <div class="cab-wg-prog"><div class="l">Взвешено клиентов</div><div class="v">${doneW} <small>из ${needW}</small></div><div class="bar"><span style="width:${pct}%"></span></div>${doneW < needW ? '<div class="s">Пока не взвешены все — доставка и прибыль считаются не полностью</div>' : '<div class="s ok"><i class="ti ti-check"></i> Все взвешены — расчёт готов</div>'}</div>
+      <div class="cab-wg-row"><span>Вес клиентов</span><b>${cabFmt2(calc.ourWeight)} кг</b></div>
+      <div class="cab-wg-row"><span>Тара</span><b>${cabFmt2(calc.tareTotal)} кг</b></div>
+      <div class="cab-wg-row"><span>Вес от карго</span><b>${currentCargoWeight > 0 ? cabFmt2(currentCargoWeight) + ' кг' : '—'}</b></div>
+      ${diff !== null && Math.abs(diff) > 0.05 && currentTarePct > 0 ? `<div class="cab-wg-row ${diff > 0 ? 'warn' : ''}"><span>Расхождение с карго</span><b>${diff > 0 ? '+' : ''}${cabFmt2(diff)} кг</b></div>` : ''}
+      <div class="cab-wg-how">${tareHow}</div>
+    </aside>`;
+  return `<div class="cab-wg">
+    <div class="cab-table-wrap cab-wg-main">
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
       <label style="font-size:13px;color:#5f6470">Вес от карго, г<br><input value="${currentCargoWeight ? Math.round(currentCargoWeight * 1000) : ''}" onchange="cabSetCargo(this)" inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
       <label style="font-size:13px;color:#5f6470">Вес тары, г<br><input value="${currentTare ? Math.round(currentTare * 1000) : ''}" onchange="cabSetTare(this)" ${currentTarePct > 0 ? 'disabled' : ''} inputmode="numeric" style="${cabInp};width:130px;margin-top:4px"></label>
-      <label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px;padding-bottom:6px" title="К весу каждого взвешенного клиента +8%, тару по карго не высчитываем"><input type="checkbox" ${currentTarePct > 0 ? 'checked' : ''} onchange="onTarePctChange(this.checked);cabRenderShip()"> Тара 8%</label>
-      <label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px;padding-bottom:6px"><input type="checkbox" ${shipmentDeparted ? 'checked' : ''} onchange="cabSetDeparted(this)"> Отправка выехала в карго</label>
+      <span style="display:flex;align-items:center;gap:4px;padding-bottom:6px"><label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px"><input type="checkbox" ${currentTarePct > 0 ? 'checked' : ''} onchange="onTarePctChange(this.checked);cabRenderShip()"> Тара 8%</label>${cabHelpBtn('tare8')}</span>
+      <span style="display:flex;align-items:center;gap:4px;padding-bottom:6px"><label style="font-size:14px;color:#1a1a2e;display:flex;align-items:center;gap:6px"><input type="checkbox" ${departed ? 'checked' : ''} onchange="cabSetDeparted(this)"> Отправка выехала с карго</label>${cabHelpBtn('departed')}</span>
     </div>
     <table class="cab-table">
-      <thead><tr><th>Клиент</th><th>Позиций</th><th>Вес, г</th><th></th></tr></thead>
+      <thead><tr><th>Клиент</th><th>Позиций</th><th>Вес, г</th><th><span style="display:inline-flex;align-items:center;gap:2px">Доставка${cabHelpBtn('incl')}</span></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
     </table>
+    </div>
+    ${side}
   </div>`;
 }
 
@@ -766,6 +828,8 @@ function cabSetCargo(inp) {
 }
 
 async function cabSetDeparted(inp) {
+  const st = (cabShipmentsCache.find(s => s.id === cabShipId) || {}).status || 'forming';
+  if (!inp.checked && st !== 'transit') { alert('Приход уже дальше дороги — статус меняйте в списке статусов вверху'); cabRenderShip(); return; }
   shipmentDeparted = inp.checked;
   const key = shipmentDeparted ? 'transit' : 'forming';
   await shipmentsRef().doc(cabShipId).update({ departed: shipmentDeparted });
@@ -787,7 +851,7 @@ function cabCalcShipCell(c) {
 }
 
 function cabShipCalcHtml(calc) {
-  const chk = (field, c, label) => `<label style="font-size:14px;color:#4a5260;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer"><input type="checkbox" ${field[c.name] ? 'checked' : ''} data-name="${encodeURIComponent(c.name)}" onchange="cabToggleCost(this,'${field === currentCostGoods ? 'goods' : 'ship'}')"> ${label}</label>`;
+  const chk = (field, c, label, tip) => `<label title="${tip || ''}" style="font-size:14px;color:#4a5260;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer"><input type="checkbox" ${field[c.name] ? 'checked' : ''} data-name="${encodeURIComponent(c.name)}" onchange="cabToggleCost(this,'${field === currentCostGoods ? 'goods' : 'ship'}')"> ${label}</label>`;
   const shipC = cabShipmentsCache.find(s => s.id === cabShipId) || {};
   const pinp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:80px;box-sizing:border-box';
   const rows = calc.clients.map(c => {
@@ -798,7 +862,7 @@ function cabShipCalcHtml(calc) {
     const dueCell = c.isOwner ? '—'
       : `<a href="#" onclick="cabEditDue('${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) + '. Нажмите, чтобы изменить' : 'Нажмите, чтобы изменить задолженность'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:14px;color:#f59e0b" title="Исправлено вручную"></i>' : ''}`;
     return `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
-      <td style="font-weight:500">${c.name}${c.noWeight ? ' <span title="Вес не указан" style="color:#f59e0b">⚠</span>' : ''}</td>
+      <td style="font-weight:500"><span class="cab-cl-nm"><span class="cab-cl-av">${String(c.name).trim().charAt(0).toUpperCase()}</span>${c.name}</span>${c.noWeight ? ' <span class="cab-nw" title="Вес не указан — доставка этому клиенту пока не посчитана">не взвешен</span>' : ''}</td>
       <td style="white-space:nowrap">${c.count}</td>
       <td style="white-space:nowrap">${cabFmt2(c.shipWeight)}</td>
       <td style="white-space:nowrap">${cabCalcGoodsCell(c)}</td>
@@ -806,14 +870,22 @@ function cabShipCalcHtml(calc) {
       <td class="val-purple" style="white-space:nowrap">${dueCell}</td>
       <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}" style="white-space:nowrap">${c.profit >= 0 ? '+' : ''}${cabFmt2(c.profit)}</td>
       ${payCells}
-      <td><div style="display:flex;flex-direction:column;gap:3px">${chk(currentCostGoods, c, 'Товар')}${chk(currentCostShip, c, 'Доставка')}</div></td>
+      <td><div style="display:flex;flex-direction:column;gap:3px">${chk(currentCostGoods, c, 'Товар', 'Товар по себестоимости: без наценки на курсе, прибыль с товара — 0')}${chk(currentCostShip, c, 'Доставка', 'Доставка по себестоимости: по цене карго, без вашей наценки')}</div></td>
     </tr>`;
   }).join('');
-  return `<div class="cab-table-wrap">
-    <div style="font-size:13px;color:#6b7280;margin-bottom:8px">Суммы в BYN, вес — с долей тары. <span class="cab-atcost">Подчёркнутые</span> — по себестоимости</div>
+  let paidSum = 0, restSum = 0;
+  for (const c of calc.clients) { if (c.isOwner) continue; const pi = cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, c.isOwner); paidSum += pi.paid || 0; restSum += pi.rest || 0; }
+  const colPct = calc.grandDue > 0 ? Math.min(100, Math.round(paidSum / calc.grandDue * 100)) : 0;
+  return `<div class="cab-cs">
+      <div class="cab-cs-main"><div class="l">Собрано с клиентов</div><div class="v">${cabFmt(paidSum)} <small>из ${cabFmt(calc.grandDue)} BYN</small></div><div class="bar"><span style="width:${colPct}%"></span></div><div class="s">${restSum > 0.5 ? 'Осталось собрать <b>' + cabFmt(restSum) + ' BYN</b>' : '<i class="ti ti-check"></i> Все оплатили'}</div></div>
+      <div class="cab-cs-f"><div class="l">Прибыль</div><div class="v ${calc.grandProfit >= 0 ? 'ok' : 'bad'}">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt(calc.grandProfit)} BYN</div></div>
+      <div class="cab-cs-f"><div class="l">Тара</div><div class="v">${cabFmt2(calc.tareTotal)} кг</div></div>
+    </div>
+    <div class="cab-table-wrap">
+    <div style="font-size:13px;color:#6b7280;margin-bottom:8px;white-space:normal">Суммы в BYN, вес — с долей тары. <span class="cab-atcost">Подчёркнутые</span> суммы — по себестоимости. Сумму «Должен» можно исправить нажатием.</div>
     <div style="overflow-x:auto;margin:0 -4px;padding:0 4px">
     <table class="cab-table" style="background:#fff">
-      <thead><tr><th>Клиент</th><th>Поз.</th><th title="Вес клиента с его долей тары">Вес, кг</th><th>Товар</th><th>Доставка</th><th>Должен</th><th>Прибыль</th><th>Остаток</th><th>Оплата</th><th>По себест.</th></tr></thead>
+      <thead><tr><th>Клиент</th><th>Поз.</th><th title="Вес клиента с его долей тары">Вес, кг</th><th>Товар</th><th>Доставка</th><th>Должен</th><th>Прибыль</th><th>Остаток</th><th>Оплата</th><th><span style="display:inline-flex;align-items:center;gap:2px">По себестоимости${cabHelpBtn('costGoods')}</span></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="10" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
       <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="4" style="white-space:nowrap">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple" style="white-space:nowrap">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}" style="white-space:nowrap">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td style="color:#dc2626;white-space:nowrap">${cabFmt2(calc.clients.reduce((n, c) => n + (c.isOwner ? 0 : cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, false).rest), 0))}</td><td></td><td></td></tr></tfoot>
     </table>
