@@ -124,14 +124,15 @@
       <button class="cab-nav-item" data-section="prices" onclick="cabNav('prices')"><i class="ti ti-currency-yuan"></i> Цены</button>
       <button class="cab-nav-item" data-section="calc" onclick="cabNav('calc')"><i class="ti ti-calculator"></i> Расчёты</button>
       <button class="cab-nav-item" data-section="analytics" onclick="cabNav('analytics')"><i class="ti ti-chart-bar"></i> Аналитика</button>
+      <button class="cab-nav-item" data-section="tariffs" onclick="cabNav('tariffs')"><i class="ti ti-receipt"></i> Тариф</button>
       <button class="cab-nav-item" data-section="settings" onclick="cabNav('settings')"><i class="ti ti-settings"></i> Настройки</button>
       <div class="cab-nav-divider" id="cabAdminDivider" style="display:none"></div>
-      <button class="cab-nav-item" data-section="admin" onclick="cabNav('admin')" id="cabAdminBtn" style="display:none"><i class="ti ti-shield-lock"></i> Админ <span class="cab-nav-badge">ADMIN</span></button>
+      <button class="cab-nav-item" data-section="admin" onclick="cabNav('admin')" id="cabAdminBtn" style="display:none"><i class="ti ti-shield-lock"></i> Админ</button>
     </div>
     <div class="cab-sidebar-bottom">
       <div class="cab-sidebar-user" id="cabUserName">—</div>
       <div class="cab-sidebar-role" id="cabUserRole">—</div>
-      <button class="cab-sidebar-logout" onclick="if(cabShipId){cabShipId=null;restoreActiveEditing();}document.getElementById('cabinetScreen').classList.remove('show');enterMode('scanner')"><i class="ti ti-device-mobile" style="font-size:16px"></i> Перейти в мобильную версию</button>
+      <button class="cab-sidebar-logout" onclick="if(cabShipId){cabShipId=null;restoreActiveEditing();}document.getElementById('cabinetScreen').classList.remove('show');enterMode('scanner')"><i class="ti ti-device-mobile" style="font-size:16px"></i> Мобильная версия</button>
       <button class="cab-sidebar-logout" onclick="exitCabinet()"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
     </div>
   </div>
