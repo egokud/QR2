@@ -303,14 +303,52 @@ function cabShipPill(status) {
   return `<span class="cab-pill" style="--c:${st.text || st.color};--b:${st.color}22">${st.label}</span>`;
 }
 
+// Наценка по клиентам (без «Это я»): got — уже оплачено сверх себестоимости; sure — рассортированные (вес известен), ещё не оплачено;
+// est — до сортировки: в основном наценка на курс юаня, доставка посчитается после взвешивания
+function cabMarkup(ships) {
+  let got = 0, sure = 0, est = 0; const estIds = new Set();
+  for (const ship of ships) {
+    const { clients, rates } = cabGetClientsFromShipment(ship);
+    for (const c of clients) {
+      if (c.isOwner) continue;
+      const p = Math.max(0, c.profit);
+      const cost = (c.buyYuan > 0 ? c.goodsCost : c.clientYuan * rates.buyRate) + c.shipCo;
+      const r = Math.min(p, Math.max(0, (c.payPaid || 0) - cost));
+      got += r;
+      if (cabIsBilled(ship)) sure += p - r; else { est += p - r; if (p - r > 0.5) estIds.add(ship.id); }
+    }
+  }
+  return { got, sure, est, total: got + sure + est, estShips: estIds.size };
+}
+// Подсказки «?» на блоках Обзора
+const CAB_HELP = {
+  money: ['Деньги в обороте', 'Сколько ваших денег сейчас крутится в заказах.<br><b>Вложено в товар</b> — сколько вы потратили на выкуп и доставку карго, а клиенты вам это ещё не вернули. Считается с момента выкупа на Pinduoduo, в любом статусе прихода.<br><b>Получено прибыли</b> — ваша наценка, которую клиенты уже заплатили.<br>Отметили оплату клиента — «вложено» уменьшается, «получено» растёт. Ваши личные покупки («Это я») сюда не входят.'],
+  markup: ['Наценка в заказах', 'Разница между тем, сколько платят клиенты, и вашей себестоимостью — по всем текущим заказам.<br><b>Уже получено</b> — клиенты заплатили.<br><b>Рассортировано</b> — товар взвешен, сумма точная, ждём оплаты.<br><b>В пути и в сборке (≈)</b> — только наценка на курс юаня. Наценку на доставку посчитаем, когда приход взвесят, поэтому итог может измениться.<br>Это не обещанная прибыль: если клиент не заберёт или не оплатит заказ, этих денег не будет.'],
+  todo: ['Что сделать сейчас', 'Помощник собирает дела, которые приносят деньги или экономят время: кто должен, какой приход собирается, кого из клиентов пора вернуть, какие имена похожи на дубли.<br>Нажмите на строку — откроется нужный раздел.'],
+  flow: ['Где сейчас товар', 'Все приходы по этапам: <b>собирается</b> → <b>в пути</b> → <b>на складе</b> → <b>рассортирован</b>.<br>До сортировки показана примерная наценка (без доставки). После сортировки — сколько клиенты ещё должны.<br>Нажмите на приход, чтобы открыть его. Архивные приходы — в разделе «Приходы».']
+};
+function cabHelpBtn(k) { return `<button class="cab-help" title="Что это?" onclick="cabHelp(event,'${k}')"><i class="ti ti-help-circle"></i></button>`; }
+function cabHelp(ev, k) {
+  ev.stopPropagation();
+  const old = document.getElementById('cabHelpPop'); if (old) { old.remove(); if (old.dataset.k === k) return; }
+  const [t, body] = CAB_HELP[k] || ['', ''];
+  const m = document.createElement('div');
+  m.className = 'cab-help-pop'; m.id = 'cabHelpPop'; m.dataset.k = k;
+  m.innerHTML = `<b>${t}</b><div>${body}</div>`;
+  document.body.appendChild(m);
+  const r = ev.currentTarget.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(window.innerWidth - 348, r.left - 12)) + 'px';
+  const h = m.offsetHeight;
+  m.style.top = (r.bottom + 6 + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+  setTimeout(() => document.addEventListener('click', () => { const x = document.getElementById('cabHelpPop'); if (x) x.remove(); }, { once: true }), 0);
+}
+
 function renderCabOverview(container) {
   const ships = cabShipmentsCache;
   const money = cabMoney(ships);
-  // Ожидаемая прибыль: вся расчётная прибыль по клиентам минус уже полученная
-  let profitAll = 0;
-  for (const ship of ships) for (const c of cabGetClientsFromShipment(ship).clients) if (!c.isOwner) profitAll += Math.max(0, c.profit);
-  const profitWait = Math.max(0, profitAll - money.realized);
-  const profitPct = profitAll > 0 ? Math.round(money.realized / profitAll * 100) : 0;
+  // Наценка в заказах (не «обещанная прибыль»): уже получено / точно — рассортированные, вес известен /
+  // оценка — приходы до сортировки: только наценка на курс юаня, доставка посчитается после взвешивания
+  const mk = cabMarkup(ships);
   const turn = money.turnover || 1;
   const frozenPct = Math.max(money.frozen > 0 ? 3 : 0, Math.min(100, money.frozen / turn * 100));
   const realPct = money.realized > 0 ? Math.max(3, 100 - frozenPct) : 0;
@@ -346,7 +384,7 @@ function renderCabOverview(container) {
     const n = (s.data || []).length;
     const bottom = s.status === 'sorted'
       ? (rest > 0.5 ? `<span class="cab-flow-due">ждём ${cabFmt(rest)} BYN</span>` : `<span class="cab-flow-ok"><i class="ti ti-check"></i> всё оплачено</span>`)
-      : `<span class="cab-flow-profit">прибыль ${profit >= 0 ? '+' : ''}${cabFmt(profit)}</span>`;
+      : `<span class="cab-flow-profit" title="Наценка на курс юаня. Доставку посчитаем после взвешивания">≈ ${profit >= 0 ? '+' : ''}${cabFmt(profit)} <em>без доставки</em></span>`;
     return `<div class="cab-flow-card" onclick="cabOpenShip('${s.id}')">
         <div class="cab-flow-name">${s.name || 'Без названия'}${s.status === 'delayed' ? ' <span class="cab-pill" style="--c:#c2410c;--b:#f9731622">задерж.</span>' : ''}</div>
         <div class="cab-flow-meta">${n} поз. · ${clients.length} кл.</div>
@@ -358,7 +396,7 @@ function renderCabOverview(container) {
     const list = ships.filter(s => keys.includes(s.status));
     return `<div class="cab-flow-col">
       <div class="cab-flow-head" style="--c:${color}"><i class="ti ${ic}"></i>${label}<span>${list.length}</span>${i < stages.length - 1 ? '<i class="ti ti-chevron-right cab-flow-arrow"></i>' : ''}</div>
-      ${list.map(shipCard).join('') || '<div class="cab-flow-empty">—</div>'}
+      <div class="cab-flow-list">${list.map(shipCard).join('') || '<div class="cab-flow-empty">—</div>'}</div>
     </div>`;
   }).join('');
 
@@ -370,7 +408,7 @@ function renderCabOverview(container) {
 
     <div class="cab-ov-top">
       <div class="cab-card cab-money" title="Деньги в обороте = вложено в товар + полученная прибыль. Вложено — себестоимость товара (закупка + доставка карго), за который клиенты ещё не рассчитались; отсчёт с выкупа на Pinduoduo. Покупки «Это я» не входят">
-        <div class="cab-card-l"><i class="ti ti-coins"></i> Деньги в обороте</div>
+        <div class="cab-card-l"><i class="ti ti-coins"></i> Деньги в обороте${cabHelpBtn('money')}</div>
         <div class="cab-money-v">${cabFmt(money.turnover)} <small>BYN</small></div>
         <div class="cab-money-bar"><span style="width:${frozenPct}%;background:#6C4DB8"></span>${realPct ? `<span style="width:${realPct}%;background:#16a34a"></span>` : ''}</div>
         <div class="cab-money-leg">
@@ -378,17 +416,21 @@ function renderCabOverview(container) {
           <div><i style="background:#16a34a"></i><span>Получено прибыли</span><b style="color:#16a34a">${cabFmt(money.realized)} BYN</b><em>уже ваши деньги</em></div>
         </div>
       </div>
-      <div class="cab-card cab-wait" title="Прибыль по всем приходам (наценка на курс и доставку), которую клиенты ещё не оплатили">
-        <div class="cab-card-l"><i class="ti ti-trending-up"></i> Ещё заработаете</div>
-        <div class="cab-wait-v">+${cabFmt(profitWait)} <small>BYN</small></div>
-        <div class="cab-wait-s">когда клиенты рассчитаются по всем приходам</div>
-        <div class="cab-wait-bar"><span style="width:${Math.max(profitPct, profitAll > 0 && money.realized > 0 ? 2 : 0)}%"></span></div>
-        <div class="cab-wait-p">Получено ${cabFmt(money.realized)} из ${cabFmt(profitAll)} BYN · ${profitPct}%</div>
+      <div class="cab-card cab-wait">
+        <div class="cab-card-l"><i class="ti ti-receipt-2"></i> Наценка в заказах${cabHelpBtn('markup')}</div>
+        <div class="cab-wait-v">${mk.est > 0.5 ? '≈ ' : ''}${cabFmt(mk.total)} <small>BYN</small></div>
+        ${mk.est > 0.5 ? `<div class="cab-wait-warn"><i class="ti ti-scale"></i> Без учёта доставки</div><div class="cab-wait-s">${mk.estShips} ${cabPl(mk.estShips, 'приход ещё не взвешен', 'прихода ещё не взвешены', 'приходов ещё не взвешены')} — итог изменится</div>` : '<div class="cab-wait-s">все приходы взвешены — суммы точные</div>'}
+        <div class="cab-wait-bar">${[[mk.got, '#16a34a'], [mk.sure, '#86efac'], [mk.est, 'est']].filter(x => x[0] > 0.5).map(([v, c]) => `<span style="flex:${v};${c === 'est' ? '' : 'background:' + c}" class="${c === 'est' ? 'est' : ''}"></span>`).join('')}</div>
+        <div class="cab-wait-rows">
+          <div><i style="background:#16a34a"></i><span>Уже получено</span><b>${cabFmt(mk.got)}</b></div>
+          <div><i style="background:#86efac"></i><span>Рассортировано, ждёт оплаты</span><b>${cabFmt(mk.sure)}</b></div>
+          <div><i class="est"></i><span>В пути и в сборке <em>≈ оценка</em></span><b>${mk.est > 0.5 ? '≈ ' : ''}${cabFmt(mk.est)}</b></div>
+        </div>
       </div>
     </div>
 
     ${todo.length ? `<div class="cab-card cab-todo">
-      <div class="cab-card-h">Что сделать сейчас</div>
+      <div class="cab-card-h">Что сделать сейчас${cabHelpBtn('todo')}</div>
       ${todo.slice(0, 6).map(x => `<div class="cab-todo-row" onclick="${x.a}">
         <span class="cab-todo-ic t-${x.tone}"><i class="ti ${x.ic}"></i></span>
         <div class="cab-todo-tx"><div>${x.t}</div><div class="cab-todo-s">${x.s}</div></div>
@@ -397,7 +439,7 @@ function renderCabOverview(container) {
     </div>` : ''}
 
     <div class="cab-card">
-      <div class="cab-card-h">Где сейчас товар${archived ? `<a href="#" onclick="cabNav('shipments');return false" class="cab-card-link">Архив: ${archived} ${cabPl(archived, 'приход', 'прихода', 'приходов')} →</a>` : ''}</div>
+      <div class="cab-card-h">Где сейчас товар${cabHelpBtn('flow')}${archived ? `<a href="#" onclick="cabNav('shipments');return false" class="cab-card-link">Архив: ${archived} ${cabPl(archived, 'приход', 'прихода', 'приходов')} →</a>` : ''}</div>
       <div class="cab-flow">${flow}</div>
     </div>
 
