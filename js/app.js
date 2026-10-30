@@ -2244,7 +2244,7 @@ document.getElementById('manualInput').addEventListener('input',function(e){
   }
 });
 document.getElementById('manualInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualSearch()}});
-document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&document.getElementById('appScreen').style.display!=='none')document.getElementById('manualInput').focus()});
+document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&!e.target.closest('.pk-sheet,.pk-res-full,.pk-tabs,.pk-pane:not(#pkPane-scan)')&&!(typeof pkTab!=='undefined'&&document.body.classList.contains('pk-m')&&pkTab!=='scan')&&document.getElementById('appScreen').style.display!=='none')document.getElementById('manualInput').focus()});
 
 // ============ CAMERA ============
 function toggleScanner(){scanning?stopScanner():startScanner()}
