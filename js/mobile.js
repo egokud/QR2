@@ -255,7 +255,7 @@ function pkRenderShips() {
         extra = `<div class="ln"><span>сканирую · ${d} / ${TABLE.length}</span></div><div class="pk-bar"><span style="width:${TABLE.length ? Math.round(d / TABLE.length * 100) : 0}%"></span></div>`;
       }
       if ((s.status || 'forming') === 'forming') extra = `<button class="pk-btn ghost sm" onclick="event.stopPropagation();pkSetStatus('${s.id}','transit')">Закупка отправлена → «В дороге»</button>`;
-      return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur ? ' · сканирую' : ''}</span><div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
+      return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur && (s.status || 'forming') !== 'forming' ? ' · сканирую' : ''}</span><div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
     }).join('') || '<div class="pk-card pk-empty">Закупок пока нет. Новые закупки появляются после импорта заказов в расширении на компьютере.</div>'}`;
 }
 function pkNewShip() {
