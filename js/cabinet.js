@@ -851,7 +851,7 @@ function cabCalcShipCell(c) {
 }
 
 function cabShipCalcHtml(calc) {
-  const chk = (field, c, label, tip) => `<label title="${tip || ''}" style="font-size:14px;color:#4a5260;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer"><input type="checkbox" ${field[c.name] ? 'checked' : ''} data-name="${encodeURIComponent(c.name)}" onchange="cabToggleCost(this,'${field === currentCostGoods ? 'goods' : 'ship'}')"> ${label}</label>`;
+  const chk = (field, c, label, tip) => `<label title="${tip || ''}" style="font-size:14px;color:#4a5260;display:flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer"><input type="checkbox" ${field[c.name] ? 'checked' : ''} data-name="${encodeURIComponent(c.name)}" onchange="cabToggleCost(this,'${field === currentOwners ? 'owner' : field === currentCostGoods ? 'goods' : 'ship'}')"> ${label}</label>`;
   const shipC = cabShipmentsCache.find(s => s.id === cabShipId) || {};
   const pinp = 'padding:5px 7px;border:1px solid #d5d8dd;border-radius:6px;font-size:14px;width:80px;box-sizing:border-box';
   const rows = calc.clients.map(c => {
@@ -870,7 +870,7 @@ function cabShipCalcHtml(calc) {
       <td class="val-purple" style="white-space:nowrap">${dueCell}</td>
       <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}" style="white-space:nowrap">${c.profit >= 0 ? '+' : ''}${cabFmt2(c.profit)}</td>
       ${payCells}
-      <td><div style="display:flex;flex-direction:column;gap:3px">${chk(currentCostGoods, c, 'Товар', 'Товар по себестоимости: без наценки на курсе, прибыль с товара — 0')}${chk(currentCostShip, c, 'Доставка', 'Доставка по себестоимости: по цене карго, без вашей наценки')}</div></td>
+      <td><div style="display:flex;flex-direction:column;gap:3px">${chk(currentOwners, c, '<b style="color:#dc2626;font-weight:600">Это я</b>', 'Это вы сами: покупка для себя — клиент ничего не должен, в доход и долги не входит')}${c.isOwner ? '' : chk(currentCostGoods, c, 'Товар', 'Товар по себестоимости: без наценки на курсе, прибыль с товара — 0') + chk(currentCostShip, c, 'Доставка', 'Доставка по себестоимости: по цене карго, без вашей наценки')}</div></td>
     </tr>`;
   }).join('');
   let paidSum = 0, restSum = 0;
@@ -885,7 +885,7 @@ function cabShipCalcHtml(calc) {
     <div style="font-size:13px;color:#6b7280;margin-bottom:8px;white-space:normal">Суммы в BYN, вес — с долей тары. <span class="cab-atcost">Подчёркнутые</span> суммы — по себестоимости. Сумму «Должен» можно исправить нажатием.</div>
     <div style="overflow-x:auto;margin:0 -4px;padding:0 4px">
     <table class="cab-table" style="background:#fff">
-      <thead><tr><th>Клиент</th><th>Поз.</th><th title="Вес клиента с его долей тары">Вес, кг</th><th>Товар</th><th>Доставка</th><th>Должен</th><th>Прибыль</th><th>Остаток</th><th>Оплата</th><th><span style="display:inline-flex;align-items:center;gap:2px">По себестоимости${cabHelpBtn('costGoods')}</span></th></tr></thead>
+      <thead><tr><th>Клиент</th><th>Поз.</th><th title="Вес клиента с его долей тары">Вес, кг</th><th>Товар</th><th>Доставка</th><th>Должен</th><th>Прибыль</th><th>Остаток</th><th>Оплата</th><th><span style="display:inline-flex;align-items:center;gap:2px">Условия${cabHelpBtn('costGoods')}</span></th></tr></thead>
       <tbody>${rows || '<tr><td colspan="10" style="text-align:center;color:#6b7280;padding:20px">Нет клиентов</td></tr>'}</tbody>
       <tfoot><tr style="font-weight:600"><td>Итого</td><td colspan="4" style="white-space:nowrap">Тара: ${cabFmt2(calc.tareTotal)} кг</td><td class="val-purple" style="white-space:nowrap">${cabFmt2(calc.grandDue)}</td><td class="${calc.grandProfit >= 0 ? 'val-green' : 'val-red'}" style="white-space:nowrap">${calc.grandProfit >= 0 ? '+' : ''}${cabFmt2(calc.grandProfit)}</td><td style="color:#dc2626;white-space:nowrap">${cabFmt2(calc.clients.reduce((n, c) => n + (c.isOwner ? 0 : cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, false).rest), 0))}</td><td></td><td></td></tr></tfoot>
     </table>
@@ -895,9 +895,11 @@ function cabShipCalcHtml(calc) {
 
 function cabToggleCost(inp, kind) {
   const n = decodeURIComponent(inp.dataset.name);
-  const map = kind === 'goods' ? currentCostGoods : currentCostShip;
+  const map = kind === 'owner' ? currentOwners : kind === 'goods' ? currentCostGoods : currentCostShip;
   map[n] = inp.checked;  // явное значение только для этого прихода
   saveOwners();
+  const sc = cabShipmentsCache.find(x => x.id === (editingShipmentId || activeShipmentId));
+  if (sc) { sc.owners = { ...currentOwners }; sc.costGoods = { ...currentCostGoods }; sc.costShip = { ...currentCostShip }; }
   cabRenderShip();
 }
 
@@ -1555,7 +1557,7 @@ function cabRenderClientCard(container, name) {
       <div style="display:flex;gap:24px;flex-wrap:wrap;row-gap:6px">
         ${ruleChk('owner', 'Это я')}${ruleChk('costGoods', 'Товар по себестоимости')}${ruleChk('costShip', 'Доставка по себестоимости')}
       </div>
-      <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют начиная со следующей формирующейся закупки. Для уже созданных закупок — галочки во вкладке «Расчёт» конкретной закупки.</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют в закупках, которые формируются, и во всех следующих. Для закупок в дороге и на складе — галочки в колонке «Условия» на вкладке «Расчёт» конкретной закупки.</div>
     </div>
     <div class="cab-stats" style="grid-template-columns:repeat(4,1fr)">
       <div class="cab-stat-card"><div class="cab-stat-val">${m.totalItems}</div><div class="cab-stat-label">Позиций всего</div></div>
@@ -1586,8 +1588,13 @@ async function cabSetClientRule(encName, kind, on) {
       const c = clients.find(x => x.name.toLowerCase() === low);
       if (!c) continue;
       const map = { ...(ship[field] || {}) };
-      if (Object.prototype.hasOwnProperty.call(map, c.name)) continue;  // уже есть явное значение
-      map[c.name] = kind === 'owner' ? c.isOwner : kind === 'costGoods' ? c.costGoodsOn : c.costShipOn;
+      if ((ship.status || 'forming') === 'forming') {  // закупка ещё собирается — условие действует сразу
+        if (map[c.name] === !!on) continue;
+        map[c.name] = !!on;
+      } else {
+        if (Object.prototype.hasOwnProperty.call(map, c.name)) continue;  // уже есть явное значение
+        map[c.name] = kind === 'owner' ? c.isOwner : kind === 'costGoods' ? c.costGoodsOn : c.costShipOn;
+      }
       await shipmentsRef().doc(ship.id).update({ [field]: map });
       ship[field] = map;
     }
@@ -1602,7 +1609,7 @@ async function cabSetClientRule(encName, kind, on) {
       if (cur.costGoods) currentCostGoods = { ...cur.costGoods };
       if (cur.costShip) currentCostShip = { ...cur.costShip };
     }
-    alert('Данное условие будет действовать начиная со следующей формирующейся закупки. Если вы хотите изменить условия в уже сформированных закупках, зайдите в конкретную закупку и проставьте эти условия во вкладке «Расчёт».');
+    alert('Условие сохранено: оно уже действует в закупках, которые формируются, и будет действовать во всех следующих. В закупках, которые уже в дороге или на складе, условия не меняются — для них откройте закупку, вкладка «Расчёт», колонка «Условия» и поставьте галочку напротив клиента.');
   } catch (e) { alert('Не удалось сохранить: ' + e.message); }
   renderCabClients(document.getElementById('cabMain'));
 }
