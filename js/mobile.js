@@ -31,7 +31,7 @@ function pkBuild() {
   const app = document.getElementById('appScreen');
   const top = document.createElement('div');
   top.className = 'pk-top'; top.id = 'pkTop';
-  top.innerHTML = `<div class="pk-brand"><img src="/icons/icon-72x72.png" alt="">Piksta</div><button class="pk-ava" id="pkAva" onclick="pkGo('more')" aria-label="Ещё"></button>`;
+  top.innerHTML = `<div class="pk-brand"><img src="/icons/icon-72x72.png" alt="">Piksta</div><div class="pk-top-r"><button type="button" class="pk-cab" onclick="pkToCabinet()" title="Перейти в Кабинет (версия для компьютера)"><i class="ti ti-device-desktop" aria-hidden="true"></i>Кабинет</button><button class="pk-ava" id="pkAva" onclick="pkGo('more')" aria-label="Ещё"></button></div>`;
   app.insertBefore(top, app.firstChild);
 
   const scan = document.createElement('div');
