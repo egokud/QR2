@@ -10,6 +10,10 @@ body.pk-m #trialBanner{margin:0 16px 10px!important}
 .pk-top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px;position:sticky;top:0;z-index:30;background:var(--pk-bg)}
 .pk-brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:18px;letter-spacing:-.01em}
 .pk-brand img{width:32px;height:32px;border-radius:9px}
+.pk-top-r{display:flex;align-items:center;gap:8px}
+.pk-cab{display:flex;align-items:center;gap:5px;height:36px;padding:0 12px;border-radius:18px;border:1px solid var(--pk-line);background:var(--pk-card);color:var(--pk-acc);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.pk-cab i{font-size:17px}
+body.pk-m #pikstaToast{bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
 .pk-ava{width:40px;height:40px;border-radius:20px;border:0;background:var(--pk-acc-soft);color:var(--pk-acc);font-weight:700;font-size:14px;cursor:pointer}
 .pk-h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0}
 .pk-pane{display:none;padding:0 16px 16px;flex-direction:column;gap:12px}
@@ -138,7 +142,7 @@ body.dark .pk-money{background:#5a1830}
 .pk-menu button.danger,.pk-menu button.danger i{color:var(--pk-bad)}
 
 /* нижние вкладки */
-.pk-tabs{position:fixed;left:0;right:0;bottom:0;z-index:900;background:var(--pk-card);border-top:1px solid var(--pk-line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-right,0px))}
+.pk-tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--pk-card);border-top:1px solid var(--pk-line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-right,0px))}
 .pk-tabs .in{display:flex;width:100%;max-width:560px}
 .pk-tabs button{flex:1;border:0;background:none;font:inherit;font-size:11px;font-weight:600;color:var(--pk-muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;border-radius:12px;cursor:pointer}
 .pk-tabs button i{font-size:22px;width:44px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:15px}
