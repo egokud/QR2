@@ -2286,6 +2286,16 @@ function renderCabSettings(container) {
         <div class="cab-settings-row"><span class="cab-settings-label">Email</span><span class="cab-settings-value">${email} ${emailVerified ? '<i class="ti ti-circle-check" style="color:#16a34a;font-size:15px" title="Подтверждён"></i>' : '<span style="color:#f59e0b;font-size:14px">(не подтверждён)</span>'}</span></div>
         <div class="cab-settings-row"><span class="cab-settings-label">Валюта</span><span class="cab-settings-value">${currency}</span></div>
       </div>
+    </div>
+    <div class="cab-table-wrap" style="margin-top:16px">
+      <div class="cab-table-title"><i class="ti ti-puzzle" style="margin-right:6px"></i>Расширение для Chrome</div>
+      <div style="font-size:14px;color:#4a5260;line-height:1.6;margin-bottom:12px">Импорт заказов из Pinduoduo в закупку — с фото, ценами и сверкой с файлом карго. Ставится один раз; обновление — так же, новой папкой.</div>
+      <a href="https://github.com/egokud/QR2/raw/main/piksta-extension.zip" download style="display:inline-flex;align-items:center;gap:8px;background:#6C4DB8;color:#fff;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:500;text-decoration:none"><i class="ti ti-download" style="font-size:18px"></i> Скачать расширение</a>
+      <ol style="font-size:14px;color:#4a5260;line-height:1.7;margin:12px 0 0;padding-left:20px">
+        <li>Распакуйте архив — получится папка с расширением.</li>
+        <li>Откройте в Chrome адрес <span style="font-family:monospace;color:#6C4DB8">chrome://extensions</span> и включите «Режим разработчика» (справа вверху).</li>
+        <li>«Загрузить распакованное» → выберите папку. Старую версию, если была, удалите — данные не пропадут.</li>
+      </ol>
     </div>`;
 }
 
