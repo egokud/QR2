@@ -470,5 +470,21 @@ function pkSheetClose() {
   };
 })();
 
+// в узком Кабинете (телефон) боковая панель с кнопкой «Мобильная версия» скрыта — добавляем её в верхнюю ленту разделов
+(function () {
+  const first = document.querySelector('#cabinetScreen .cab-nav-item');
+  if (!first || document.getElementById('pkBackM')) return;
+  const b = document.createElement('button');
+  b.id = 'pkBackM'; b.type = 'button'; b.className = 'cab-nav-item pk-back-m';
+  b.innerHTML = '<i class="ti ti-device-mobile" aria-hidden="true"></i> Мобильная';
+  b.onclick = () => {
+    try { if (typeof cabShipId !== 'undefined' && cabShipId) { cabShipId = null; restoreActiveEditing(); } } catch (e) {}
+    document.getElementById('cabinetScreen').classList.remove('show');
+    enterMode('scanner');
+    window.scrollTo(0, 0);
+  };
+  first.parentNode.insertBefore(b, first);
+})();
+
 // если приложение уже открыто в режиме сканера к моменту загрузки этого файла
 if (document.getElementById('appScreen') && !document.getElementById('appScreen').classList.contains('hide')) pkActivate();
