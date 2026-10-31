@@ -86,10 +86,40 @@ const CAB_PAY_ST = {
 };
 function cabPayInfo(payments, legacyPaid, name, due, isOwner) {
   const p = (payments || {})[name];
-  const paid = p && typeof p.paid === 'number' ? p.paid : ((legacyPaid || {})[name] ? due : 0);
-  const rest = Math.max(0, Math.round((due - paid) * 100) / 100);
-  const status = isOwner ? 'owner' : (due <= 0.004 || paid >= due - 0.004) ? 'full' : paid > 0.004 ? 'part' : 'none';
-  return { paid, rest, status };
+  const due2 = Math.round((due || 0) * 100) / 100;   // сравниваем в копейках: 155.3849 к оплате = 155.38 оплачено
+  const paid = p && typeof p.paid === 'number' ? p.paid : ((legacyPaid || {})[name] ? due2 : 0);
+  const rest = Math.max(0, Math.round((due2 - paid) * 100) / 100);
+  const status = isOwner ? 'owner' : (due2 <= 0.004 || paid >= due2 - 0.004) ? 'full' : paid > 0.004 ? 'part' : 'none';
+  return { paid, rest, status, closed: !!(p && p.closed) };
+}
+// РАСЧЁТ ЗАКРЫТ НЕ НА ТУ СУММУ (только рассортированные и архив):
+//  • заплатил больше — переплата идёт в прибыль, итог клиента = сколько заплатил;
+//  • заплатил меньше и вы нажали «Оплачено» — остаток списан (скидка), итог = сколько заплатил, прибыль меньше.
+// Предоплата и частичная оплата до закрытия — обычный долг. Меняет c.due и c.profit на месте.
+function cabSettleAdjust(ship, clients) {
+  if (!ship || !clients) return clients;
+  const billed = typeof cabIsBilled === 'function' ? cabIsBilled(ship) : (ship.status === 'sorted' || ship.status === 'done');
+  for (const c of clients) {
+    c.settle = null; c.settleDiff = 0;
+    if (c.isOwner) continue;
+    const p = (ship.payments || {})[c.name];
+    if (!p || typeof p.paid !== 'number') continue;
+    const due2 = Math.round(c.due * 100) / 100;
+    let kind = null;
+    if (billed && p.paid > due2 + 0.004) kind = 'over';
+    else if (p.closed && p.paid < due2 - 0.004) kind = 'off';
+    if (!kind) continue;
+    const diff = Math.round((p.paid - due2) * 100) / 100;
+    c.dueBeforeSettle = due2; c.settle = kind; c.settleDiff = diff;
+    c.due = p.paid; c.profit += diff;
+  }
+  return clients;
+}
+function cabSettleNote(c) {
+  if (!c || !c.settle) return '';
+  return c.settle === 'over'
+    ? `<div style="font-size:12px;color:#16a34a;margin-top:3px;white-space:nowrap" title="По расчёту ${cabFmt2(c.dueBeforeSettle)}. Переплата засчитана в прибыль">+${cabFmt2(c.settleDiff)} сверху</div>`
+    : `<div style="font-size:12px;color:#b45309;margin-top:3px;white-space:nowrap" title="По расчёту ${cabFmt2(c.dueBeforeSettle)}. Остаток списан, прибыль меньше">списано ${cabFmt2(-c.settleDiff)}</div>`;
 }
 function cabPayBadge(st) {
   const x = CAB_PAY_ST[st];
@@ -227,6 +257,8 @@ function cabGetClientsFromShipment(ship) {
       goodsClient, goodsCost, shipCli, shipCo
     });
   }
+  cabSettleAdjust(ship, result);
+  for (const c of result) { if (!c.settle) continue; const pi = cabPayInfo(ship.payments, ship.paid, c.name, c.due, c.isOwner); c.payPaid = pi.paid; c.payRest = pi.rest; c.payStatus = pi.status; c.paid = pi.status === 'full'; }
   return { clients: result, rates, totalW, effectiveTare };
 }
 
@@ -942,7 +974,7 @@ function cabShipCalcHtml(calc) {
     const pi = cabPayInfo(shipC.payments, shipC.paid, c.name, c.due, c.isOwner);
     const payCells = c.isOwner ? '<td>—</td><td>—</td>'
       : `<td style="font-weight:600;white-space:nowrap;color:${pi.rest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(pi.rest)}</td>
-         <td><div style="display:flex;align-items:center;gap:10px"><input value="${pi.paid ? pi.paid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}',this.value)" inputmode="decimal" style="${pinp}"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" title="Полностью оплачено" ${pi.status === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}', this.checked ? '${c.due.toFixed(2)}' : '0')" style="margin:0">${cabPayBadge(pi.status)}</label></div></td>`;
+         <td><div style="display:flex;align-items:center;gap:10px"><input value="${pi.paid ? pi.paid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${cabShipId}','${encodeURIComponent(c.name)}',this.value)" inputmode="decimal" style="${pinp}"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" title="Полностью оплачено" ${pi.status === 'full' ? 'checked' : ''} onchange="cabCardSetFull('${cabShipId}','${encodeURIComponent(c.name)}', this.checked)" style="margin:0">${cabPayBadge(pi.status)}</label></div>${cabSettleNote(c)}</td>`;
     const dueCell = c.isOwner ? '—'
       : `<a href="#" onclick="cabEditDue('${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) + '. Нажмите, чтобы изменить' : 'Нажмите, чтобы изменить задолженность'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:14px;color:#f59e0b" title="Исправлено вручную"></i>' : ''}`;
     return `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
@@ -1592,7 +1624,7 @@ function cabRenderClientCard(container, name) {
       : `<div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.due.toFixed(2)}" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + c.dueCalc.toFixed(2) + '. Пусто — вернуть расчётную' : 'Можно исправить сумму. Пусто — вернуть расчётную'}" onchange="cabCardSetDue('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp};color:#6C4DB8;font-weight:600${c.dueEdited ? ';border-color:#f59e0b' : ''}"></div>
         <div onclick="event.stopPropagation()" style="cursor:default"><input value="${c.payPaid ? c.payPaid.toFixed(2) : ''}" placeholder="0" onchange="cabCardSetPaid('${ship.id}','${enc}',this.value)" inputmode="decimal" style="${inp}"></div>
         <b onclick="event.stopPropagation()" ${cabIsBilled(ship) ? '' : 'title="Закупка ещё не рассортирована — в долг не входит"'} style="justify-self:end;font-size:14px;cursor:default;color:${!cabIsBilled(ship) ? '#9aa0ab' : c.payRest > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(c.payRest)}</b>
-        <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetPaid('${ship.id}','${enc}', this.checked ? '${c.due.toFixed(2)}' : '0')" style="width:16px;height:16px;margin:0;cursor:pointer">${cabPayBadge(c.payStatus)}</label>`;
+        <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetFull('${ship.id}','${enc}', this.checked)" style="width:16px;height:16px;margin:0;cursor:pointer">${cabPayBadge(c.payStatus)}${cabSettleNote(c)}</label>`;
     let items = '';
     if (open) {
       const rows = (ship.data || []).map(row => Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'])
@@ -1727,12 +1759,43 @@ async function cabShipAllPaid() {
   cabRerender();
 }
 
+// Галочка «Оплачено»: пусто — клиент заплатил ровно итог; введена меньшая сумма — спросить и закрыть расчёт (списать остаток);
+// снять галочку — открыть расчёт обратно (если был закрыт), иначе обнулить оплату.
+async function cabCardSetFull(shipId, encName, on) {
+  const ship = cabShipmentsCache.find(s => s.id === shipId); if (!ship) return;
+  const key = cabClientKey(ship, decodeURIComponent(encName));
+  const c = cabGetClientsFromShipment(ship).clients.find(x => x.name === key);
+  const p = (ship.payments || {})[key];
+  const paid = p && typeof p.paid === 'number' ? p.paid : 0;
+  const due2 = c ? Math.round((c.dueBeforeSettle != null && c.settle ? c.dueBeforeSettle : c.due) * 100) / 100 : 0;
+  try {
+    if (on) {
+      if (paid > 0.004 && paid < due2 - 0.004) {
+        if (!confirm(`«${key}» заплатил(а) ${cabFmt2(paid)} из ${cabFmt2(due2)} BYN.\n\nЗакрыть расчёт и списать остаток ${cabFmt2(due2 - paid)} BYN? Прибыль станет меньше на эту сумму.\n\nЕсли это предоплата и клиент ещё доплатит — нажмите «Отмена».`)) { cabRerender(); return; }
+        await cabTxMapField(shipId, 'payments', key, { paid: Math.round(paid * 100) / 100, at: new Date().toISOString(), closed: true });
+      } else if (paid >= due2 - 0.004 && paid > 0.004) {
+        // уже оплачено (или с переплатой) — ничего не меняем
+      } else {
+        await cabSavePayment(shipId, key, due2);
+      }
+    } else {
+      if (p && p.closed) await cabTxMapField(shipId, 'payments', key, { paid: paid, at: new Date().toISOString() });
+      else await cabSavePayment(shipId, key, 0);
+    }
+  } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+  cabRerender();
+}
 async function cabCardSetPaid(shipId, encName, val) {
   const ship = cabShipmentsCache.find(s => s.id === shipId); if (!ship) return;
   const key = cabClientKey(ship, decodeURIComponent(encName));
   const t = String(val).trim().replace(',', '.');
   const v = t === '' ? 0 : parseFloat(t);
   if (isNaN(v) || v < 0) { alert('Введите сумму числом'); return; }
+  if (cabIsBilled(ship)) {   // переплата в рассортированной закупке уходит в прибыль — переспрашиваем, чтобы опечатка не стала «доходом»
+    const c = cabGetClientsFromShipment(ship).clients.find(x => x.name === key);
+    const due2 = c ? Math.round((c.settle ? c.dueBeforeSettle : c.due) * 100) / 100 : 0;
+    if (c && !c.isOwner && v > due2 + 0.004 && !confirm(`Итог «${key}» — ${cabFmt2(due2)} BYN, вы вводите ${cabFmt2(v)}.\n\nЗасчитать переплату ${cabFmt2(v - due2)} BYN в прибыль?`)) { cabRerender(); return; }
+  }
   try { await cabSavePayment(shipId, key, v); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
   cabRerender();
 }

@@ -779,6 +779,12 @@ function computeClientCalc() {
     };
   });
 
+  // расчёт, закрытый не на ту сумму (переплата / списанный остаток) — см. cabSettleAdjust в cabinet.js
+  if (typeof cabSettleAdjust === 'function') {
+    const sid = editingShipmentId || activeShipmentId;
+    const sh = (typeof cabShipmentsCache !== 'undefined' && cabShipmentsCache.find(x => x.id === sid)) || (allShipments || []).find(x => x.id === sid);
+    if (sh) cabSettleAdjust(sh, clients);
+  }
   const grandDue = clients.reduce((s,c)=>s+c.due, 0);       // сколько должны реальные клиенты
   const grandProfit = clients.reduce((s,c)=>s+c.profit, 0); // итог с учётом затрат владельца (может быть минус)
   return { clients, grandDue, grandProfit, ourWeight, effectiveTotal, tareTotal };
