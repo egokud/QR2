@@ -553,6 +553,26 @@ function cabShipsHero(ships) {
 // ============ ПОИСК ПОСЫЛКИ ПО ТРЕКУ (все закупки, кроме архива) ============
 // Трек целиком, его часть или последние цифры. Русская раскладка переводится в латиницу. Если точных совпадений нет — похожие (до 2 ошибок).
 let cabTrackQ = '';
+// Состояние оплат закупки одной строкой: рассортированные — кто не оплатил; до сортировки — кто внёс предоплату
+function cabShipPayState(ship, clients) {
+  const cl = (clients || cabGetClientsFromShipment(ship).clients).filter(c => !c.isOwner);
+  if (!cl.length) return { kind: 'none', html: '<span style="color:#9aa0ab">—</span>', text: '' };
+  if (cabIsBilled(ship)) {
+    const none = cl.filter(c => c.payStatus === 'none').length, part = cl.filter(c => c.payStatus === 'part').length;
+    const rest = cl.reduce((n, c) => n + (c.payRest || 0), 0);
+    if (!none && !part) return { kind: 'ok', text: 'Все оплатили', html: '<span style="color:#16a34a;font-weight:600;white-space:nowrap"><i class="ti ti-circle-check" style="vertical-align:-2px"></i> Все оплатили</span>' };
+    const bits = [];
+    if (none) bits.push(`${none} не ${cabPl(none, 'оплатил', 'оплатили', 'оплатили')}`);
+    if (part) bits.push(`${part} ${cabPl(part, 'частично', 'частично', 'частично')}`);
+    const text = bits.join(' · ');
+    return { kind: 'due', text, html: `<span style="color:#dc2626;font-weight:600;white-space:nowrap" title="Осталось собрать ${cabFmt2(rest)} BYN">${text}</span><div style="font-size:12px;color:#6b7280;white-space:nowrap">из ${cl.length} · ждём ${cabFmt(rest)} BYN</div>` };
+  }
+  const pre = cl.filter(c => (c.payPaid || 0) > 0.004);
+  if (!pre.length) return { kind: 'none', html: '<span style="color:#9aa0ab;font-size:13px">до сортировки</span>', text: '' };
+  const sum = pre.reduce((n, c) => n + c.payPaid, 0);
+  const text = `${pre.length} ${cabPl(pre.length, 'внёс', 'внесли', 'внесли')} предоплату`;
+  return { kind: 'pre', text, html: `<span style="color:#2563a8;font-weight:600;white-space:nowrap">${text}</span><div style="font-size:12px;color:#6b7280;white-space:nowrap">${cabFmt(sum)} BYN из ${cl.length}</div>` };
+}
 function cabFindTracks(q) {
   const norm = v => String(v || '').toUpperCase().replace(/[\s\-]/g, '');
   const t = norm(typeof convertRuToEn === 'function' ? convertRuToEn(String(q || '')) : q);
@@ -654,6 +674,7 @@ function renderCabShipments(container) {
       <td>${cabShipPill(ship.status)}${departed}</td>
       <td class="val-purple">${cabFmt(due)}</td>
       <td class="${profit >= 0 ? 'val-green' : 'val-red'}">${profit >= 0 ? '+' : ''}${cabFmt(profit)}</td>
+      <td>${cabShipPayState(ship, clients).html}</td>
     </tr>`;
   }).join('');
 
@@ -665,8 +686,8 @@ function renderCabShipments(container) {
     <div class="cab-table-wrap">
       <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
-        <thead><tr><th>Название</th><th title="Когда закупка создана в Piksta">Создана</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет закупок</td></tr>'}</tbody>
+        <thead><tr><th>Название</th><th title="Когда закупка создана в Piksta">Создана</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th><th>Оплаты</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px">Нет закупок</td></tr>'}</tbody>
       </table>
     </div>`;
   if (cabTrackQ) cabTrackSearch(cabTrackQ);
