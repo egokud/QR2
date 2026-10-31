@@ -668,13 +668,13 @@ function renderCabShipments(container) {
     const hide = (cabShipFilter === 'active' && isDone) || (cabShipFilter === 'done' && !isDone);
     return `<tr class="cab-ship-row" data-status="${isDone ? 'done' : 'active'}" style="${isDone ? 'opacity:0.6;' : ''}${hide ? 'display:none' : ''}">
       <td style="font-weight:500">${isDone ? (ship.name || 'Без названия') : `<a href="#" onclick="cabOpenShip('${ship.id}');return false" style="color:#6C4DB8;text-decoration:none">${ship.name || 'Без названия'}</a>`}</td>
-      <td>${date}</td>
-      <td>${(ship.data || []).length}</td>
-      <td>${clients.length}</td>
       <td>${cabShipPill(ship.status)}${departed}</td>
       <td class="val-purple">${cabFmt(due)}</td>
       <td class="${profit >= 0 ? 'val-green' : 'val-red'}">${profit >= 0 ? '+' : ''}${cabFmt(profit)}</td>
       <td>${cabShipPayState(ship, clients).html}</td>
+      <td style="color:#6b7280">${(ship.data || []).length}</td>
+      <td style="color:#6b7280">${clients.length}</td>
+      <td style="color:#6b7280;white-space:nowrap">${date}</td>
     </tr>`;
   }).join('');
 
@@ -686,7 +686,7 @@ function renderCabShipments(container) {
     <div class="cab-table-wrap">
       <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
-        <thead><tr><th>Название</th><th title="Когда закупка создана в Piksta">Создана</th><th>Позиций</th><th>Клиентов</th><th>Статус</th><th>Должны</th><th>Прибыль</th><th>Оплаты</th></tr></thead>
+        <thead><tr><th>Название</th><th>Статус</th><th>Должны</th><th>Прибыль</th><th>Оплаты</th><th>Позиций</th><th>Клиентов</th><th title="Когда закупка создана в Piksta">Создана</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px">Нет закупок</td></tr>'}</tbody>
       </table>
     </div>`;
