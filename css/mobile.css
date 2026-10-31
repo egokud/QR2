@@ -181,3 +181,7 @@ body:not(.pk-m) .pk-tabs,body:not(.pk-m) .pk-top,body:not(.pk-m) .pk-pane{displa
 .pk-res-full .undo{background:none;border:0;font:inherit;color:var(--pk-muted);text-decoration:underline;cursor:pointer;font-size:14px;align-self:center}
 @media (min-width:561px){.pk-sheet{border-radius:22px;bottom:12px}}
 @media (prefers-reduced-motion:reduce){.pk-sheet{transition:none}}
+
+/* кнопка «Мобильная» в узком Кабинете */
+.pk-back-m{display:none!important}
+@media(max-width:640px){#cabinetScreen .pk-back-m{display:inline-flex!important;align-items:center;gap:5px;background:#f1edfb;color:#5b3fb0;font-weight:600;border-radius:10px}}
