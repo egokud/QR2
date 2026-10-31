@@ -793,6 +793,7 @@ let cabItemSort = 'track';  // 'track' — как в закупке (по тре
 
 function cabSetItemSort(m) { cabItemSort = m; cabRenderShip(); }
 
+const CAB_NOPDD_TIP = 'Трек есть только в файле карго — в ваших заказах Pinduoduo за даты импорта его не нашли. Причины: заказ раньше даты «С», продавец отправил поздно или заказано с другого аккаунта. Фото нет, цену впишите вручную.';
 function cabShipItemsHtml() {
   let order = TABLE.map((r, i) => i);
   if (cabItemSort === 'wh') {
@@ -821,13 +822,15 @@ function cabShipItemsHtml() {
     const img = r[2] ? `<img src="${r[2]}" loading="lazy" onclick="cabImgZoom(event,this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
     return head + `<tr class="cab-item-row" data-q="${((r[0] || '') + ' ' + (r[1] || '')).toLowerCase()}">
       <td style="width:52px">${img}</td>
-      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком — из одного магазина, могут быть разными</div>` : ''}</td>
+      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${r[2] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком — из одного магазина, могут быть разными</div>` : ''}</td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
       <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
       <td><input data-idx="${i}" value="${r[4] || ''}" onchange="cabEditCell(this,4)" inputmode="decimal" placeholder="${r[3] || '—'}" style="${cabInp};width:80px;color:#6C4DB8"></td>
     </tr>`;
   }).join('');
+  const noPdd = TABLE.filter(r => !r[2]).length;
   return `<div class="cab-table-wrap">
+    ${noPdd ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px;color:#92400e;line-height:1.5;white-space:normal"><b>${noPdd} ${cabPl(noPdd, 'трек', 'трека', 'треков')} без данных Pinduoduo</b> — нет фото, цену нужно вписать вручную. Они пришли только из файла карго: заказ раньше выбранной при импорте даты, продавец отправил поздно или заказано с другого аккаунта. В расширении Piksta 1.9.15 и новее есть кнопка «Поискать за 3 месяца».</div>` : ''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
       <input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку или клиенту" style="${cabInp};width:100%;max-width:340px">
       <div style="display:flex;gap:6px;margin-left:auto">
