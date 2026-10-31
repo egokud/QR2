@@ -237,7 +237,22 @@ function pkResultCard(type, track, wh, msg, tracks, fMsg) {
 }
 
 // ---------- Закупки ----------
+let pkShipQuery = '';
+function pkShipSearch() {
+  const box = document.getElementById('pkShipRes'); if (!box || typeof cabFindTracks !== 'function') return;
+  cabShipmentsCache = allShipments || [];
+  const R = cabFindTracks(pkShipQuery);
+  if (R.q.length < 3) { box.innerHTML = R.q ? '<div class="pk-empty">Введите хотя бы 3 символа</div>' : ''; return; }
+  if (!R.list.length) { box.innerHTML = `<div class="pk-card pk-empty">Не нашли «${pkEsc(R.q)}» в закупках. Архив не проверяем.</div>`; return; }
+  const show = R.list.slice(0, 30);
+  box.innerHTML = `<div class="pk-lbl">${R.fuzzy ? 'Точно такого нет · похожие' : 'Найдено'}: ${R.list.length}${R.list.length > show.length ? ' · уточните запрос' : ''}</div>
+    <div class="pk-list">${show.map(x => {
+      const st = pkSt(x.ship.status || 'forming'), q = parseInt(x.r[5]) || 1;
+      return `<div class="pk-li" onclick="pkShipSheet('${x.ship.id}')"><span class="ph" ${x.r[2] ? `style="background-image:url('${pkEsc(x.r[2])}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${cabTrackMark(x.r[0], R.fuzzy ? '' : R.q)}${q > 1 ? ' ×' + q : ''}</b><small>${pkEsc(x.ship.name)} · <span style="color:${st.text}">${st.label}</span></small></div><span class="r" style="color:var(--pk-acc);font-weight:700;max-width:40vw;overflow:hidden;text-overflow:ellipsis">${pkEsc((x.r[1] || '').trim() || '—')}</span></div>`;
+    }).join('')}</div>`;
+}
 function pkRenderShips() {
+  const hadFocus = document.activeElement && document.activeElement.id === 'pkShipQ';
   const all = allShipments || [];
   const grp = { forming: ['forming'], road: ['transit', 'delayed'], wh: ['warehouse'], done: ['sorted', 'done'] };
   const cnt = k => all.filter(s => grp[k].includes(s.status || 'forming')).length;
@@ -245,6 +260,8 @@ function pkRenderShips() {
   const chip = (k, l, c) => `<button type="button" class="${pkShipFilter === k ? 'on' : ''}" onclick="pkShipFilter='${k}';pkRender()">${c ? `<i class="d" style="background:${c}"></i>` : ''}${l}</button>`;
   document.getElementById('pkPane-ships').innerHTML = `
     <div class="pk-row"><h1 class="pk-h1">Закупки</h1><button class="pk-btn sm" onclick="pkNewShip()"><i class="ti ti-plus" aria-hidden="true"></i> Новая</button></div>
+    <label class="pk-search"><i class="ti ti-search" aria-hidden="true"></i><input id="pkShipQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку по трек-коду" value="${pkEsc(pkShipQuery)}" oninput="pkShipQuery=this.value;pkShipSearch()"></label>
+    <div id="pkShipRes"></div>
     <div class="pk-chips">${chip('all', 'Все ' + all.length)}${chip('forming', 'Собираются ' + cnt('forming'), '#4a90d9')}${chip('road', 'В дороге ' + cnt('road'), '#f5c518')}${chip('wh', 'На складе ' + cnt('wh'), '#3cb371')}${chip('done', 'Готовы ' + cnt('done'), '#8b7fd4')}</div>
     ${list.map(s => {
       const st = pkSt(s.status || 'forming'), n = (s.data || []).length, cur = s.id === activeShipmentId;
@@ -257,6 +274,8 @@ function pkRenderShips() {
       if ((s.status || 'forming') === 'forming') extra = `<button class="pk-btn ghost sm" onclick="event.stopPropagation();pkSetStatus('${s.id}','transit')">Закупка отправлена → «В дороге»</button>`;
       return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur && (s.status || 'forming') !== 'forming' ? ' · сканирую' : ''}</span><div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
     }).join('') || '<div class="pk-card pk-empty">Закупок пока нет. Новые закупки появляются после импорта заказов в расширении на компьютере.</div>'}`;
+  pkShipSearch();
+  if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
 }
 function pkNewShip() {
   pkSheet(`<h3>Новая закупка</h3>

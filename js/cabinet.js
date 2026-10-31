@@ -518,6 +518,87 @@ function cabShipsHero(ships) {
     </div>
   </div>`;
 }
+// ============ ПОИСК ПОСЫЛКИ ПО ТРЕКУ (все закупки, кроме архива) ============
+// Трек целиком, его часть или последние цифры. Русская раскладка переводится в латиницу. Если точных совпадений нет — похожие (до 2 ошибок).
+let cabTrackQ = '';
+function cabFindTracks(q) {
+  const norm = v => String(v || '').toUpperCase().replace(/[\s\-]/g, '');
+  const t = norm(typeof convertRuToEn === 'function' ? convertRuToEn(String(q || '')) : q);
+  const res = { q: t, list: [], fuzzy: false };
+  if (t.length < 3) return res;
+  const rows = [];
+  for (const ship of (cabShipmentsCache || [])) {
+    if (ship.status === 'done') continue;
+    (ship.data || []).forEach((row, i) => {
+      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'];
+      const tr = norm(r[0]); if (tr) rows.push({ ship, r, i, tr });
+    });
+  }
+  for (const x of rows) {
+    const sc = x.tr === t ? 0 : x.tr.endsWith(t) ? 1 : x.tr.startsWith(t) ? 2 : x.tr.includes(t) ? 3 : -1;
+    if (sc >= 0) res.list.push({ ...x, score: sc });
+  }
+  if (!res.list.length && t.length >= 8 && typeof levenshtein === 'function') {
+    for (const x of rows) { if (Math.abs(x.tr.length - t.length) > 2) continue; const d = levenshtein(t, x.tr); if (d <= 2) res.list.push({ ...x, score: 4 + d }); }
+    res.fuzzy = res.list.length > 0;
+  }
+  res.list.sort((a, b) => a.score - b.score);
+  return res;
+}
+function cabTrackMark(track, q) {
+  const esc = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const k = String(track).toUpperCase().indexOf(q);
+  if (!q || k < 0) return esc(track);
+  return esc(track.slice(0, k)) + '<mark style="background:#fde68a;color:inherit;border-radius:3px;padding:0 1px">' + esc(track.slice(k, k + q.length)) + '</mark>' + esc(track.slice(k + q.length));
+}
+function cabTrackSearch(v) {
+  cabTrackQ = v;
+  const box = document.getElementById('cabTrackRes'); if (!box) return;
+  const R = cabFindTracks(v);
+  if (R.q.length < 3) { box.innerHTML = R.q ? '<div class="cab-ts-hint">Введите хотя бы 3 символа</div>' : ''; return; }
+  if (!R.list.length) { box.innerHTML = `<div class="cab-ts-hint">Не нашли «${cabTrackMark(R.q, '')}» в закупках. Архив не проверяем.</div>`; return; }
+  const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const show = R.list.slice(0, 40);
+  box.innerHTML = `<div class="cab-ts-head">${R.fuzzy ? 'Точно такого трека нет. Похожие' : 'Найдено'}: ${R.list.length}${R.list.length > show.length ? ' · показаны первые ' + show.length + ', уточните запрос' : ''}</div>
+    <div class="cab-ts-list">${show.map(x => {
+      const q = parseInt(x.r[5]) || 1;
+      const img = x.r[2] ? `<img src="${esc(x.r[2])}" loading="lazy" alt="">` : '<span></span>';
+      return `<button type="button" class="cab-ts-row" onclick="cabTrackGo('${x.ship.id}','${encodeURIComponent(x.r[0])}')">
+        <span class="cab-ts-img">${img}</span>
+        <span class="cab-ts-t"><b>${cabTrackMark(x.r[0], R.fuzzy ? '' : R.q)}${q > 1 ? ` <em>×${q}</em>` : ''}</b><small>${esc(x.ship.name || 'Закупка')} · ${cabShipPill(x.ship.status)}</small></span>
+        <span class="cab-ts-c">${esc((x.r[1] || '').trim() || 'клиент не указан')}</span>
+        <i class="ti ti-chevron-right"></i></button>`;
+    }).join('')}</div>`;
+}
+async function cabTrackGo(id, encTrack) {
+  const t = decodeURIComponent(encTrack);
+  await cabOpenShip(id);
+  setTimeout(() => {
+    const inp = document.querySelector('#cabMain input[oninput^="cabFilterItems"]');
+    if (inp) { inp.value = t; cabFilterItems(t); }
+  }, 300);
+}
+const CAB_TS_CSS = `<style>
+.cab-ts{position:relative;margin:0 0 16px}
+.cab-ts>i{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:20px;color:#8a8fa0;pointer-events:none}
+.cab-ts input{width:100%;box-sizing:border-box;padding:13px 14px 13px 44px;border:1.5px solid #d9d0f5;border-radius:12px;font-size:15px;background:#fff;outline:none}
+.cab-ts input:focus{border-color:#6C4DB8;box-shadow:0 0 0 3px rgba(108,77,184,.12)}
+#cabTrackRes:empty{display:none}
+#cabTrackRes{margin:-6px 0 18px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px;box-shadow:0 4px 18px rgba(16,24,40,.06)}
+.cab-ts-head{font-size:13px;color:#6b7280;padding:2px 6px 8px}
+.cab-ts-hint{font-size:14px;color:#6b7280;padding:6px}
+.cab-ts-list{display:flex;flex-direction:column;gap:4px;max-height:420px;overflow:auto}
+.cab-ts-row{display:grid;grid-template-columns:44px minmax(0,1.3fr) minmax(0,1fr) 18px;gap:12px;align-items:center;width:100%;text-align:left;background:none;border:0;border-radius:10px;padding:6px;cursor:pointer;font:inherit;color:#1a1a2e}
+.cab-ts-row:hover{background:#f6f3fd}
+.cab-ts-img img,.cab-ts-img span{width:44px;height:44px;border-radius:8px;object-fit:cover;display:block;background:#f3f4f6}
+.cab-ts-t b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cab-ts-t b em{font-style:normal;background:#f59e0b;color:#fff;border-radius:4px;padding:0 5px;font-size:12px;font-family:inherit}
+.cab-ts-t small{display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;margin-top:3px;flex-wrap:wrap}
+.cab-ts-c{font-weight:600;color:#6C4DB8;font-size:15px;overflow:hidden;text-overflow:ellipsis}
+.cab-ts-row>i{color:#9aa0ab}
+@media(max-width:640px){.cab-ts-row{grid-template-columns:40px minmax(0,1fr) 14px}.cab-ts-c{grid-column:2;grid-row:2;font-size:14px;margin-top:-6px}.cab-ts-row>i{grid-row:1/3;grid-column:3}.cab-ts-img{grid-row:1/3}}
+</style>`;
+
 let cabShipFilter = 'all';
 function renderCabShipments(container) {
   const ships = cabShipmentsCache;
@@ -546,6 +627,8 @@ function renderCabShipments(container) {
 
   container.innerHTML = `
     <div class="cab-main-title">Закупки</div>
+    ${CAB_TS_CSS}<label class="cab-ts"><i class="ti ti-search" aria-hidden="true"></i><input id="cabTrackQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку: трек-код целиком, его часть или последние цифры" value="${String(cabTrackQ).replace(/"/g, '&quot;')}" oninput="cabTrackSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';cabTrackSearch('')}"></label>
+    <div id="cabTrackRes"></div>
     ${cabShipsHero(ships)}
     <div class="cab-table-wrap">
       <div class="cab-table-top">${filterHtml}</div>
@@ -554,6 +637,7 @@ function renderCabShipments(container) {
         <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет закупок</td></tr>'}</tbody>
       </table>
     </div>`;
+  if (cabTrackQ) cabTrackSearch(cabTrackQ);
 }
 
 function cabFilterShipments(filter, btn) {
