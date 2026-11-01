@@ -125,9 +125,7 @@ async function openTopic(gid, u, fresh) {
   await setDoc('t' + tid, { uid: u.id });
   await say(gid,
     `👤 <a href="tg://user?id=${u.id}">${esc(fullName(u))}</a>` + (u.username ? ` · @${esc(u.username)}` : '') +
-    `\nTelegram id ${u.id}` + (u.language_code ? ` · язык ${esc(u.language_code)}` : '') +
-    `\nНовое обращение: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Minsk' })}\n\n` +
-    'Пишите в эту тему — ответ уйдёт клиенту. <code>//</code> в начале — заметка. Закрыть обращение — кнопкой под сообщением клиента.',
+    '\n━━━━━━━━━━━━━━━',   // карточка в одну строку: имя (ссылка на профиль) и @ник, ниже разделитель
     { message_thread_id: tid });
   return tid;
 }
