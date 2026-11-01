@@ -167,13 +167,14 @@ async function payIn(req, res) {
   const plan = String(b.plan || ''), period = b.period === 'm' ? 'm' : 'y', method = String(b.method || '');
   const amount = Number(b.amount), cur = String(b.cur || '').slice(0, 6), img = String(b.img || '');
   if (!PLANS[plan] || !METHODS[method] || !(amount > 0 && amount < 1e7) || !cur) return res.status(400).json({ ok: false, error: 'неверные данные' });
+  if (b.offer !== true) return res.status(400).json({ ok: false, error: 'нужно согласие с офертой' });
   const m = img.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
   if (!m || m[2].length > 4.2e6) return res.status(400).json({ ok: false, error: 'нужен скрин оплаты' });
   const u = await getUser(acc.localId);
   if ((u.role || 'user') !== 'user') return res.status(400).json({ ok: false, error: 'оплата с админского аккаунта не нужна' });
   const prev = u.subscription || null, p0 = prev && prev.pending;
   if (p0 && p0.at instanceof Date && Date.now() - p0.at.getTime() < 60e3) return res.status(429).json({ ok: false, error: 'подождите минуту' });
-  const pending = { plan, period, months: period === 'y' ? 12 : 1, method, amount, cur, at: new Date() };
+  const pending = { plan, period, months: period === 'y' ? 12 : 1, method, amount, cur, at: new Date(), offerAcceptedAt: new Date() };
   await patchUser(u.id, { subscription: Object.assign({}, prev || {}, { pending }) });
   const A = access(u);
   const caption = [`💳 <b>Новая оплата</b>`, esc(u.email || acc.email || ''), `«${PLANS[plan]}» · ${period === 'y' ? 'год' : 'месяц'} · <b>${nf(amount)} ${esc(cur)}</b>`,
