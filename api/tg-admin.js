@@ -1,5 +1,6 @@
 // Piksta Admin — Telegram-бот администратора (Vercel Function).
-// Умеет ТОЛЬКО: показать пользователя, продлить подписку, Пилот вкл/выкл, заблокировать/разблокировать, списки.
+// Умеет ТОЛЬКО: показать пользователя, продлить подписку, Пилот вкл/выкл, заблокировать/разблокировать, списки,
+// и принимать оплаты тарифа из приложения: POST /api/tg-admin?pay=1 → скрин Егору с кнопками «Подтвердить / Отклонить».
 // Защита: 1) отвечает только ADMIN_TG_ID (номер подставляет Telegram, подделать нельзя);
 // 2) запросы без секретного заголовка Telegram отбрасываются; 3) бот входит в базу служебным аккаунтом,
 // которому правила Firestore разрешают менять у обычных пользователей только subscription / blocked / founder
@@ -125,7 +126,7 @@ async function extend(u, months) {
   const prev = u.subscription || null;
   const now = new Date(), cur = prev && prev.endDate instanceof Date && prev.endDate > now ? prev.endDate : now;
   const end = new Date(cur); end.setMonth(end.getMonth() + months);
-  const next = { endDate: end, months, activatedAt: now, by: 'bot' };
+  const next = Object.assign({}, prev || {}, { endDate: end, months, activatedAt: now, by: 'bot' });
   await patchUser(u.id, { subscription: next });
   const logId = await log('extend', u, prev, next);
   return send(`✅ ${esc(u.email)}: подписка продлена на ${months} мес. — до <b>${d(end)}</b>`, [[{ text: 'Отменить', callback_data: `z:${logId}` }]]);
@@ -144,13 +145,69 @@ async function setBlocked(u, on) {
 }
 async function undo(logId) {
   const L = docObj(await fs('/adminLog/' + encodeURIComponent(logId)));
-  if (L.action !== 'extend') return send('Это действие нельзя отменить.');
+  if (L.action !== 'extend' && L.action !== 'pay') return send('Это действие нельзя отменить.');
   const u = await getUser(L.uid);
   const cur = u.subscription && u.subscription.endDate, was = L.next && L.next.endDate;
   if (!cur || !was || +cur !== +was) return send('Подписка уже менялась после этого — отменять нечего.');
   await patchUser(u.id, { subscription: L.prev || undefined });
   await log('undo-extend', u, L.next, L.prev);
   return send(`↩️ ${esc(u.email)}: продление отменено. ${L.prev && L.prev.endDate ? 'Подписка снова до ' + d(L.prev.endDate) : 'Подписки нет'}.`);
+}
+
+// ---------- Оплата тарифа из приложения ----------
+const PLANS = { start: 'Старт', main: 'Основной', pro: 'Профи' };
+const METHODS = { bnb: 'Карта БНБ-Банка', tbank: 'Карта Т-Банка', alipay: 'Alipay', trc20: 'USDT TRC20', bep20: 'USDT BEP20' };
+const nf = n => Number(n).toLocaleString('ru-RU');
+async function payIn(req, res) {
+  const b = req.body || {};
+  const look = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FB_KEY}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: String(b.idToken || '') }) }).then(r => r.json()).catch(() => ({}));
+  const acc = look.users && look.users[0];
+  if (!acc || !acc.localId) return res.status(401).json({ ok: false, error: 'нужно войти заново' });
+  const plan = String(b.plan || ''), period = b.period === 'm' ? 'm' : 'y', method = String(b.method || '');
+  const amount = Number(b.amount), cur = String(b.cur || '').slice(0, 6), img = String(b.img || '');
+  if (!PLANS[plan] || !METHODS[method] || !(amount > 0 && amount < 1e7) || !cur) return res.status(400).json({ ok: false, error: 'неверные данные' });
+  const m = img.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!m || m[2].length > 4.2e6) return res.status(400).json({ ok: false, error: 'нужен скрин оплаты' });
+  const u = await getUser(acc.localId);
+  if ((u.role || 'user') !== 'user') return res.status(400).json({ ok: false, error: 'оплата с админского аккаунта не нужна' });
+  const prev = u.subscription || null, p0 = prev && prev.pending;
+  if (p0 && p0.at instanceof Date && Date.now() - p0.at.getTime() < 60e3) return res.status(429).json({ ok: false, error: 'подождите минуту' });
+  const pending = { plan, period, months: period === 'y' ? 12 : 1, method, amount, cur, at: new Date() };
+  await patchUser(u.id, { subscription: Object.assign({}, prev || {}, { pending }) });
+  const A = access(u);
+  const caption = [`💳 <b>Новая оплата</b>`, esc(u.email || acc.email || ''), `«${PLANS[plan]}» · ${period === 'y' ? 'год' : 'месяц'} · <b>${nf(amount)} ${esc(cur)}</b>`,
+    `${METHODS[method]} · ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`,
+    `Сейчас: ${STATUS[A.kind] || A.kind}${A.end ? ' до ' + d(A.end) : ''}`].join('\n');
+  const fd = new FormData();
+  fd.append('chat_id', String(ADMIN_TG_ID)); fd.append('caption', caption); fd.append('parse_mode', 'HTML');
+  fd.append('reply_markup', JSON.stringify({ inline_keyboard: [[{ text: '✅ Подтвердить', callback_data: `po:${u.id}` }, { text: '❌ Отклонить', callback_data: `pn:${u.id}` }]] }));
+  fd.append('photo', new Blob([Buffer.from(m[2], 'base64')], { type: 'image/' + m[1] }), 'pay.' + (m[1] === 'jpeg' ? 'jpg' : m[1]));
+  const r = await fetch(`https://api.telegram.org/bot${TOKEN()}/sendPhoto`, { method: 'POST', body: fd }).then(x => x.json()).catch(e => ({ ok: false, description: e.message }));
+  if (!r.ok) { await send(caption + '\n\n(скрин не дошёл: ' + esc(r.description || '') + ')', [[{ text: '✅ Подтвердить', callback_data: `po:${u.id}` }, { text: '❌ Отклонить', callback_data: `pn:${u.id}` }]]); }
+  return res.status(200).json({ ok: true });
+}
+async function payOk(u) {
+  const prev = u.subscription || {}, p = prev.pending;
+  if (!p) return send(`${esc(u.email)}: оплата уже обработана.`);
+  const now = new Date(), cur = prev.endDate instanceof Date && prev.endDate > now ? prev.endDate : now;
+  const end = new Date(cur); end.setMonth(end.getMonth() + (p.months || 1));
+  const history = (Array.isArray(prev.history) ? prev.history : []).concat([{ at: now, plan: p.plan, period: p.period, months: p.months, amount: p.amount, cur: p.cur, method: p.method, end }]).slice(-40);
+  const next = Object.assign({}, prev, { endDate: end, months: p.months, activatedAt: now, by: 'pay', plan: p.plan, history });
+  delete next.pending; delete next.rejected;
+  await patchUser(u.id, { subscription: next });
+  const logId = await log('pay', u, prev, next);
+  return send(`✅ ${esc(u.email)}: «${PLANS[p.plan] || p.plan}» до <b>${d(end)}</b> · ${nf(p.amount)} ${esc(p.cur)}. Клиент увидит это в приложении.`, [[{ text: 'Отменить', callback_data: `z:${logId}` }]]);
+}
+async function payNo(u) {
+  const prev = u.subscription || {}, p = prev.pending;
+  if (!p) return send(`${esc(u.email)}: оплата уже обработана.`);
+  const next = Object.assign({}, prev, { rejected: Object.assign({}, p, { rejectedAt: new Date() }) });
+  delete next.pending;
+  if (!next.endDate) delete next.endDate;
+  await patchUser(u.id, { subscription: next });
+  await log('pay-reject', u, p, null);
+  return send(`❌ ${esc(u.email)}: оплата отклонена. В приложении клиент увидит «не подтверждена — напишите в поддержку».`);
 }
 
 const HELP = `<b>Piksta Admin</b> — что я умею:
@@ -202,7 +259,7 @@ async function onText(text) {
   return send('Не понял.\n\n' + HELP);
 }
 
-async function onCallback(data) {
+async function onCallback(data, msg) {
   if (data === 'x') return send('Отменено.');
   const [op, a, b] = data.split(':');
   if (op === 'z') return undo(a);
@@ -215,11 +272,18 @@ async function onCallback(data) {
     [[{ text: 'Да, заблокировать', callback_data: `by:${u.id}` }, { text: 'Отмена', callback_data: 'x' }]]);
   if (op === 'by') return setBlocked(u, true);
   if (op === 'u') return setBlocked(u, false);
+  if (op === 'po' || op === 'pn') {
+    if (msg && msg.message_id) await tg('editMessageReplyMarkup', { chat_id: ADMIN_TG_ID, message_id: msg.message_id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
+    return op === 'po' ? payOk(u) : payNo(u);
+  }
 }
 
 module.exports = async (req, res) => {
   try {
     // Подключение вебхука: GET /api/tg-admin?setup=1 (безвредно — привязывает бота к этому же адресу)
+    if (req.method === 'POST' && req.query && req.query.pay) {
+      try { return await payIn(req, res); } catch (e) { return res.status(500).json({ ok: false, error: 'сервер: ' + e.message }); }
+    }
     if (req.method === 'GET') {
       if (req.query && req.query.setup && TOKEN()) {
         const r = await tg('setWebhook', { url: req.query.setup === 'apex' ? 'https://piksta.online/api/tg-admin' : HOOK_URL, secret_token: SECRET(), allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
@@ -235,7 +299,7 @@ module.exports = async (req, res) => {
     if (!ADMIN_TG_ID || from.id !== ADMIN_TG_ID) return res.status(200).send('ok');   // чужим — молчим
     if (upd.callback_query) {
       await tg('answerCallbackQuery', { callback_query_id: upd.callback_query.id });
-      await onCallback(String(upd.callback_query.data || ''));
+      await onCallback(String(upd.callback_query.data || ''), upd.callback_query.message);
     } else if (upd.message && typeof upd.message.text === 'string') {
       await onText(upd.message.text);
     }
