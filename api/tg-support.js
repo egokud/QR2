@@ -275,7 +275,8 @@ module.exports = async (req, res) => {
       else if (text && /^\/start\b/.test(text)) {
         await sendGreeting(m.chat.id, u);
       } else await fromClient(m, u);
-    } else if (m.chat.type === 'supergroup') {
+    } else {
+      console.log('support-group', m.chat.type, m.chat.id, u.id, (text || '').slice(0, 20));
       if (text && /^\/bind\b/.test(text)) { if (u.id === ADMIN_TG_ID) await bind(m); return res.status(200).send('ok'); }
       const gid = await groupId();
       if (gid && m.chat.id === gid) await fromGroup(m, gid);
