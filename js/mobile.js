@@ -294,26 +294,34 @@ function pkNewShip() {
       ${opt('ti-pencil-plus', 'Создать вручную', 'Название закупки, треки добавите сами', 'pkSheetClose();pkNewManual()')}
     </div>`);
 }
+const PK_ST_HINT = { forming: 'собираете заказы, сканер выключен', transit: 'карго везёт посылки', delayed: 'посылки задерживаются в пути', warehouse: 'приехало — сканируете и раскладываете', sorted: 'всё разложено по клиентам, ждём оплаты', done: 'закрыта: выдано и оплачено' };
 function pkShipSheet(id) {
   const s = (allShipments || []).find(x => x.id === id); if (!s) return;
   const cur = s.status || 'forming';
   const n = (s.data || []).length;
+  const cl = new Set();
+  for (const row of (s.data || [])) { const w = Array.isArray(row) ? row[1] : row.w; for (const p of (typeof splitWarehouses === 'function' ? splitWarehouses(w || '') : [w])) if (p && p.trim()) cl.add(p.trim().toLowerCase()); }
   const order = ['forming', 'transit', 'warehouse', 'sorted', 'done'];
+  if (cur === 'delayed') order.splice(2, 0, 'delayed');
   let off = 0; try { off = +localStorage.getItem('pk_off_' + id) || 0; } catch (e) {}
   const act = (fn) => `pkSheetClose();loadForAction('${id}').then(()=>${fn})`;
-  pkSheet(`<div class="pk-row"><div><h3>${pkEsc(s.name)}</h3><div class="pk-muted" style="font-size:14px">${pkSt(cur).label} · ${n} ${pkPl(n, 'позиция', 'позиции', 'позиций')}</div></div><button class="pk-btn ghost sm" onclick="pkSheetClose();renameShipment('${id}')" aria-label="Переименовать"><i class="ti ti-pencil" aria-hidden="true"></i></button></div>
-    <div class="pk-stat" style="margin:12px 0">${order.map(k => `<button type="button" class="${k === cur ? 'on' : ''}" onclick="pkSetStatus('${id}','${k}')">${pkSt(k).label}</button>`).join('')}</div>
-    ${cur !== 'forming' ? `<button class="pk-btn" style="width:100%;margin-bottom:10px" onclick="pkScanShip('${id}')"><i class="ti ti-scan" aria-hidden="true"></i> ${id === activeShipmentId ? 'Сканирую эту закупку' : 'Сканировать эту закупку'}</button>` : ''}
-    <div class="pk-tiles">
+  const st = pkSt(cur);
+  pkSheet(`<div class="pk-row" style="align-items:flex-start"><div style="min-width:0"><h3>${pkEsc(s.name)}</h3><div class="pk-muted" style="font-size:14px">${n} ${pkPl(n, 'позиция', 'позиции', 'позиций')} · ${cl.size} ${pkPl(cl.size, 'клиент', 'клиента', 'клиентов')}</div></div><button class="pk-btn ghost sm" onclick="pkSheetClose();renameShipment('${id}')" aria-label="Переименовать закупку"><i class="ti ti-pencil" aria-hidden="true"></i></button></div>
+    <button type="button" class="pk-stsel" id="pkStSel" onclick="this.classList.toggle('open')" aria-haspopup="listbox"><span class="l">Статус</span><span class="v"><i class="d" style="background:${st.color}"></i>${pkEsc(st.label)}</span><i class="ti ti-chevron-down cv" aria-hidden="true"></i></button>
+    <div class="pk-stlist" role="listbox">${order.map(k => `<button type="button" role="option" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}" onclick="pkSetStatus('${id}','${k}')"><i class="d" style="background:${pkSt(k).color}"></i><span><b>${pkSt(k).label}</b><small>${PK_ST_HINT[k] || ''}</small></span>${k === cur ? '<i class="ti ti-check ck" aria-hidden="true"></i>' : ''}</button>`).join('')}</div>
+    ${cur !== 'forming'
+      ? `<button class="pk-btn" style="width:100%" onclick="pkScanShip('${id}')"><i class="ti ti-scan" aria-hidden="true"></i> ${id === activeShipmentId ? 'Сканирую эту закупку' : 'Сканировать эту закупку'}</button>`
+      : `<button class="pk-btn ghost" style="width:100%" onclick="pkSetStatus('${id}','transit')"><i class="ti ti-truck" aria-hidden="true"></i> Закупка отправлена → «В дороге»</button>`}
+    <button type="button" class="pk-main-act" onclick="${act('openPriceEditor()')}"><span class="ic"><i class="ti ti-list-details" aria-hidden="true"></i></span><span><b>Позиции закупки</b><small>треки, названия, клиенты, цены</small></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
+    <div class="pk-tiles2">
       <button onclick="${act('openWeighing()')}"><i class="ti ti-scale" aria-hidden="true"></i>Взвешивание</button>
       <button onclick="${act('openCalc()')}"><i class="ti ti-calculator" aria-hidden="true"></i>Расчёт по клиентам</button>
-      <button onclick="${act('openPriceEditor()')}"><i class="ti ti-currency-yuan" aria-hidden="true"></i>Редактор цен</button>
-      <button onclick="${act(`openRatesModal('${id}')`)}"><i class="ti ti-adjustments" aria-hidden="true"></i>Курсы закупки</button>
     </div>
-    <div class="pk-menu" style="margin-top:10px">
+    <div class="pk-menu">
+      <button onclick="pkSheetClose();openCargoCompare('${id}')"><i class="ti ti-arrows-diff" aria-hidden="true"></i><span>Сверка с карго</span></button>
       <button onclick="${act(`cacheShipmentImages('${id}')`)}"><i class="ti ${off ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>${off ? 'Фото скачаны · обновить' : 'Скачать фото для работы без интернета'}</span>${off ? `<small>${off}</small>` : ''}</button>
       <button onclick="pkSheetClose();exportForInventory('${id}')"><i class="ti ti-file-export" aria-hidden="true"></i><span>Выгрузить для описи</span></button>
-      <button onclick="pkSheetClose();openCargoCompare('${id}')"><i class="ti ti-arrows-diff" aria-hidden="true"></i><span>Сверка с карго</span></button>
+      <button onclick="${act(`openRatesModal('${id}')`)}"><i class="ti ti-adjustments" aria-hidden="true"></i><span>Курсы закупки<small class="pk-muted" style="display:block;font-size:12.5px">настройки этой закупки</small></span></button>
       <button onclick="${act('resetAll()')}.then(restoreActiveEditing)"><i class="ti ti-refresh" aria-hidden="true"></i><span>Сбросить отметки сканирования</span></button>
       <button class="danger" onclick="${act('deleteShipment()')}"><i class="ti ti-trash" aria-hidden="true"></i><span>Удалить закупку</span></button>
     </div>`);
