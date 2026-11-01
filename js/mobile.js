@@ -662,13 +662,15 @@ function pkManScanStop() {
 }
 
 // ---------- шторка ----------
+let pkSheetRaf = 0;
 function pkSheet(html) {
   const sh = document.getElementById('pkSheet');
   sh.innerHTML = '<div class="grab"></div>' + html;
   document.getElementById('pkSheetBg').classList.add('on');
-  requestAnimationFrame(() => sh.classList.add('on'));
+  cancelAnimationFrame(pkSheetRaf); pkSheetRaf = requestAnimationFrame(() => sh.classList.add('on'));
 }
 function pkSheetClose() {
+  cancelAnimationFrame(pkSheetRaf);
   const sh = document.getElementById('pkSheet'), bg = document.getElementById('pkSheetBg');
   if (sh) sh.classList.remove('on'); if (bg) bg.classList.remove('on');
 }
