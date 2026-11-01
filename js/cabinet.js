@@ -2496,7 +2496,7 @@ async function cabLoadAdminUsers(box) {
       const snap = await Promise.race([db.collection('users').get(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))]);
       docs = snap.docs;
     } catch (e) { docs = await fsList('users'); }
-    const users = docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'admin');
+    const users = docs.map(d => ({ id: d.id, ...d.data() })).filter(u => (u.role || 'user') === 'user'); // без админа и служебного аккаунта бота
     await Promise.all(users.map(async u => {
       u._acc = pkAccess(u);
       u._ships = '—'; u._items = '—';
