@@ -1,4 +1,7 @@
 {
+  "crons": [
+    { "path": "/api/backup", "schedule": "30 0 * * *" }
+  ],
   "rewrites": [
     {
       "source": "/app",
