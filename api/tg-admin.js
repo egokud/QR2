@@ -1,0 +1,244 @@
+// Piksta Admin — Telegram-бот администратора (Vercel Function).
+// Умеет ТОЛЬКО: показать пользователя, продлить подписку, Пилот вкл/выкл, заблокировать/разблокировать, списки.
+// Защита: 1) отвечает только ADMIN_TG_ID (номер подставляет Telegram, подделать нельзя);
+// 2) запросы без секретного заголовка Telegram отбрасываются; 3) бот входит в базу служебным аккаунтом,
+// которому правила Firestore разрешают менять у обычных пользователей только subscription / blocked / founder
+// и писать журнал adminLog. Закупки, клиенты, удаление — недоступны.
+// Секреты (задаются в Vercel → Settings → Environment Variables): TG_TOKEN, BOT_PASSWORD.
+const crypto = require('crypto');
+
+const ADMIN_TG_ID = 0;                       // номер Telegram Егора (вписывается после @userinfobot)
+const BOT_EMAIL = 'bot@piksta.online';       // служебный аккаунт бота в Piksta
+const FB_KEY = 'AIzaSyASHE3yqM0wOC3QHVbL4UVSHVq2rEzA5ss'; // публичный ключ веб-приложения (тот же, что в init.js)
+const FS = 'https://firestore.googleapis.com/v1/projects/parcel-scanner-90427/databases/(default)/documents';
+const HOOK_URL = 'https://www.piksta.online/api/tg-admin';
+const TRIAL_DAYS = 30, PILOT_TRIAL_DAYS = 90, GRACE_DAYS = 5, DAY = 864e5;
+
+const TOKEN = () => process.env.TG_TOKEN || '';
+const SECRET = () => crypto.createHash('sha256').update('piksta-tg:' + TOKEN()).digest('hex').slice(0, 48);
+
+// ---------- Telegram ----------
+async function tg(method, body) {
+  const r = await fetch(`https://api.telegram.org/bot${TOKEN()}/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  return r.json();
+}
+const send = (text, kb) => tg('sendMessage', { chat_id: ADMIN_TG_ID, text, parse_mode: 'HTML', disable_web_page_preview: true, ...(kb ? { reply_markup: { inline_keyboard: kb } } : {}) });
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// ---------- Firestore (REST, от имени служебного аккаунта) ----------
+let ID_TOKEN = null;
+async function login() {
+  const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FB_KEY}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: BOT_EMAIL, password: process.env.BOT_PASSWORD || '', returnSecureToken: true })
+  });
+  const j = await r.json();
+  if (!j.idToken) throw new Error('вход служебного аккаунта не удался');
+  ID_TOKEN = j.idToken;
+}
+async function fs(path, opt = {}) {
+  if (!ID_TOKEN) await login();
+  const r = await fetch(FS + path, { ...opt, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + ID_TOKEN } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.status) || ('HTTP ' + r.status));
+  return j;
+}
+function dec(v) {
+  if (!v) return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('timestampValue' in v) return new Date(v.timestampValue);
+  if ('nullValue' in v) return null;
+  if ('mapValue' in v) { const o = {}; for (const k in (v.mapValue.fields || {})) o[k] = dec(v.mapValue.fields[k]); return o; }
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(dec);
+  return null;
+}
+function enc(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (v instanceof Date) return { timestampValue: v.toISOString() };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (typeof v === 'string') return { stringValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(enc) } };
+  const f = {}; for (const k in v) f[k] = enc(v[k]); return { mapValue: { fields: f } };
+}
+const docObj = d => { const o = { id: d.name.split('/').pop() }; for (const k in (d.fields || {})) o[k] = dec(d.fields[k]); return o; };
+
+async function users() {
+  const j = await fs('/users?pageSize=300');
+  return (j.documents || []).map(docObj).filter(u => (u.role || 'user') === 'user');
+}
+async function getUser(uid) { return docObj(await fs('/users/' + encodeURIComponent(uid))); }
+// Меняет только перечисленные поля (отсутствующее значение = удалить поле)
+async function patchUser(uid, fields) {
+  const mask = Object.keys(fields).map(k => 'updateMask.fieldPaths=' + k).join('&');
+  const body = {}; for (const k in fields) if (fields[k] !== undefined) body[k] = enc(fields[k]);
+  await fs(`/users/${encodeURIComponent(uid)}?${mask}&currentDocument.exists=true`, { method: 'PATCH', body: JSON.stringify({ fields: body }) });
+}
+async function log(action, u, prev, next) {
+  const j = await fs('/adminLog', { method: 'POST', body: JSON.stringify({ fields: {
+    at: enc(new Date()), by: enc('bot'), action: enc(action), uid: enc(u.id), email: enc(u.email || ''),
+    prev: enc(prev === undefined ? null : prev), next: enc(next === undefined ? null : next) } }) });
+  return j.name.split('/').pop();
+}
+
+// ---------- Доступ (как pkAccess в js/init.js и canWrite в правилах) ----------
+function access(u) {
+  const now = new Date();
+  if (u.blocked) return { kind: 'blocked' };
+  const created = u.created instanceof Date ? u.created : now;
+  const trialEnd = new Date(created.getTime() + (u.founder ? PILOT_TRIAL_DAYS : TRIAL_DAYS) * DAY);
+  const subEnd = u.subscription && u.subscription.endDate instanceof Date ? u.subscription.endDate : null;
+  const from = subEnd ? 'sub' : 'trial', end = subEnd || trialEnd, until = new Date(end.getTime() + GRACE_DAYS * DAY);
+  if (now < end) return { kind: from, from, end, left: Math.ceil((end - now) / DAY) };
+  if (now < until) return { kind: 'grace', from, end, until, left: Math.ceil((until - now) / DAY) };
+  return { kind: 'readonly', from, end };
+}
+const d = x => x ? x.toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk' }) : '—';
+const STATUS = { trial: 'Пробный', sub: 'Подписка', grace: '5 дней на оплату', readonly: 'Только просмотр', blocked: 'Заблокирован' };
+
+function card(u) {
+  const A = access(u);
+  const stats = Array.isArray(u.shipmentStats) ? u.shipmentStats : [];
+  const items = stats.reduce((n, s) => n + (Number(s && s.count) || 0), 0);
+  let st = STATUS[A.kind] + (A.kind === 'trial' && u.founder ? ' · пилот' : '');
+  if (A.kind === 'grace') st += ` · ещё ${A.left} дн.`;
+  const lines = [
+    `<b>${esc(u.email)}</b>${u.name ? ' · ' + esc(u.name) : ''}`,
+    `Статус: <b>${st}</b>`,
+    A.end ? `${A.from === 'sub' ? 'Подписка до' : 'Тест до'}: <b>${d(A.end)}</b>${A.kind === 'sub' || A.kind === 'trial' ? ` (${A.left} дн.)` : ''}` : '',
+    `Регистрация: ${d(u.created)}`,
+    `Закупок: ${stats.length} · позиций: ${items.toLocaleString('ru-RU')}`
+  ].filter(Boolean);
+  const kb = [
+    [1, 3, 6, 12].map(n => ({ text: `+${n} мес`, callback_data: `e:${u.id}:${n}` })),
+    [{ text: u.founder ? 'Пилот: снять' : 'Пилот: включить', callback_data: `p:${u.id}:${u.founder ? 0 : 1}` },
+     u.blocked ? { text: 'Разблокировать', callback_data: `u:${u.id}` } : { text: 'Заблокировать', callback_data: `b:${u.id}` }]
+  ];
+  return [lines.join('\n'), kb];
+}
+
+// ---------- Действия ----------
+async function extend(u, months) {
+  const prev = u.subscription || null;
+  const now = new Date(), cur = prev && prev.endDate instanceof Date && prev.endDate > now ? prev.endDate : now;
+  const end = new Date(cur); end.setMonth(end.getMonth() + months);
+  const next = { endDate: end, months, activatedAt: now, by: 'bot' };
+  await patchUser(u.id, { subscription: next });
+  const logId = await log('extend', u, prev, next);
+  return send(`✅ ${esc(u.email)}: подписка продлена на ${months} мес. — до <b>${d(end)}</b>`, [[{ text: 'Отменить', callback_data: `z:${logId}` }]]);
+}
+async function setPilot(u, on) {
+  await patchUser(u.id, { founder: on ? true : undefined });
+  await log('pilot', u, !!u.founder, on);
+  const nu = await getUser(u.id); const [t, kb] = card(nu);
+  return send(`${on ? '✅ Пилот включён' : 'Пилот снят'}\n\n${t}`, kb);
+}
+async function setBlocked(u, on) {
+  await patchUser(u.id, { blocked: on });
+  await log(on ? 'block' : 'unblock', u, !!u.blocked, on);
+  return send(on ? `⛔ ${esc(u.email)} заблокирован. Данные только для просмотра.` : `✅ ${esc(u.email)} разблокирован.`,
+    [[on ? { text: 'Разблокировать', callback_data: `u:${u.id}` } : { text: 'Открыть карточку', callback_data: `c:${u.id}` }]]);
+}
+async function undo(logId) {
+  const L = docObj(await fs('/adminLog/' + encodeURIComponent(logId)));
+  if (L.action !== 'extend') return send('Это действие нельзя отменить.');
+  const u = await getUser(L.uid);
+  const cur = u.subscription && u.subscription.endDate, was = L.next && L.next.endDate;
+  if (!cur || !was || +cur !== +was) return send('Подписка уже менялась после этого — отменять нечего.');
+  await patchUser(u.id, { subscription: L.prev || undefined });
+  await log('undo-extend', u, L.next, L.prev);
+  return send(`↩️ ${esc(u.email)}: продление отменено. ${L.prev && L.prev.endDate ? 'Подписка снова до ' + d(L.prev.endDate) : 'Подписки нет'}.`);
+}
+
+const HELP = `<b>Piksta Admin</b> — что я умею:
+• <code>nika@mail.ru</code> или часть адреса — карточка пользователя с кнопками
+• <code>продли nika@mail.ru 3</code> — продлить на 3 мес. (без числа — на 1)
+• <code>блок nika@mail.ru</code> — заблокировать (спрошу подтверждение)
+• <code>разблок nika@mail.ru</code> — разблокировать
+• <code>неоплатили</code> — 5 дней на оплату и только просмотр
+• <code>скоро</code> — у кого доступ кончается за 7 дней
+Другие фразы командами не считаются.`;
+
+async function findOne(q) {
+  const all = await users(); q = q.toLowerCase();
+  const exact = all.find(u => String(u.email || '').toLowerCase() === q);
+  if (exact) return { one: exact };
+  return { many: all.filter(u => String(u.email || '').toLowerCase().includes(q) || String(u.name || '').toLowerCase().includes(q)) };
+}
+async function pick(q, then) {
+  const r = await findOne(q);
+  if (r.one) return then(r.one);
+  if (!r.many.length) return send(`Не нашёл пользователя «${esc(q)}».`);
+  if (r.many.length === 1) return then(r.many[0]);
+  return send(`Нашёл несколько — выберите:`, r.many.slice(0, 10).map(u => [{ text: u.email, callback_data: `c:${u.id}` }]));
+}
+async function list(kind) {
+  const all = await users();
+  const rows = all.map(u => [u, access(u)]).filter(([u, A]) => kind === 'unpaid' ? (A.kind === 'grace' || A.kind === 'readonly') : ((A.kind === 'trial' || A.kind === 'sub') && A.left <= 7));
+  if (!rows.length) return send(kind === 'unpaid' ? 'Неоплативших нет.' : 'Ни у кого доступ не кончается в ближайшие 7 дней.');
+  return send((kind === 'unpaid' ? '<b>Не оплатили</b>' : '<b>Скоро конец</b>') + '\n' + rows.map(([u, A]) => `• ${esc(u.email)} — ${STATUS[A.kind]}, ${d(A.end)}`).join('\n'),
+    rows.slice(0, 10).map(([u]) => [{ text: u.email, callback_data: `c:${u.id}` }]));
+}
+
+async function onText(text) {
+  const t = text.trim(), low = t.toLowerCase();
+  const email = (t.match(/[^\s@]+@[^\s@]+\.[^\s@]+/) || [])[0];
+  if (/^\/(start|help)\b|^помощь$/.test(low)) return send(HELP);
+  if (/^не\s*оплатили$/.test(low)) return list('unpaid');
+  if (/^скоро$/.test(low)) return list('soon');
+  let m;
+  if ((m = low.match(/^продли(?:ть)?\s+(\S+)(?:\s+(?:на\s+)?(\d{1,2}))?/))) {
+    const months = m[2] ? parseInt(m[2], 10) : 1;
+    if (!(months >= 1 && months <= 24)) return send('Срок — от 1 до 24 месяцев.');
+    return pick(email || m[1], u => extend(u, months));
+  }
+  if ((m = low.match(/^разблок\S*\s+(\S+)/))) return pick(email || m[1], u => setBlocked(u, false));
+  if ((m = low.match(/^(?:за)?блок\S*\s+(\S+)/))) return pick(email || m[1], u => send(`Точно заблокировать <b>${esc(u.email)}</b>? Пользователь сможет только смотреть свои данные.`,
+    [[{ text: 'Да, заблокировать', callback_data: `by:${u.id}` }, { text: 'Отмена', callback_data: 'x' }]]));
+  if (email || (/^[\w.+-]{3,}$/.test(t) && !/^\d+$/.test(t))) return pick(email || t, u => { const [x, kb] = card(u); return send(x, kb); });
+  return send('Не понял.\n\n' + HELP);
+}
+
+async function onCallback(data) {
+  if (data === 'x') return send('Отменено.');
+  const [op, a, b] = data.split(':');
+  if (op === 'z') return undo(a);
+  const u = await getUser(a);
+  if ((u.role || 'user') !== 'user') return send('Этим аккаунтом бот не управляет.');
+  if (op === 'c') { const [x, kb] = card(u); return send(x, kb); }
+  if (op === 'e') return extend(u, parseInt(b, 10));
+  if (op === 'p') return setPilot(u, b === '1');
+  if (op === 'b') return send(`Точно заблокировать <b>${esc(u.email)}</b>? Пользователь сможет только смотреть свои данные.`,
+    [[{ text: 'Да, заблокировать', callback_data: `by:${u.id}` }, { text: 'Отмена', callback_data: 'x' }]]);
+  if (op === 'by') return setBlocked(u, true);
+  if (op === 'u') return setBlocked(u, false);
+}
+
+module.exports = async (req, res) => {
+  try {
+    // Подключение вебхука: GET /api/tg-admin?setup=1 (безвредно — привязывает бота к этому же адресу)
+    if (req.method === 'GET') {
+      if (req.query && req.query.setup && TOKEN()) {
+        const r = await tg('setWebhook', { url: HOOK_URL, secret_token: SECRET(), allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
+        return res.status(200).json({ ok: !!r.ok, description: r.description || '' });
+      }
+      return res.status(200).send('ok');
+    }
+    if (!TOKEN() || req.headers['x-telegram-bot-api-secret-token'] !== SECRET()) return res.status(200).send('ok');
+    const upd = req.body || {};
+    const from = (upd.message && upd.message.from) || (upd.callback_query && upd.callback_query.from) || {};
+    if (!ADMIN_TG_ID || from.id !== ADMIN_TG_ID) return res.status(200).send('ok');   // чужим — молчим
+    if (upd.callback_query) {
+      await tg('answerCallbackQuery', { callback_query_id: upd.callback_query.id });
+      await onCallback(String(upd.callback_query.data || ''));
+    } else if (upd.message && typeof upd.message.text === 'string') {
+      await onText(upd.message.text);
+    }
+  } catch (e) {
+    try { await send('Ошибка: ' + esc(e.message)); } catch (_) {}
+  }
+  return res.status(200).send('ok');
+};
