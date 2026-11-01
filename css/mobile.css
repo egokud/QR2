@@ -365,3 +365,6 @@ a.pk-btn{text-decoration:none}
 .pk-erip{font-size:14.5px;line-height:1.55;margin-top:2px}
 .pk-drop.ok>span>span:last-child{display:flex;flex-direction:column;gap:2px}
 .pk-rq b.mono{word-break:normal;overflow-wrap:anywhere}
+.pk-offer{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.45;color:var(--pk-muted);cursor:pointer}
+.pk-offer input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--pk-acc)}
+.pk-offer a{color:var(--pk-acc);font-weight:600}
