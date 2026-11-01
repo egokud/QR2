@@ -156,7 +156,7 @@ async function undo(logId) {
 
 // ---------- Оплата тарифа из приложения ----------
 const PLANS = { start: 'Старт', main: 'Основной', pro: 'Профи' };
-const METHODS = { bnb: 'Карта БНБ-Банка', tbank: 'Карта Т-Банка', alipay: 'Alipay', trc20: 'USDT TRC20', bep20: 'USDT BEP20' };
+const METHODS = { bnb: 'ЕРИП · БНБ-Банк', tbank: 'Карта Т-Банка', alipay: 'Alipay', trc20: 'USDT TRC20', bep20: 'USDT BEP20' };
 const nf = n => Number(n).toLocaleString('ru-RU');
 async function payIn(req, res) {
   const b = req.body || {};
