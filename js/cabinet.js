@@ -2524,11 +2524,50 @@ async function cabLoadAdminUsers(box) {
         </div>
         <div class="cab-users" id="cabUList"></div>
       </div>`;
+    if (!document.getElementById('cabAdminCss')) { const st = document.createElement('style'); st.id = 'cabAdminCss'; st.textContent = CAB_ADMIN_CSS; document.head.appendChild(st); }
     cabAdminRenderList();
   } catch (e) {
     box.innerHTML = `<div class="cab-table-wrap"><div class="cab-stub-text">Не удалось загрузить пользователей: ${e.message}</div></div>`;
   }
 }
+
+// Карточка пользователя в админке: колонки одинаковой ширины во всех карточках, перестройка по ширине самой карточки
+const CAB_ADMIN_CSS = `
+.cab-ac{border:1px solid #ebe7f3;border-radius:14px;padding:12px 14px;background:#fff;container-type:inline-size}
+.cab-ac.off{background:#fdf7f7;border-color:#f6d7d7}
+.cab-ac-top{display:grid;grid-template-columns:18px minmax(0,1fr) 150px 92px 62px 74px;gap:8px 16px;align-items:center}
+.cab-ac-cb{width:16px;height:16px;margin:0;cursor:pointer}
+.cab-ac-who{display:flex;align-items:center;gap:10px;min-width:0}
+.cab-ac-who .cab-uav{width:36px;height:36px;flex:0 0 36px}
+.cab-ac-mail{font-weight:600;font-size:15px;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cab-ac-sub{display:flex;align-items:center;gap:8px;margin-top:3px;min-width:0}
+.cab-ac-pill{padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.cab-ac-name{font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cab-ac-m{display:flex;flex-direction:column;gap:2px;font-size:12px;color:#6b7280;white-space:nowrap;min-width:0}
+.cab-ac-m b{font-size:14px;color:#1a1a2e;font-weight:600}
+.cab-ac-bot{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;border-top:1px solid #f0edf6;margin-top:10px;padding-top:10px}
+.cab-ac-bot .cab-usel{font-size:13px;padding:5px 6px}
+.cab-ac-bot .cab-uopt{font-size:13px;white-space:nowrap}
+.cab-ac-act{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.cab-ac-act .cab-filter-btn{padding:6px 10px;font-size:13px;display:inline-flex;align-items:center;gap:5px}
+@container (max-width: 820px){
+  .cab-ac-act .cab-filter-btn{padding:6px 9px}
+  .cab-ac-act .cab-filter-btn .t{display:none}
+  .cab-ac-act .cab-filter-btn i{font-size:16px}
+}
+@container (max-width: 430px){
+  .cab-ac-act{margin-left:0;width:100%}
+  .cab-ac-act .cab-filter-btn{flex:1 1 0;justify-content:center}
+}
+@container (max-width: 700px){
+  .cab-ac-top{grid-template-columns:18px minmax(0,1.5fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.7fr);gap:8px 12px}
+  .cab-ac-who{grid-column:2 / -1}
+  .cab-ac-m1{grid-column-start:2}
+}
+@container (max-width: 430px){
+  .cab-ac-top{grid-template-columns:18px repeat(2,minmax(0,1fr))}
+  .cab-ac-m3{grid-column-start:2}
+}`;
 
 function cabEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
@@ -2586,28 +2625,30 @@ function cabAdminRenderList() {
     const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" class="cab-usel">
         <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
     const fnd = `<label class="cab-uopt" title="Участник пилота: пробный период 3 месяца вместо 30 дней и цена −${PIKSTA_TARIFFS.founderDiscountPct}%, пока подписка продлевается без перерыва"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked,true)"> Пилот: 3 мес. и −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
-    const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индивидуальный тариф</label>`;
+    const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индив. тариф</label>`;
     const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
     const endTxt = end ? `${end.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em>` : '—';
     const num = v => typeof v === 'number' ? v.toLocaleString('ru-RU') : v;
-    return `<div class="cab-ucard${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}">
-      <div class="cab-urow">
-        <input type="checkbox" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
-        <div class="cab-uwho"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0"><div class="cab-uname">${cabEsc(u.email || u.id)}</div><div class="cab-umail">${cabEsc(u.name || '—')}</div></div></div>
-        <span class="cab-upill" style="color:${st[1]};background:${st[2]}">${st[0]}</span>
-        <div class="cab-umeta" style="min-width:140px"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
-        <div class="cab-umeta"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
-        <div class="cab-umeta"><span>Закупок</span><b>${num(u._ships)}</b></div>
-        <div class="cab-umeta"><span>Позиций</span><b>${num(u._items)}</b></div>
+    return `<div class="cab-ac${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}">
+      <div class="cab-ac-top">
+        <input type="checkbox" class="cab-ac-cb" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма">
+        <div class="cab-ac-who"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0">
+          <div class="cab-ac-mail" title="${cabEsc(u.email || u.id)}">${cabEsc(u.email || u.id)}</div>
+          <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>
+        </div></div>
+        <div class="cab-ac-m cab-ac-m1"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
+        <div class="cab-ac-m"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
+        <div class="cab-ac-m cab-ac-m3"><span>Закупок</span><b>${num(u._ships)}</b></div>
+        <div class="cab-ac-m"><span>Позиций</span><b>${num(u._items)}</b></div>
       </div>
-      <div class="cab-urow cab-urow2">
+      <div class="cab-ac-bot">
         ${ctry}${fnd}${ind}
-        <div class="cab-uact">
-          <button class="cab-filter-btn" onclick="cabAdminMailOpen('${u.id}')"><i class="ti ti-mail"></i> Письмо</button>
-          <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}','${safeName}')"><i class="ti ti-calendar-plus"></i> Продлить</button>
+        <div class="cab-ac-act">
+          <button class="cab-filter-btn" onclick="cabAdminMailOpen('${u.id}')" title="Письмо"><i class="ti ti-mail"></i><span class="t"> Письмо</span></button>
+          <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}','${safeName}')" title="Продлить подписку"><i class="ti ti-calendar-plus"></i><span class="t"> Продлить</span></button>
           ${isBlocked
-            ? `<button class="cab-filter-btn" onclick="cabAdminBlock('${u.id}',false)"><i class="ti ti-lock-open"></i> Разблокировать</button>`
-            : `<button class="cab-filter-btn" style="color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)"><i class="ti ti-lock"></i> Заблокировать</button>`}
+            ? `<button class="cab-filter-btn" onclick="cabAdminBlock('${u.id}',false)" title="Разблокировать"><i class="ti ti-lock-open"></i><span class="t"> Разблокировать</span></button>`
+            : `<button class="cab-filter-btn" style="color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)" title="Заблокировать"><i class="ti ti-lock"></i><span class="t"> Заблокировать</span></button>`}
         </div>
       </div>
     </div>`;
