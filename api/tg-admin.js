@@ -231,6 +231,7 @@ module.exports = async (req, res) => {
     if (!TOKEN() || req.headers['x-telegram-bot-api-secret-token'] !== SECRET()) return res.status(200).send('ok');
     const upd = req.body || {};
     const from = (upd.message && upd.message.from) || (upd.callback_query && upd.callback_query.from) || {};
+    console.log('tg-from', from.id, from.username || '', from.id === ADMIN_TG_ID ? 'admin' : 'ignored');  // журнал обращений (видно в логах Vercel)
     if (!ADMIN_TG_ID || from.id !== ADMIN_TG_ID) return res.status(200).send('ok');   // чужим — молчим
     if (upd.callback_query) {
       await tg('answerCallbackQuery', { callback_query_id: upd.callback_query.id });
