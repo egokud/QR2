@@ -224,7 +224,7 @@ async function sendGreeting(chat, u) {
 
 async function fromAdminDM(m) {
   const text = typeof m.text === 'string' ? m.text : null;
-  if (text && /^\/start\b/.test(text)) { await sendGreeting(m.chat.id, m.from); return say(ADMIN_TG_ID, ADMIN_HELP); }
+  if (text && /^\/start\b/.test(text)) return sendGreeting(m.chat.id, m.from);   // в личке — только приветствие, как у клиента; памятка — по /help
   if (text && /^\/help\b/.test(text)) return say(ADMIN_TG_ID, ADMIN_HELP);
   if (text && /^\/test\b/.test(text)) return fromClient(m, m.from, text.replace(/^\/test\s*/, '') || 'Проверка связи');
   const r = m.reply_to_message;
