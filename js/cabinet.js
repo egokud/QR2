@@ -2329,7 +2329,7 @@ const PIKSTA_TARIFFS = {
     ['Новинки первыми, поддержка', ['pro']]
   ],
   founderDiscountPct: 30,  // цена первых клиентов (участники пилота, userProfile.founder) — пока подписка без перерыва
-  trialDays: 90,           // сейчас в app.js 90; по плану для новых после пилота — 30
+  trialDays: 30,           // тест для новых; участникам пилота (founder) — 90. Источник истины — PK_TRIAL_DAYS в init.js и правила Firestore
   tg: 'ekudinof',
   email: 'egokud@gmail.com'
 };
@@ -2480,6 +2480,14 @@ function cabToDate(v) {
   return isNaN(d) ? null : d;
 }
 
+// Список пользователей: поиск по e-mail/имени, фильтры, выбор галочками, письмо выбранным
+let cabAdminUsers = [], cabAdminQ = '', cabAdminF = 'all';
+const cabAdminSel = new Set();
+const CAB_ADMIN_FILTERS = [
+  ['all', 'Все'], ['trial', 'Пробный'], ['sub', 'Подписка'], ['soon', 'Скоро конец (≤7 дн.)'],
+  ['grace', '5 дней на оплату'], ['readonly', 'Только просмотр'], ['unpaid', 'Не оплатили'], ['blocked', 'Заблокированы'], ['pilot', 'Пилот']
+];
+
 async function cabLoadAdminUsers(box) {
   if (!box) return;
   try {
@@ -2489,70 +2497,179 @@ async function cabLoadAdminUsers(box) {
       docs = snap.docs;
     } catch (e) { docs = await fsList('users'); }
     const users = docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'admin');
-    const now = new Date();
-    const rows = [];
-    let active = 0, trial = 0, blocked = 0;
-    for (const u of users) {
-      const created = cabToDate(u.created) || now;
-      const trialEnd = new Date(created.getTime() + 90 * 24 * 60 * 60 * 1000);
-      const subEnd = u.subscription ? cabToDate(u.subscription.endDate) : null;
-      const accessEnd = subEnd || trialEnd; // подписка заменяет тест (как pkAccess и правила)
-      const daysLeft = Math.ceil((accessEnd - now) / (24 * 60 * 60 * 1000));
-      const isBlocked = !!u.blocked;
-      if (isBlocked) blocked++;
-      else if (subEnd && subEnd > now) active++;
-      else if (daysLeft > 0) trial++;
-      let shipCount = '—';
-      try { const ss = await db.collection('users').doc(u.id).collection('shipments').get(); shipCount = ss.size; } catch (e) {}
-      const st = isBlocked ? ['Заблокирован', '#b91c1c', '#fde8e8']
-        : daysLeft <= 0 ? ['Доступ истёк', '#b91c1c', '#fde8e8']
-        : subEnd && subEnd > now ? ['Подписка', '#15803d', '#dcfce7'] : ['Пробный', '#92400e', '#fef3c7'];
-      const safeName = String(u.name || u.email || '').replace(/['"<>]/g, '');
-      const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" class="cab-usel">
-          <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-      const fnd = `<label class="cab-uopt" title="Цена первых клиентов: −${PIKSTA_TARIFFS.founderDiscountPct}% (участник пилота)"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked)"> Пилот −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
-      const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индивидуальный тариф</label>`;
-      const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
-      rows.push(`<div class="cab-ucard${isBlocked || daysLeft <= 0 ? ' off' : ''}">
-        <div class="cab-urow">
-          <div class="cab-uwho"><span class="cab-uav">${ini}</span><div style="min-width:0"><div class="cab-uname">${u.name || '—'}</div><div class="cab-umail">${u.email || u.id}</div></div></div>
-          <div class="cab-umeta"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
-          <div class="cab-umeta"><span>Закупок</span><b>${shipCount}</b></div>
-          <div class="cab-umeta"><span>Доступ до</span><b>${accessEnd.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em></b></div>
-          <span class="cab-upill" style="color:${st[1]};background:${st[2]}">${st[0]}</span>
-        </div>
-        <div class="cab-urow cab-urow2">
-          ${ctry}${fnd}${ind}
-          <div class="cab-uact">
-            <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}','${safeName}')"><i class="ti ti-calendar-plus"></i> Продлить</button>
-            ${isBlocked
-              ? `<button class="cab-filter-btn" onclick="cabAdminBlock('${u.id}',false)"><i class="ti ti-lock-open"></i> Разблокировать</button>`
-              : `<button class="cab-filter-btn" style="color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)"><i class="ti ti-lock"></i> Заблокировать</button>`}
-          </div>
-        </div>
-      </div>`);
-    }
+    await Promise.all(users.map(async u => {
+      u._acc = pkAccess(u);
+      u._ships = '—';
+      try { u._ships = (await db.collection('users').doc(u.id).collection('shipments').get()).size; } catch (e) {}
+    }));
+    users.sort((a, b) => (cabToDate(b.created) || 0) - (cabToDate(a.created) || 0));
+    cabAdminUsers = users;
+    for (const id of [...cabAdminSel]) if (!users.some(u => u.id === id)) cabAdminSel.delete(id);
+    const K = k => users.filter(u => u._acc.kind === k).length;
     box.innerHTML = `
       <div class="cab-table-wrap">
         <div class="cab-table-title"><i class="ti ti-shield-lock" style="margin-right:6px"></i>Пользователи Piksta</div>
         <div class="cab-ustats">
           <div class="cab-stat-card"><div class="cab-stat-val">${users.length}</div><div class="cab-stat-label">Всего пользователей</div></div>
-          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#16a34a">${active}</div><div class="cab-stat-label">С подпиской</div></div>
-          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#f59e0b">${trial}</div><div class="cab-stat-label">На пробном</div></div>
-          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#dc2626">${blocked}</div><div class="cab-stat-label">Заблокировано</div></div>
+          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#16a34a">${K('sub')}</div><div class="cab-stat-label">С подпиской</div></div>
+          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#f59e0b">${K('trial')}</div><div class="cab-stat-label">На пробном</div></div>
+          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#dc2626">${K('grace') + K('readonly')}</div><div class="cab-stat-label">Не оплатили</div></div>
+          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6b7280">${K('blocked')}</div><div class="cab-stat-label">Заблокировано</div></div>
         </div>
-        <div class="cab-users">${rows.join('') || '<div class="cab-stub-text" style="text-align:center;padding:20px">Пользователей нет</div>'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 8px">
+          <div style="position:relative;flex:1;min-width:220px;max-width:380px">
+            <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af"></i>
+            <input id="cabAdminQ" type="search" placeholder="Поиск по e-mail или имени" value="${cabEsc(cabAdminQ)}" oninput="cabAdminQ=this.value;cabAdminRenderList()"
+              style="width:100%;box-sizing:border-box;padding:8px 10px 8px 32px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px">
+          </div>
+          <div id="cabAdminChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        </div>
+        <div id="cabAdminBar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0 12px;font-size:13px;color:#4a5260"></div>
+        <div class="cab-users" id="cabUList"></div>
       </div>`;
+    cabAdminRenderList();
   } catch (e) {
     box.innerHTML = `<div class="cab-table-wrap"><div class="cab-stub-text">Не удалось загрузить пользователей: ${e.message}</div></div>`;
   }
+}
+
+function cabEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+function cabAdminMatch(u, f) {
+  const k = u._acc.kind, left = u._acc.left;
+  if (f === 'all') return true;
+  if (f === 'soon') return (k === 'trial' || k === 'sub') && left <= 7;
+  if (f === 'unpaid') return k === 'grace' || k === 'readonly';
+  if (f === 'pilot') return !!u.founder;
+  return k === f;
+}
+
+function cabAdminVisible() {
+  const q = cabAdminQ.trim().toLowerCase();
+  return cabAdminUsers.filter(u => cabAdminMatch(u, cabAdminF) && (!q || String(u.email || '').toLowerCase().includes(q) || String(u.name || '').toLowerCase().includes(q)));
+}
+
+function cabAdminSetFilter(f) { cabAdminF = f; cabAdminRenderList(); }
+function cabAdminToggle(id, on) { if (on) cabAdminSel.add(id); else cabAdminSel.delete(id); cabAdminRenderBar(); }
+function cabAdminSelectVisible(on) { for (const u of cabAdminVisible()) { if (on) cabAdminSel.add(u.id); else cabAdminSel.delete(u.id); } cabAdminRenderList(); }
+
+function cabAdminRenderBar() {
+  const bar = document.getElementById('cabAdminBar'); if (!bar) return;
+  const vis = cabAdminVisible(), n = cabAdminSel.size;
+  const allOn = vis.length > 0 && vis.every(u => cabAdminSel.has(u.id));
+  bar.innerHTML = `
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="cabAdminSelectVisible(this.checked)"> Выбрать всех найденных (${vis.length})</label>
+    <span style="margin-left:auto">${n ? `Выбрано: <b>${n}</b>` : 'Никто не выбран'}</span>
+    ${n ? `<button class="cab-filter-btn" onclick="cabAdminSel.clear();cabAdminRenderList()">Снять выбор</button>` : ''}
+    <button class="cab-filter-btn" ${n ? '' : 'disabled'} onclick="cabAdminCopyEmails()"><i class="ti ti-copy"></i> Скопировать адреса</button>
+    <button class="cab-filter-btn" ${n ? '' : 'disabled'} style="color:#fff;background:#6C4DB8;border-color:#6C4DB8" onclick="cabAdminMailOpen()"><i class="ti ti-mail"></i> Написать письмо</button>`;
+}
+
+function cabAdminRenderList() {
+  const list = document.getElementById('cabUList'); if (!list) return;
+  const chips = document.getElementById('cabAdminChips');
+  if (chips) chips.innerHTML = CAB_ADMIN_FILTERS.map(([k, t]) => {
+    const n = cabAdminUsers.filter(u => cabAdminMatch(u, k)).length;
+    return `<button class="cab-filter-btn${cabAdminF === k ? ' active' : ''}" onclick="cabAdminSetFilter('${k}')">${t} <span style="opacity:.6">${n}</span></button>`;
+  }).join('');
+  const now = new Date();
+  const rows = cabAdminVisible().map(u => {
+    const A = u._acc, created = cabToDate(u.created) || now;
+    const isBlocked = A.kind === 'blocked';
+    const end = A.end || null;
+    const daysLeft = end ? Math.ceil((end - now) / 864e5) : 0;
+    const st = {
+      blocked: ['Заблокирован', '#4a5260', '#f3f4f6'], readonly: ['Только просмотр', '#b91c1c', '#fde8e8'],
+      grace: [`5 дней на оплату · ещё ${A.left} дн.`, '#b91c1c', '#fde8e8'], sub: ['Подписка', '#15803d', '#dcfce7'],
+      trial: [u.founder ? 'Пробный · пилот' : 'Пробный', '#92400e', '#fef3c7']
+    }[A.kind] || ['—', '#4a5260', '#f3f4f6'];
+    const safeName = String(u.name || u.email || '').replace(/['"<>]/g, '');
+    const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" class="cab-usel">
+        <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+    const fnd = `<label class="cab-uopt" title="Участник пилота: пробный период 3 месяца вместо 30 дней и цена −${PIKSTA_TARIFFS.founderDiscountPct}%, пока подписка продлевается без перерыва"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked,true)"> Пилот: 3 мес. и −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
+    const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индивидуальный тариф</label>`;
+    const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
+    const endTxt = end ? `${end.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em>` : '—';
+    return `<div class="cab-ucard${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}">
+      <div class="cab-urow">
+        <input type="checkbox" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
+        <div class="cab-uwho"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0"><div class="cab-uname">${cabEsc(u.name || '—')}</div><div class="cab-umail">${cabEsc(u.email || u.id)}</div></div></div>
+        <div class="cab-umeta"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
+        <div class="cab-umeta"><span>Закупок</span><b>${u._ships}</b></div>
+        <div class="cab-umeta"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
+        <span class="cab-upill" style="color:${st[1]};background:${st[2]}">${st[0]}</span>
+      </div>
+      <div class="cab-urow cab-urow2">
+        ${ctry}${fnd}${ind}
+        <div class="cab-uact">
+          <button class="cab-filter-btn" onclick="cabAdminMailOpen('${u.id}')"><i class="ti ti-mail"></i> Письмо</button>
+          <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}','${safeName}')"><i class="ti ti-calendar-plus"></i> Продлить</button>
+          ${isBlocked
+            ? `<button class="cab-filter-btn" onclick="cabAdminBlock('${u.id}',false)"><i class="ti ti-lock-open"></i> Разблокировать</button>`
+            : `<button class="cab-filter-btn" style="color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)"><i class="ti ti-lock"></i> Заблокировать</button>`}
+        </div>
+      </div>
+    </div>`;
+  });
+  list.innerHTML = rows.join('') || '<div class="cab-stub-text" style="text-align:center;padding:20px">Никого не нашлось</div>';
+  cabAdminRenderBar();
+}
+
+function cabAdminEmails(ids) { return (ids || [...cabAdminSel]).map(id => (cabAdminUsers.find(u => u.id === id) || {}).email).filter(Boolean); }
+
+async function cabAdminCopyEmails() {
+  const list = cabAdminEmails().join(', ');
+  try { await navigator.clipboard.writeText(list); showToast('Скопировано адресов: ' + cabAdminEmails().length); }
+  catch (e) { prompt('Скопируйте адреса:', list); }
+}
+
+// Письмо: открывается окно Gmail (вошли как администратор), адресаты — в скрытой копии, друг друга не видят
+function cabAdminMailOpen(oneId) {
+  const ids = oneId ? [oneId] : [...cabAdminSel];
+  const emails = cabAdminEmails(ids);
+  if (!emails.length) return;
+  window.__cabMailIds = ids;
+  const who = emails.length === 1 ? cabEsc(emails[0]) : `${emails.length} получателей (скрытая копия — друг друга не видят)`;
+  const ov = document.createElement('div');
+  ov.id = 'cabMailOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;width:100%;max-width:560px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">Письмо</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:12px">Кому: ${who}</div>
+    <input id="cabMailSubj" placeholder="Тема" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:8px">
+    <textarea id="cabMailBody" rows="8" placeholder="Текст письма. {имя} заменится на имя, если письмо одному человеку" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit"></textarea>
+    <div style="font-size:12px;color:#6b7280;margin:8px 0 14px">Откроется Gmail с готовым письмом — проверьте и нажмите «Отправить» там.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="cab-filter-btn" onclick="document.getElementById('cabMailOv').remove()">Отмена</button>
+      <button class="cab-filter-btn" style="color:#fff;background:#6C4DB8;border-color:#6C4DB8" onclick="cabAdminMailGo()"><i class="ti ti-brand-gmail"></i> Открыть в Gmail</button>
+    </div></div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  document.getElementById('cabMailSubj').focus();
+}
+
+function cabAdminMailGo() {
+  const ids = window.__cabMailIds || [];
+  const emails = cabAdminEmails(ids);
+  const one = ids.length === 1 ? cabAdminUsers.find(u => u.id === ids[0]) : null;
+  const subj = document.getElementById('cabMailSubj').value.trim();
+  const body = document.getElementById('cabMailBody').value.replace(/\{имя\}/g, one ? (one.name || '') : '').trim();
+  const E = encodeURIComponent;
+  const base = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + E(subj) + '&body=' + E(body);
+  let url = base + (emails.length === 1 ? '&to=' + E(emails[0]) : '&bcc=' + E(emails.join(',')));
+  if (url.length > 7500) { cabAdminCopyEmails(); alert('Адресов слишком много для одной ссылки. Адреса скопированы — вставьте их в «Скрытую копию» в Gmail.'); url = base; }
+  window.open(url, '_blank');
+  document.getElementById('cabMailOv').remove();
 }
 
 async function cabAdminSub(uid, name) {
   const months = prompt('Подписка для ' + name + '\nКоличество месяцев (1, 2, 3, 6, 12):');
   if (!months || isNaN(months) || parseInt(months) <= 0) return;
   const m = parseInt(months);
-  const endDate = new Date();
+  // Продление идёт от текущей даты окончания подписки, если она ещё не наступила (оплатил заранее — дни не теряются)
+  const u = cabAdminUsers.find(x => x.id === uid) || {};
+  const curEnd = u.subscription ? cabToDate(u.subscription.endDate) : null;
+  const endDate = curEnd && curEnd > new Date() ? new Date(curEnd) : new Date();
   endDate.setMonth(endDate.getMonth() + m);
   if (!confirm('Активировать подписку до ' + endDate.toLocaleDateString('ru') + '?')) return;
   try {
@@ -2564,9 +2681,12 @@ async function cabAdminSub(uid, name) {
 }
 
 // Поле профиля пользователя из админки (страна, «первый клиент»). null — убрать поле
-async function cabAdminSetField(uid, field, value) {
+async function cabAdminSetField(uid, field, value, rerender) {
   try {
     await db.collection('users').doc(uid).update({ [field]: value === null ? firebase.firestore.FieldValue.delete() : value });
+    const u = cabAdminUsers.find(x => x.id === uid);
+    if (u) { if (value === null) delete u[field]; else u[field] = value; u._acc = pkAccess(u); }
+    if (rerender) cabAdminRenderList();
   } catch (e) { alert('Ошибка: ' + e.message); cabNav(cabCurrentSection); }
 }
 

@@ -49,10 +49,11 @@ let activeCameraId = null;
 
 
 // ============ ДОСТУП: подписка / тест / 5 дней льготы / только чтение ============
-// Должно совпадать с правилами Firestore (canWrite): тест 90 дн. с регистрации — только пока подписки не было;
+// Должно совпадать с правилами Firestore (canWrite): тест 30 дн. с регистрации (участникам пилота — 90 дн.,
+// галочка «Пилот» в админке) — только пока подписки не было;
 // как только подписка выдана, действует только её срок (остаток теста сгорает). После окончания —
 // ещё 5 календарных дней всё работает, затем только просмотр. Заблокирован — сразу только просмотр.
-const PK_TRIAL_DAYS = 90, PK_GRACE_DAYS = 5;
+const PK_TRIAL_DAYS = 30, PK_PILOT_TRIAL_DAYS = 90, PK_GRACE_DAYS = 5;
 function pkToDate(v) {
   if (!v) return null;
   if (v.toDate) return v.toDate();
@@ -64,7 +65,7 @@ function pkAccess(p) {
   const now = new Date(), DAY = 864e5;
   if (p.role === 'admin') return { kind: 'admin' };
   if (p.blocked) return { kind: 'blocked' };
-  const trialEnd = new Date((pkToDate(p.created) || now).getTime() + PK_TRIAL_DAYS * DAY);
+  const trialEnd = new Date((pkToDate(p.created) || now).getTime() + (p.founder ? PK_PILOT_TRIAL_DAYS : PK_TRIAL_DAYS) * DAY);
   const subEnd = p.subscription ? pkToDate(p.subscription.endDate) : null;
   const from = subEnd ? 'sub' : 'trial';
   const end = from === 'sub' ? subEnd : trialEnd;

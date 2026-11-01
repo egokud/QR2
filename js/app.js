@@ -1967,7 +1967,7 @@ async function renderAdminPanel() {
       userCount++;
       const blocked=u.blocked||false;
       const created=u.created?.toDate?u.created.toDate():new Date(u.created||Date.now());
-      const trialEnd=new Date(created.getTime()+90*24*60*60*1000);
+      const trialEnd=pkAccess(u).end||created;
       const daysLeft=Math.max(0,Math.ceil((trialEnd-new Date())/(24*60*60*1000)));
       const trialText=isAdmin?'∞':'тест '+daysLeft+' дн.';
 
@@ -2144,8 +2144,9 @@ function openProfile() {
   if (userProfile.role === 'admin') {
     document.getElementById('profileTrialRow').style.display = 'none';
   } else {
-    const trialEnd = new Date(created.getTime() + 90*24*60*60*1000);
-    document.getElementById('profileTrial').textContent = trialEnd.toLocaleDateString('ru');
+    const A = pkAccess(userProfile);
+    document.getElementById('profileTrial').textContent = A.end ? A.end.toLocaleDateString('ru') : '—';
+    const lbl = document.querySelector('#profileTrialRow span'); if (lbl) lbl.textContent = A.from === 'sub' ? 'Подписка до' : 'Тестовый период до';
   }
   document.getElementById('nameMsg').style.display = 'none';
   document.getElementById('passMsg').style.display = 'none';
