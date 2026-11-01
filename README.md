@@ -68,3 +68,6 @@ function doGet(e) {
 2. Зайди на vercel.com → **New Project**
 3. Выбери репозиторий → **Deploy**
 4. Готово! Открывай ссылку на телефоне
+
+## Резервные копии
+Ежедневно в 03:30 по Минску `api/backup.js` (Vercel Cron) кладёт снимок базы в приватный репозиторий `egokud/piksta-backup`. Ручной запуск: `/api/backup?run=1`.
