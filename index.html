@@ -651,9 +651,9 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
     <script>
     // Цены тарифов по странам (утверждено 01.11.2026): месяц / год. Страну даёт /api/geo, выбор валюты запоминается.
     (function () {
-      var P = { RUB: { s: '₽', start: [590, 5400], main: [990, 9000], pro: [1690, 15480] },
+      var P = { RUB: { s: '₽', start: [590, 5990], main: [990, 9000], pro: [1690, 15480] },
                 BYN: { s: 'BYN', start: [15, 155], main: [25, 230], pro: [45, 400] },
-                KZT: { s: '₸', start: [2490, 22680], main: [4190, 38280], pro: [6990, 63480] } };
+                KZT: { s: '₸', start: [2490, 25390], main: [4190, 38280], pro: [6990, 63480] } };
       var BY = { BY: 'BYN', RU: 'RUB', KZ: 'KZT' };
       var f = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0'); };
       function show(c) {
