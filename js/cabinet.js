@@ -2496,7 +2496,7 @@ async function cabLoadAdminUsers(box) {
       const created = cabToDate(u.created) || now;
       const trialEnd = new Date(created.getTime() + 90 * 24 * 60 * 60 * 1000);
       const subEnd = u.subscription ? cabToDate(u.subscription.endDate) : null;
-      const accessEnd = subEnd && subEnd > trialEnd ? subEnd : trialEnd;
+      const accessEnd = subEnd || trialEnd; // подписка заменяет тест (как pkAccess и правила)
       const daysLeft = Math.ceil((accessEnd - now) / (24 * 60 * 60 * 1000));
       const isBlocked = !!u.blocked;
       if (isBlocked) blocked++;
