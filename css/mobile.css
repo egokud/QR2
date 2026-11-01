@@ -185,3 +185,8 @@ body:not(.pk-m) .pk-tabs,body:not(.pk-m) .pk-top,body:not(.pk-m) .pk-pane{displa
 /* кнопка «Мобильная» в узком Кабинете */
 .pk-back-m{display:none!important}
 @media(max-width:640px){#cabinetScreen .pk-back-m{display:inline-flex!important;align-items:center;gap:5px;background:#f1edfb;color:#5b3fb0;font-weight:600;border-radius:10px}}
+/* Сканер — круглая кнопка по центру нижней панели (01.11) */
+.pk-tabs button.pk-c{color:var(--pk-acc)}
+.pk-tabs button.pk-c i{width:56px;height:56px;border-radius:28px;margin-top:-24px;background:var(--pk-acc);color:#fff;font-size:28px;box-shadow:0 6px 16px rgba(108,77,184,.35);border:4px solid var(--pk-card)}
+.pk-tabs button.pk-c.on i{background:var(--pk-acc);color:#fff}
+.pk-menu button small{white-space:normal}
