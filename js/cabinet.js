@@ -2331,7 +2331,7 @@ const PIKSTA_TARIFFS = {
   founderDiscountPct: 30,  // цена первых клиентов (участники пилота, userProfile.founder) — пока подписка без перерыва
   trialDays: 30,           // тест для новых; участникам пилота (founder) — 90. Источник истины — PK_TRIAL_DAYS в init.js и правила Firestore
   tg: 'ekudinof',
-  email: 'egokud@gmail.com'
+  email: 'support@piksta.online'
 };
 const PIKSTA_COUNTRIES = { BY: 'Беларусь', RU: 'Россия', KZ: 'Казахстан' };
 let cabTariffPeriod = PIKSTA_TARIFFS.defaultPeriod;
