@@ -11,7 +11,7 @@ const crypto = require('crypto');
 
 const ADMIN_TG_ID = 147491542;                          // Егор
 const HOOK_URL = 'https://www.piksta.online/api/tg-support';
-const WELCOME_IMG = 'https://www.piksta.online/icons/icon-512x512.png';   // логотип Piksta
+const WELCOME_IMG = 'https://www.piksta.online/icons/support-welcome.jpg';   // баннер: логотип + Piksta + «Поможем в любой ситуации»
 const BOT_EMAIL = 'bot@piksta.online';
 const FB_KEY = 'AIzaSyASHE3yqM0wOC3QHVbL4UVSHVq2rEzA5ss';   // публичный ключ веб-приложения (тот же, что в init.js)
 const FS = 'https://firestore.googleapis.com/v1/projects/parcel-scanner-90427/databases/(default)/documents';
