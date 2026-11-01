@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>О сервисе Piksta — кто мы и как связаться</title>
+<meta name="description" content="Piksta — облачный сервис для организаторов совместных покупок из Китая: импорт заказов, сканирование посылок по трек-кодам, расчёт с клиентами. Кто стоит за сервисом и как с нами связаться.">
+<meta name="theme-color" content="#6C4DB8">
+<link rel="icon" type="image/x-icon" href="/favicon.ico?v=5">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#17142a;background:#fbfaf7;line-height:1.6}
+a{color:#6C4DB8}
+.wrap{max-width:820px;margin:0 auto;padding:20px 16px 56px}
+.top{display:flex;align-items:center;gap:10px;text-decoration:none;color:#17142a;font-family:Unbounded,sans-serif;font-weight:800;font-size:20px}
+.top img{width:36px;height:36px;border-radius:9px}
+h1{font-family:Unbounded,sans-serif;font-weight:800;font-size:clamp(26px,5vw,38px);line-height:1.15;margin:28px 0 12px}
+h2{font-size:19px;margin:0 0 10px}
+.lead{font-size:17px;color:#4b4760;max-width:680px;margin:0 0 24px}
+.card{background:#fff;border:1px solid #ebe7f3;border-radius:20px;padding:22px;margin:0 0 16px}
+dl{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:8px 16px;margin:0}
+dt{color:#6b6780}
+dd{margin:0;font-weight:600;min-width:0;overflow-wrap:anywhere}
+ul{margin:0;padding-left:20px}
+li{margin:4px 0}
+.foot{margin-top:28px;font-size:14px;color:#6b6780;display:flex;flex-wrap:wrap;gap:8px 18px}
+.foot a{color:#4b4760}
+@media (max-width:520px){dl{grid-template-columns:1fr;gap:2px}dd{margin-bottom:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="top" href="/"><img src="/icons/icon-192x192.png" alt="">Piksta</a>
+  <h1>О сервисе</h1>
+  <p class="lead">Piksta — облачный сервис для организаторов совместных покупок из Китая. Заказы с Pinduoduo попадают в закупку одной кнопкой, посылки на складе сканируются телефоном по трек-коду, а сервис сам считает, кому что выдать и сколько с кого получить.</p>
+
+  <div class="card">
+    <h2>Кто стоит за сервисом</h2>
+    <dl>
+      <dt>Исполнитель</dt><dd>Индивидуальный предприниматель Кудинов Егор Александрович</dd>
+      <dt>УНП</dt><dd>291221398</dd>
+      <dt>Страна</dt><dd>Республика Беларусь</dd>
+      <dt>Сервис работает с</dt><dd>2026 года</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>Как с нами связаться</h2>
+    <dl>
+      <dt>Почта</dt><dd><a href="mailto:support@piksta.online">support@piksta.online</a></dd>
+      <dt>Telegram</dt><dd><a href="https://t.me/piksta_support_bot">@piksta_support_bot</a> — поддержка</dd>
+      <dt>Сайт</dt><dd><a href="https://www.piksta.online/">piksta.online</a></dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>Как мы работаем</h2>
+    <ul>
+      <li>Доступ к сервису — по подписке, условия и цены в <a href="/offer">публичной оферте</a>. Новым пользователям — бесплатный пробный период.</li>
+      <li>Ваши закупки и клиенты хранятся в облаке Google Firebase; каждую ночь делаем резервную копию.</li>
+      <li>Данные клиентов не передаём третьим лицам — подробно в <a href="/privacy">политике конфиденциальности</a>.</li>
+      <li>Импорт заказов — через <a href="/extension">расширение Piksta для Chrome</a>, оно читает только ваши заказы и ничего не покупает за вас.</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <a href="/offer">Публичная оферта</a><a href="/privacy">Политика конфиденциальности</a><a href="/terms">Пользовательское соглашение</a><a href="/extension">Расширение для Chrome</a>
+  </div>
+</div>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Organization","name":"Piksta","url":"https://www.piksta.online/","logo":"https://www.piksta.online/icons/icon-192x192.png","email":"support@piksta.online","sameAs":["https://t.me/piksta_support_bot"],"address":{"@type":"PostalAddress","addressCountry":"BY"},"taxID":"291221398","founder":{"@type":"Person","name":"Кудинов Егор Александрович"},"contactPoint":{"@type":"ContactPoint","contactType":"customer support","email":"support@piksta.online","availableLanguage":["ru"]}}
+</script>
+</body>
+</html>
