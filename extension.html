@@ -26,7 +26,20 @@ h1{font-family:Unbounded,sans-serif;font-weight:800;font-size:clamp(26px,5vw,40p
 .btn i{font-size:20px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .muted{color:#6b6780;font-size:14px}
-.addr{font-family:Unbounded,sans-serif;font-weight:700;font-size:clamp(20px,6vw,28px);color:#6C4DB8;word-break:break-all;margin:6px 0 4px}
+.addr{font-family:Unbounded,sans-serif;font-weight:700;font-size:clamp(19px,5.6vw,28px);color:#6C4DB8;margin:6px 0 4px;line-height:1.25}
+.phone-only .row{flex-direction:column;align-items:stretch}
+.phone-only .row .btn{width:100%;justify-content:flex-start}
+.bar{display:flex;align-items:center;gap:10px}
+.back{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px 0 10px;border-radius:12px;border:1px solid #e2dcf3;background:#fff;color:#6C4DB8;font:inherit;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none}
+.back i{font-size:20px}
+.pdfv{display:none}
+body.pdf-on .wrap{display:none}
+body.pdf-on .pdfv{display:block}
+.pdfv .bar{position:sticky;top:0;z-index:5;background:#fbfaf7;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid #ebe7f3}
+.pdfv .bar b{font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdfv .pages{max-width:900px;margin:0 auto;padding:12px 10px 40px;display:flex;flex-direction:column;gap:10px}
+.pdfv canvas{width:100%;height:auto;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(23,20,42,.12)}
+.pdfv .ld{text-align:center;color:#6b6780;padding:40px 0}
 .warn{background:#fff7ed;border-color:#fed7aa}
 .steps{margin:6px 0 0;padding-left:22px;font-size:16px}
 .steps li{margin:6px 0}
@@ -38,7 +51,7 @@ code{background:#f3f1f8;border-radius:6px;padding:1px 6px;font-size:15px}
 </head>
 <body>
 <div class="wrap">
-  <a class="top" href="/"><img src="/icons/icon-192x192.png" alt="">Piksta</a>
+  <div class="bar"><a class="back" href="/app" onclick="return goBack()"><i class="ti ti-chevron-left"></i>Назад</a><a class="top" href="/app"><img src="/icons/icon-192x192.png" alt="">Piksta</a></div>
   <h1>Расширение Piksta для Chrome</h1>
   <p class="lead">Небольшая программа-помощник для браузера Chrome. Забирает ваши заказы с Pinduoduo — треки, фото и цены — и одной кнопкой создаёт закупку в Piksta. Бесплатно, для всех тарифов.</p>
 
@@ -46,10 +59,10 @@ code{background:#f3f1f8;border-radius:6px;padding:1px 6px;font-size:15px}
   <div class="card warn phone-only">
     <b style="font-size:17px">Расширение ставится только на компьютер, в браузер Chrome.</b>
     <div class="muted" style="margin-top:6px">Откройте на компьютере адрес:</div>
-    <div class="addr">piksta.online/extension</div>
+    <div class="addr">piksta.online<wbr>/extension</div>
     <div class="row" style="margin-top:14px">
-      <a class="btn" href="/docs/piksta-import.pdf" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Открыть инструкцию (PDF)</a>
-      <a class="btn ghost" id="mailLink"><i class="ti ti-mail"></i>Отправить ссылку себе на почту</a>
+      <a class="btn" href="#pdf"><i class="ti ti-file-type-pdf"></i>Открыть инструкцию (PDF)</a>
+      <a class="btn ghost" id="mailLink"><i class="ti ti-mail"></i>Отправить себе на почту</a>
       <a class="btn ghost" id="tgLink" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i>Отправить в Telegram</a>
       <button class="btn ghost" type="button" onclick="copyLink(this)"><i class="ti ti-copy"></i>Скопировать ссылку</button>
     </div>
@@ -76,7 +89,7 @@ code{background:#f3f1f8;border-radius:6px;padding:1px 6px;font-size:15px}
       <li>Закрепите значок: пазл справа от адресной строки → булавка рядом с Piksta.</li>
     </ol>
     <div class="row" style="margin-top:16px">
-      <a class="btn ghost" href="/docs/piksta-import.pdf" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Инструкция с картинками (PDF)</a>
+      <a class="btn ghost" href="#pdf"><i class="ti ti-file-type-pdf"></i>Инструкция с картинками (PDF)</a>
     </div>
   </div>
 
@@ -86,7 +99,46 @@ code{background:#f3f1f8;border-radius:6px;padding:1px 6px;font-size:15px}
 
   <div class="foot">Не получилось? Напишите в поддержку: Telegram <a href="https://t.me/piksta_support_bot">@piksta_support_bot</a> или <a href="mailto:support@piksta.online">support@piksta.online</a>.</div>
 </div>
+<div class="pdfv" id="pdfv">
+  <div class="bar"><a class="back" href="#" onclick="return closePdf()"><i class="ti ti-chevron-left"></i>Назад</a><b>Инструкция: расширение Piksta</b><a class="back" href="/docs/piksta-import.pdf" download aria-label="Скачать PDF"><i class="ti ti-download"></i></a></div>
+  <div class="pages" id="pdfPages"><div class="ld">Загружаю инструкцию…</div></div>
+</div>
 <script>
+// Навигация: «Назад» — туда, откуда пришли (обычно приложение); если истории нет (открыли ярлыком/ссылкой) — в приложение.
+function goBack(){ if (history.length > 1 && document.referrer && document.referrer.indexOf(location.host) > -1) { history.back(); return false; } location.href = '/app'; return false; }
+// Инструкция PDF открывается здесь же (#pdf), со своей кнопкой «Назад» — в приложении с ярлыка на iPhone иначе из PDF не выйти.
+var pdfDone = false;
+function closePdf(){ if (history.length > 1) history.back(); else location.hash = ''; return false; }
+function route(){
+  var on = location.hash === '#pdf';
+  document.body.classList.toggle('pdf-on', on);
+  window.scrollTo(0, 0);
+  if (on && !pdfDone) { pdfDone = true; renderPdf(); }
+}
+function renderPdf(){
+  var box = document.getElementById('pdfPages');
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  s.onload = function(){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    pdfjsLib.getDocument('/docs/piksta-import.pdf').promise.then(function(pdf){
+      box.innerHTML = '';
+      var w = Math.min(box.clientWidth || window.innerWidth, 900), dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var chain = Promise.resolve();
+      for (var i = 1; i <= pdf.numPages; i++) (function(n){
+        chain = chain.then(function(){ return pdf.getPage(n).then(function(pg){
+          var v0 = pg.getViewport({ scale: 1 }), sc = w / v0.width * dpr, vp = pg.getViewport({ scale: sc });
+          var c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height; box.appendChild(c);
+          return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        }); });
+      })(i);
+    }).catch(function(){ box.innerHTML = '<div class="ld">Не удалось открыть. <a href="/docs/piksta-import.pdf">Открыть файл PDF</a></div>'; });
+  };
+  s.onerror = function(){ location.href = '/docs/piksta-import.pdf'; };
+  document.head.appendChild(s);
+}
+window.addEventListener('hashchange', route);
+route();
 (function(){
   var phone=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
   document.body.classList.add(phone?'phone':'pc');
