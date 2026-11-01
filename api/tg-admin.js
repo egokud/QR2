@@ -100,36 +100,50 @@ function access(u) {
 const d = x => x ? x.toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk' }) : '—';
 const STATUS = { trial: 'Пробный', sub: 'Подписка', grace: '5 дней на оплату', readonly: 'Только просмотр', blocked: 'Заблокирован' };
 
+// Кнопки карточки: тариф (выбранный отмечен), срок +1 / +12 мес, «Подарок» переключает режим продления (02.11.2026)
+const curPlan = u => (u.subscription && PLANS[u.subscription.plan]) ? u.subscription.plan : 'main';
+function cardKb(u, plan, gift) {
+  plan = PLANS[plan] ? plan : curPlan(u); gift = gift ? 1 : 0;
+  return [
+    Object.keys(PLANS).map(k => ({ text: (k === plan ? '● ' : '') + PLANS[k], callback_data: `k:${u.id}:${k}:${gift}` })),
+    [1, 12].map(n => ({ text: `${gift ? '🎁 ' : ''}+${n} мес`, callback_data: `e:${u.id}:${n}:${plan}:${gift}` }))
+      .concat([{ text: gift ? 'Оплата' : '🎁 Подарок', callback_data: `k:${u.id}:${plan}:${gift ? 0 : 1}` }]),
+    [{ text: u.founder ? 'Пилот: снять' : 'Пилот: включить', callback_data: `p:${u.id}:${u.founder ? 0 : 1}` },
+     u.blocked ? { text: 'Разблокировать', callback_data: `u:${u.id}` } : { text: 'Заблокировать', callback_data: `b:${u.id}` }]
+  ];
+}
 function card(u) {
   const A = access(u);
   const stats = Array.isArray(u.shipmentStats) ? u.shipmentStats : [];
   const items = stats.reduce((n, s) => n + (Number(s && s.count) || 0), 0);
-  let st = STATUS[A.kind] + (A.kind === 'trial' && u.founder ? ' · пилот' : '');
+  let st = STATUS[A.kind] + (A.from === 'sub' ? ` «${PLANS[curPlan(u)]}»` : '') + (u.founder ? ' · пилот' : '');
   if (A.kind === 'grace') st += ` · ещё ${A.left} дн.`;
+  const us = u.usage || {};
+  const useLine = us.k ? `Треков с ${us.k.split('-').reverse().slice(0, 2).join('.')}: <b>${nf(us.n || 0)}</b>${us.lim ? ' из ' + nf(us.lim) : ''}` : '';
+  const h = Array.isArray(u.subscription && u.subscription.history) ? u.subscription.history.slice(-1)[0] : null;
   const lines = [
     `<b>${esc(u.email)}</b>${u.name ? ' · ' + esc(u.name) : ''}`,
     `Статус: <b>${st}</b>`,
     A.end ? `${A.from === 'sub' ? 'Подписка до' : 'Тест до'}: <b>${d(A.end)}</b>${A.kind === 'sub' || A.kind === 'trial' ? ` (${A.left} дн.)` : ''}` : '',
+    useLine,
     `Регистрация: ${d(u.created)}`,
-    `Закупок: ${stats.length} · позиций: ${items.toLocaleString('ru-RU')}`
+    `Закупок: ${stats.length} · позиций: ${items.toLocaleString('ru-RU')}`,
+    h ? `Последняя оплата: ${d(h.at)} · ${PLANS[h.plan] || ''}, ${h.months === 12 ? 'год' : 'месяц'} · ${h.gift || h.method === 'gift' ? 'подарок' : h.amount > 0 ? nf(h.amount) + ' ' + esc(h.cur) : 'продлено'}` : ''
   ].filter(Boolean);
-  const kb = [
-    [1, 3, 6, 12].map(n => ({ text: `+${n} мес`, callback_data: `e:${u.id}:${n}` })),
-    [{ text: u.founder ? 'Пилот: снять' : 'Пилот: включить', callback_data: `p:${u.id}:${u.founder ? 0 : 1}` },
-     u.blocked ? { text: 'Разблокировать', callback_data: `u:${u.id}` } : { text: 'Заблокировать', callback_data: `b:${u.id}` }]
-  ];
-  return [lines.join('\n'), kb];
+  return [lines.join('\n'), cardKb(u)];
 }
 
 // ---------- Действия ----------
-async function extend(u, months) {
+async function extend(u, months, plan, gift) {
+  plan = PLANS[plan] ? plan : curPlan(u); gift = !!gift;
   const prev = u.subscription || null;
   const now = new Date(), cur = prev && prev.endDate instanceof Date && prev.endDate > now ? prev.endDate : now;
   const end = new Date(cur); end.setMonth(end.getMonth() + months);
-  const next = Object.assign({}, prev || {}, { endDate: end, months, activatedAt: now, by: 'bot' });
+  const history = (prev && Array.isArray(prev.history) ? prev.history : []).concat([{ at: now, plan, period: months === 12 ? 'y' : 'm', months, amount: 0, cur: '', method: gift ? 'gift' : 'bot', gift, end, by: 'bot' }]).slice(-40);
+  const next = Object.assign({}, prev || {}, { endDate: end, months, activatedAt: now, by: 'bot', plan, history });
   await patchUser(u.id, { subscription: next });
   const logId = await log('extend', u, prev, next);
-  return send(`✅ ${esc(u.email)}: подписка продлена на ${months} мес. — до <b>${d(end)}</b>`, [[{ text: 'Отменить', callback_data: `z:${logId}` }]]);
+  return send(`✅ ${esc(u.email)}: «${PLANS[plan]}» на ${months} мес.${gift ? ' (подарок)' : ''} — до <b>${d(end)}</b>`, [[{ text: 'Отменить', callback_data: `z:${logId}` }]]);
 }
 async function setPilot(u, on) {
   await patchUser(u.id, { founder: on ? true : undefined });
@@ -213,7 +227,7 @@ async function payNo(u) {
 
 const HELP = `<b>Piksta Admin</b> — что я умею:
 • <code>nika@mail.ru</code> или часть адреса — карточка пользователя с кнопками
-• <code>продли nika@mail.ru 3</code> — продлить на 3 мес. (без числа — на 1)
+• <code>продли nika@mail.ru 12 основной</code> — продлить на 1 или 12 мес.; тариф: старт, основной, профи (без тарифа — текущий); добавьте <code>подарок</code>, если бесплатно
 • <code>блок nika@mail.ru</code> — заблокировать (спрошу подтверждение)
 • <code>разблок nika@mail.ru</code> — разблокировать
 • <code>неоплатили</code> — 5 дней на оплату и только просмотр
@@ -248,10 +262,12 @@ async function onText(text) {
   if (/^не\s*оплатили$/.test(low)) return list('unpaid');
   if (/^скоро$/.test(low)) return list('soon');
   let m;
-  if ((m = low.match(/^продли(?:ть)?\s+(\S+)(?:\s+(?:на\s+)?(\d{1,2}))?/))) {
-    const months = m[2] ? parseInt(m[2], 10) : 1;
-    if (!(months >= 1 && months <= 24)) return send('Срок — от 1 до 24 месяцев.');
-    return pick(email || m[1], u => extend(u, months));
+  if ((m = low.match(/^продли(?:ть)?\s+(\S+)(.*)$/))) {
+    const rest = m[2] || '', n = rest.match(/\b(\d{1,2})\b/), months = n ? parseInt(n[1], 10) : 1;
+    if (months !== 1 && months !== 12) return send('Срок — 1 или 12 месяцев.');
+    const plan = /старт/.test(rest) ? 'start' : /основн/.test(rest) ? 'main' : /профи/.test(rest) ? 'pro' : null;
+    const gift = /подар|промо/.test(rest);
+    return pick(email || m[1], u => extend(u, months, plan, gift));
   }
   if ((m = low.match(/^разблок\S*\s+(\S+)/))) return pick(email || m[1], u => setBlocked(u, false));
   if ((m = low.match(/^(?:за)?блок\S*\s+(\S+)/))) return pick(email || m[1], u => send(`Точно заблокировать <b>${esc(u.email)}</b>? Пользователь сможет только смотреть свои данные.`,
@@ -262,12 +278,16 @@ async function onText(text) {
 
 async function onCallback(data, msg) {
   if (data === 'x') return send('Отменено.');
-  const [op, a, b] = data.split(':');
+  const [op, a, b, c, g] = data.split(':');
   if (op === 'z') return undo(a);
   const u = await getUser(a);
   if ((u.role || 'user') !== 'user') return send('Этим аккаунтом бот не управляет.');
   if (op === 'c') { const [x, kb] = card(u); return send(x, kb); }
-  if (op === 'e') return extend(u, parseInt(b, 10));
+  if (op === 'e') return extend(u, parseInt(b, 10), c, g === '1');
+  if (op === 'k') {
+    if (msg && msg.message_id) return tg('editMessageReplyMarkup', { chat_id: ADMIN_TG_ID, message_id: msg.message_id, reply_markup: { inline_keyboard: cardKb(u, b, c === '1') } });
+    const [x] = card(u); return send(x, cardKb(u, b, c === '1'));
+  }
   if (op === 'p') return setPilot(u, b === '1');
   if (op === 'b') return send(`Точно заблокировать <b>${esc(u.email)}</b>? Пользователь сможет только смотреть свои данные.`,
     [[{ text: 'Да, заблокировать', callback_data: `by:${u.id}` }, { text: 'Отмена', callback_data: 'x' }]]);

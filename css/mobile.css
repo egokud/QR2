@@ -375,3 +375,19 @@ a.pk-btn{text-decoration:none}
 .pk-tf.sel .pk-tf-go{grid-template-rows:1fr;opacity:1;margin-top:8px}
 .pk-tf-go>.pk-btn{padding-top:0;padding-bottom:0;height:0;transition:height .25s ease}
 .pk-tf.sel .pk-tf-go>.pk-btn{height:46px}
+/* лимит треков (02.11.2026) */
+.pk-limc{display:flex;gap:10px;align-items:flex-start;border-radius:14px;padding:11px 12px;font-size:13.5px;line-height:1.42;margin-bottom:8px;cursor:pointer}
+.pk-limc i{font-size:20px;flex:none;margin-top:1px}
+.pk-limc.warn{background:var(--pk-warn-soft);color:var(--pk-warn)}
+.pk-limc.bad{background:var(--pk-bad-soft);color:var(--pk-bad)}
+.pk-limbar{height:6px;border-radius:3px;background:var(--pk-line);overflow:hidden;margin:-2px 0 12px}
+.pk-limbar span{display:block;height:100%;border-radius:3px}
+.pk-limbar.warn span,.pk-bar.warn span{background:#f59e0b}
+.pk-limbar.bad span,.pk-bar.bad span{background:var(--pk-bad)}
+.pk-scr .pk-limc{cursor:default}
+/* «Старт» на компьютере */
+.pk-pcband{display:flex;align-items:center;gap:10px;background:#6C4DB8;color:#fff;font-size:14px;line-height:1.4;padding:10px 16px;max-width:560px;margin:0 auto;border-radius:0 0 14px 14px;box-sizing:border-box}
+.pk-pcband i{font-size:20px;flex:none}
+.pk-pcband span{flex:1;min-width:0}
+.pk-pcband button{flex:none;border:0;background:#fff;color:#6C4DB8;font:inherit;font-weight:700;font-size:13.5px;border-radius:9px;padding:7px 14px;cursor:pointer}
+.pk-pcband button:focus-visible{outline:2px solid #fff;outline-offset:2px}

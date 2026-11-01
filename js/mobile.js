@@ -261,6 +261,7 @@ function pkRenderShips() {
   const chip = (k, l, c) => `<button type="button" class="${pkShipFilter === k ? 'on' : ''}" onclick="pkShipFilter='${k}';pkRender()">${c ? `<i class="d" style="background:${c}"></i>` : ''}${l}</button>`;
   document.getElementById('pkPane-ships').innerHTML = `
     <div class="pk-row"><h1 class="pk-h1">Закупки</h1><button class="pk-btn sm" onclick="pkNewShip()"><i class="ti ti-plus" aria-hidden="true"></i> Новая</button></div>
+    ${typeof pkLimitBanner === 'function' ? pkLimitBanner() : ''}
     <label class="pk-search"><i class="ti ti-search" aria-hidden="true"></i><input id="pkShipQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку по трек-коду" value="${pkEsc(pkShipQuery)}" oninput="pkShipQuery=this.value;pkShipSearch()"></label>
     <div id="pkShipRes"></div>
     <div class="pk-chips">${chip('all', 'Все ' + all.length)}${chip('forming', 'Собираются ' + cnt('forming'), '#4a90d9')}${chip('road', 'В дороге ' + cnt('road'), '#f5c518')}${chip('wh', 'На складе ' + cnt('wh'), '#3cb371')}${chip('done', 'Готовы ' + cnt('done'), '#8b7fd4')}</div>
@@ -583,6 +584,7 @@ const PK_MAN_KEY = 'pk_manual_draft';
 function pkManSaveDraft() { try { if (pkMan && pkMan.items.length) localStorage.setItem(PK_MAN_KEY, JSON.stringify(pkMan)); else localStorage.removeItem(PK_MAN_KEY); } catch (e) {} }
 function pkManDraft() { try { const d = JSON.parse(localStorage.getItem(PK_MAN_KEY) || 'null'); return d && d.items && d.items.length ? d : null; } catch (e) { return null; } }
 function pkNewManual() {
+  if (typeof pkLimitCheck === 'function' && !pkLimitCheck(1)) return;
   const dr = pkManDraft();
   const def = 'Отправка ' + new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
   pkSheet(`<h3>Новая закупка вручную</h3>
@@ -742,6 +744,7 @@ function pkManClose(keep) {
 }
 async function pkManSave() {
   if (!pkMan || !pkMan.items.length) return;
+  if (typeof pkLimitCheck === 'function' && !pkLimitCheck(pkMan.items.length)) return;
   const b = document.getElementById('pkManSave'); b.disabled = true; b.textContent = 'Сохраняю…';
   try {
     let rates = { ...DEFAULT_RATES };

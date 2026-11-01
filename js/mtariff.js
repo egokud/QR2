@@ -156,8 +156,9 @@ function pkTariffRender() {
     const tot = (userProfile && userProfile.founder) ? 90 : 30, pct = Math.max(4, Math.min(100, A.left / tot * 100));
     head = `<div class="pk-tfnow"><small>Сейчас</small><b>Пробный период · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}</b><div class="pk-bar"><span style="width:${pct}%"></span></div><small>Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}</small></div>`;
   } else if (A.kind === 'sub') {
-    const lim = PK_PLANS[plan].lim, pct = lim === Infinity ? 0 : Math.min(100, T.cur / lim * 100);
-    head = `<div class="pk-tfnow"><small>Ваш тариф</small><b>${PK_PLANS[plan].n} · до ${pkD(A.end)}</b>${lim === Infinity ? '' : `<div class="pk-bar"><span style="width:${Math.max(3, pct)}%"></span></div>`}<small>Треков в этом месяце: ${pkN(T.cur)}${lim === Infinity ? '' : ' из ' + pkN(lim)} · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}</small></div>`;
+    const U = pkUsage(), lim = U.lim, pct = lim === Infinity ? 0 : Math.min(100, U.n / lim * 100);
+    const per = `${U.P.start.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}–${U.P.last.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`;
+    head = `<div class="pk-tfnow"><small>Ваш тариф</small><b>${PK_PLANS[plan].n} · до ${pkD(A.end)}</b>${lim === Infinity ? '' : `<div class="pk-bar${U.state === 'ok' ? '' : ' ' + (U.state === 'warn' ? 'warn' : 'bad')}"><span style="width:${Math.max(3, pct)}%"></span></div>`}<small>Треков за ${per}: ${pkN(U.n)}${lim === Infinity ? '' : ' из ' + pkN(lim)} · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}</small></div>`;
   } else if (A.kind === 'grace') head = `<div class="pk-tfnow warn"><small>${A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился'} ${pkD(A.end)}</small><b>Ещё ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')} всё работает</b><small>Потом — только просмотр. Данные никуда не денутся.</small></div>`;
   else if (A.kind === 'readonly') head = `<div class="pk-tfnow bad"><small>Сейчас</small><b>Только просмотр</b><small>Оплатите тариф — и всё снова заработает. Данные сохранены.</small></div>`;
   else head = `<div class="pk-tfnow bad"><small>Сейчас</small><b>Доступ ограничен</b><small>Напишите в поддержку.</small></div>`;
@@ -169,9 +170,10 @@ function pkTariffRender() {
   pkScr('Тариф и оплата', `${head}
     <div class="pk-seg" role="tablist"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkTariffRender()">Помесячно</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkTariffRender()">За год · выгоднее</button></div>
     <div id="pkTfList" style="display:flex;flex-direction:column;gap:10px">${pkTfCards(cur, 'pkPayStart', rec, plan)}</div>
-    ${hist.length ? `<div class="pk-lbl" style="margin-top:4px">История оплат</div><div class="pk-list">${hist.map(h => `<div class="pk-hist"><span>${pkD(pkToDate(h.at))} · ${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}, ${h.period === 'y' ? 'год' : 'месяц'}</span><b>${pkN(h.amount)} ${pkEsc(h.cur)}</b></div>`).join('')}</div>` : ''}
+    ${hist.length ? `<div class="pk-lbl" style="margin-top:4px">История оплат</div><div class="pk-list">${hist.map(h => `<div class="pk-hist"><span>${pkD(pkToDate(h.at))} · ${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}, ${h.period === 'y' ? 'год' : 'месяц'}</span><b>${pkHistAmt(h)}</b></div>`).join('')}</div>` : ''}
     <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:2px 0 0">Цены — в валюте вашей страны · <button type="button" class="pk-lnk" onclick="pkCurPick()">${PK_SYM[cur]}</button> · вопросы — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener" class="pk-lnk">@piksta_support_bot</a></p>`);
 }
+const pkHistAmt = h => h.gift || h.method === 'gift' ? 'подарок' : h.amount > 0 ? pkN(h.amount) + ' ' + pkEsc(h.cur || '') : 'продлено';
 function pkCurPick() {
   const c = pkGeoCur();
   pkSheet(`<h3>Валюта цен</h3><div class="pk-menu" style="margin-top:12px">${['BYN', 'RUB', 'KZT'].map(k => `<button onclick="try{localStorage.setItem('pk_cur','${k}')}catch(e){};pkSheetClose();pkTariffRender()"><span>${{ BYN: 'Белорусские рубли', RUB: 'Российские рубли', KZT: 'Тенге' }[k]}</span><small>${c === k ? '✓' : PK_SYM[k]}</small></button>`).join('')}</div>`);
@@ -309,3 +311,134 @@ async function pkPaySend() {
     pkTariffRender();
   } catch (e) { b.disabled = false; b.textContent = 'Я оплатил'; showToast('Не отправилось: ' + (e.message || e)); }
 }
+
+// ---------- Лимит треков (решение Егора 02.11.2026) ----------
+// Период — месяц от даты оплаты: окна по дню окончания подписки (оплатил 15-го → 15.10–14.11, 15.11–14.12…).
+// Позиции считаем по дате строки (ts) или дате создания закупки. На пробном — лимита нет, только счётчик за календарный месяц.
+// Удалить закупку можно всегда. Пока она «Формируется», место в лимите возвращается; после отправки — нет:
+// её позиции этого периода копятся в users/{uid}.usage.del. Там же n и lim — для админки и бота.
+// 80% — предупреждение, после 100% ещё 10% запаса, дальше новые позиции не добавляются. Сканирование и остальное работают.
+const PK_LIM_WARN = 0.8, PK_LIM_GRACE = 1.1;
+const pkIso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function pkPeriodOf(u) {
+  const now = new Date(), A = pkAccess(u || {}), sub = (u && u.subscription) || {};
+  const endD = A.from === 'sub' ? pkToDate(sub.endDate) : null;
+  let start, end;
+  if (endD) {
+    const day = endD.getDate(), mk = (y, m) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+    start = mk(now.getFullYear(), now.getMonth());
+    if (start > now) start = mk(now.getFullYear(), now.getMonth() - 1);
+    end = mk(start.getFullYear(), start.getMonth() + 1);
+  } else { start = new Date(now.getFullYear(), now.getMonth(), 1); end = new Date(now.getFullYear(), now.getMonth() + 1, 1); }
+  return { start, end, last: new Date(end.getTime() - 864e5), k: pkIso(start), cal: !endD };
+}
+function pkShipRowsIn(s, P) {
+  const sc = pkToDate(s.created) || new Date();
+  let n = 0;
+  for (const r of (s.data || [])) {
+    const ts = !Array.isArray(r) && r && r.ts ? Number(r.ts) : 0;
+    const d = ts ? new Date(ts * 1000) : sc;
+    if (d >= P.start && d < P.end) n++;
+  }
+  return n;
+}
+function pkUsageOf(u, ships) {
+  u = u || {};
+  const A = pkAccess(u), P = pkPeriodOf(u), sub = u.subscription || {};
+  const plan = A.kind !== 'admin' && A.from === 'sub' ? (PK_PLANS[sub.plan] ? sub.plan : 'main') : null;
+  let n = 0; for (const s of (ships || [])) n += pkShipRowsIn(s, P);
+  const us = u.usage || {}; if (us.k === P.k && us.del > 0) n += us.del;
+  const lim = plan ? PK_PLANS[plan].lim : Infinity, cap = lim === Infinity ? Infinity : Math.floor(lim * PK_LIM_GRACE);
+  const state = lim === Infinity ? 'none' : n >= cap ? 'block' : n > lim ? 'over' : n >= lim * PK_LIM_WARN ? 'warn' : 'ok';
+  return { n, lim, cap, plan, P, state };
+}
+const pkUsage = () => pkUsageOf(userProfile, (typeof allShipments !== 'undefined' && allShipments) || []);
+const pkNextPlan = p => p === 'start' ? 'main' : 'pro';
+// счётчик в профиль — чтобы админка и бот видели его без чтения закупок
+let pkUsageKey = '';
+function pkUsageSync() {
+  if (!userProfile || !currentUser || userProfile.role === 'admin' || userProfile._readonly || userProfile.blocked) return;
+  const U = pkUsage(), us = userProfile.usage || {};
+  const next = { k: U.P.k, n: U.n, lim: U.lim === Infinity ? 0 : U.lim, del: us.k === U.P.k ? (us.del || 0) : 0 };
+  const key = JSON.stringify(next);
+  if (key === pkUsageKey) return;
+  pkUsageKey = key;
+  if (us.k === next.k && us.n === next.n && (us.lim || 0) === next.lim && (us.del || 0) === next.del) return;
+  userProfile.usage = next;
+  db.collection('users').doc(currentUser.uid).update({ usage: next }).catch(() => {});
+}
+// удалили отправленную закупку — её позиции этого периода остаются в счётчике
+function pkLimDeleted(ship) {
+  if (!ship || (ship.status || 'forming') === 'forming' || !userProfile || !currentUser) return;
+  const P = pkPeriodOf(userProfile), n = pkShipRowsIn(ship, P); if (!n) return;
+  const us = userProfile.usage || {}, del = (us.k === P.k ? (us.del || 0) : 0) + n;
+  userProfile.usage = Object.assign({}, us, { k: P.k, del });
+  pkUsageKey = '';
+  return db.collection('users').doc(currentUser.uid).update({ 'usage.k': P.k, 'usage.del': del }).catch(() => {});
+}
+// подсказка к подтверждению удаления закупки
+function pkLimDelNote(ship) {
+  if (!ship || (ship.status || 'forming') === 'forming') return '';
+  const U = pkUsage(); if (U.state === 'none' || !pkShipRowsIn(ship, U.P)) return '';
+  return '\n\nЗакупка уже отправлена — её треки засчитаны в лимит тарифа. После удаления место в лимите не освободится (до ' + pkD(U.P.last) + ').';
+}
+// можно ли добавить add позиций; если нет — экран «Лимит исчерпан»
+function pkLimitCheck(add) {
+  const U = pkUsage();
+  if (U.state === 'none' || U.n + (add || 1) <= U.cap) return true;
+  pkLimitScreen(U, add || 1);
+  return false;
+}
+function pkLimitScreen(U, add) {
+  U = U || pkUsage();
+  const nx = pkNextPlan(U.plan), left = Math.max(0, U.cap - U.n), from = pkD(U.P.end);
+  const txt = left > 0
+    ? `<b>Не хватает лимита: свободно ${pkN(left)} из ${pkN(add)}.</b> Использовано ${pkN(U.n)} из ${pkN(U.lim)} треков (с запасом 10% — ${pkN(U.cap)}).`
+    : `<b>Лимит тарифа исчерпан: ${pkN(U.n)} из ${pkN(U.lim)}</b> (с запасом 10%).`;
+  pkScr('Лимит треков', `<div class="pk-limc bad"><i class="ti ti-ban" aria-hidden="true"></i><span>${txt} Новые позиции — с ${from} или на тарифе выше. Сканирование, клиенты и расчёты работают.</span></div>
+    <button type="button" class="pk-btn" onclick="pkTPer='y';pkPayStart('${nx}')">Перейти на «${PK_PLANS[nx].n}»</button>
+    <button type="button" class="pk-btn ghost" onclick="pkTariffs()">Все тарифы</button>
+    <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:2px 0 0">«${PK_PLANS[nx].n}» — ${PK_PLANS[nx].lim === Infinity ? 'без лимита по трекам' : 'до ' + pkN(PK_PLANS[nx].lim) + ' треков в месяц'}</p>`);
+}
+// плашка над списком закупок: 80% — жёлтая, после лимита — красная
+function pkLimitBanner() {
+  const U = pkUsage();
+  if (U.state === 'none' || U.state === 'ok') return '';
+  const pct = Math.min(100, U.n / U.lim * 100), nx = PK_PLANS[pkNextPlan(U.plan)];
+  const tail = nx.lim === Infinity ? `перейдите на «${nx.n}», там без лимита` : `перейдите на «${nx.n}» — до ${pkN(nx.lim)} треков`;
+  const msg = U.state === 'block'
+    ? `<b>Лимит исчерпан: ${pkN(U.n)} из ${pkN(U.lim)}</b> (с запасом 10%). Новые позиции — с ${pkD(U.P.end)} или ${tail}.`
+    : U.state === 'over'
+      ? `<b>Лимит превышен: ${pkN(U.n)} из ${pkN(U.lim)} треков</b> до ${pkD(U.P.last)}. Осталось ${pkN(U.cap - U.n)} в запасе — дальше ${tail}.`
+      : `<b>Использовано ${pkN(U.n)} из ${pkN(U.lim)} треков</b> до ${pkD(U.P.last)}. Если не хватит — ${tail}.`;
+  return `<div class="pk-limc ${U.state === 'warn' ? 'warn' : 'bad'}" onclick="pkTariffs()" role="button" tabindex="0"><i class="ti ${U.state === 'warn' ? 'ti-alert-triangle' : 'ti-ban'}" aria-hidden="true"></i><span>${msg}</span></div>
+    <div class="pk-limbar ${U.state === 'warn' ? 'warn' : 'bad'}"><span style="width:${Math.max(3, pct)}%"></span></div>`;
+}
+
+// ---------- «Старт» на компьютере: та же мобильная версия по центру, сверху полоса ----------
+function pkStartOnly() { const { plan } = pkPlanNow(); return plan === 'start'; }
+function pkStartBand() {
+  let b = document.getElementById('pkPcBand');
+  const on = pkStartOnly() && !pkIsPhone() && document.body.classList.contains('pk-m');
+  document.body.classList.toggle('pk-pcb', on);
+  if (!on) { if (b) b.remove(); return; }
+  if (b) return;
+  b = document.createElement('div'); b.id = 'pkPcBand'; b.className = 'pk-pcband';
+  b.innerHTML = `<i class="ti ti-device-desktop" aria-hidden="true"></i><span>У вас «Старт» — Piksta работает в мобильной версии. <b>Кабинет на компьютере — с тарифа «Основной».</b></span><button type="button" onclick="pkUpgrade()">Перейти</button>`;
+  document.body.insertBefore(b, document.body.firstChild);
+}
+(function () {
+  const o = window.enterMode;
+  if (typeof o === 'function') window.enterMode = function (mode) {
+    if (mode === 'cabinet' && userProfile && pkStartOnly()) mode = 'scanner';
+    const r = o.call(this, mode);
+    try { pkStartBand(); } catch (e) {}
+    return r;
+  };
+  const rs = window.renderShipmentCards;
+  if (typeof rs === 'function') window.renderShipmentCards = function () {
+    const r = rs.apply(this, arguments);
+    clearTimeout(window.__pkUseT); window.__pkUseT = setTimeout(() => { try { pkUsageSync(); } catch (e) {} }, 1500);
+    return r;
+  };
+})();

@@ -2502,7 +2502,9 @@ async function cabLoadAdminUsers(box) {
       try {
         const ss = await db.collection('users').doc(u.id).collection('shipments').get();
         u._ships = ss.size;
-        u._items = ss.docs.reduce((n, d) => n + ((d.data().data || []).length), 0);  // только число позиций, для статистики тарифов
+        const sd = ss.docs.map(d => d.data());
+        u._items = sd.reduce((n, d) => n + ((d.data || []).length), 0);  // только число позиций, для статистики тарифов
+        if (typeof pkUsageOf === 'function') u._use = pkUsageOf(u, sd);   // треки за текущий период тарифа
       } catch (e) {}
     }));
     users.sort((a, b) => (cabToDate(b.created) || 0) - (cabToDate(a.created) || 0));
@@ -2534,7 +2536,8 @@ async function cabLoadAdminUsers(box) {
 const CAB_ADMIN_CSS = `
 .cab-ac{border:1px solid #ebe7f3;border-radius:14px;padding:12px 14px;background:#fff;container-type:inline-size}
 .cab-ac.off{background:#fdf7f7;border-color:#f6d7d7}
-.cab-ac-top{display:grid;grid-template-columns:18px minmax(0,1fr) 150px 92px 62px 74px;gap:8px 16px;align-items:center}
+.cab-ac-top{display:grid;grid-template-columns:18px minmax(0,1fr) 150px 128px 96px 86px;gap:8px 16px;align-items:center}
+.cab-ac-m>span{overflow:hidden;text-overflow:ellipsis}
 .cab-ac-cb{width:16px;height:16px;margin:0;cursor:pointer}
 .cab-ac-who{display:flex;align-items:center;gap:10px;min-width:0}
 .cab-ac-who .cab-uav{width:36px;height:36px;flex:0 0 36px}
@@ -2544,6 +2547,15 @@ const CAB_ADMIN_CSS = `
 .cab-ac-name{font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cab-ac-m{display:flex;flex-direction:column;gap:2px;font-size:12px;color:#6b7280;white-space:nowrap;min-width:0}
 .cab-ac-m b{font-size:14px;color:#1a1a2e;font-weight:600}
+.cab-ac-lim{display:block;height:5px;border-radius:3px;background:#ece8f4;overflow:hidden;margin-top:3px;max-width:150px}
+.cab-ac-lim em{display:block;height:100%;border-radius:3px}
+.cab-ac-hist{font-size:12.5px;color:#6b7280;margin-top:8px;line-height:1.45}
+.cab-ac-hist b{color:#1a1a2e;font-weight:600}
+.cab-sub-box{background:#fff;border-radius:14px;width:100%;max-width:440px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:10px}
+.cab-sub-l{font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:-4px}
+.cab-sub-seg{display:flex;background:#f0edf6;border-radius:10px;padding:3px;gap:3px}
+.cab-sub-seg button{flex:1;border:0;background:none;font:inherit;font-size:13.5px;font-weight:600;color:#6b7280;padding:8px 6px;border-radius:8px;cursor:pointer}
+.cab-sub-seg button.on{background:#fff;color:#6C4DB8;box-shadow:0 1px 3px rgba(23,20,42,.12)}
 .cab-ac-bot{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;border-top:1px solid #f0edf6;margin-top:10px;padding-top:10px}
 .cab-ac-bot .cab-usel{font-size:13px;padding:5px 6px}
 .cab-ac-bot .cab-uopt{font-size:13px;white-space:nowrap}
@@ -2620,7 +2632,16 @@ function cabAdminRenderList() {
       grace: [`5 дней на оплату · ещё ${A.left} дн.`, '#b91c1c', '#fde8e8'], sub: ['Подписка', '#15803d', '#dcfce7'],
       trial: [u.founder ? 'Пробный · пилот' : 'Пробный', '#92400e', '#fef3c7']
     }[A.kind] || ['—', '#4a5260', '#f3f4f6'];
-    const safeName = String(u.name || u.email || '').replace(/['"<>]/g, '');
+    const plan = A.from === 'sub' && typeof PK_PLANS !== 'undefined' ? (PK_PLANS[(u.subscription || {}).plan] ? u.subscription.plan : 'main') : null;
+    if (A.kind === 'sub' && plan) st[0] = PK_PLANS[plan].n + (u.founder ? ' · пилот' : '');
+    const U = u._use;
+    const dm = x => x.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    const useHtml = !U ? '<b>—</b>' : `<b>${U.n.toLocaleString('ru-RU')}${U.lim === Infinity ? '' : ' из ' + U.lim.toLocaleString('ru-RU')}</b>${U.lim === Infinity ? '' : `<i class="cab-ac-lim"><em style="width:${Math.max(3, Math.min(100, U.n / U.lim * 100))}%;background:${U.state === 'ok' ? '#6C4DB8' : U.state === 'warn' ? '#f59e0b' : '#dc2626'}"></em></i>`}`;
+    const useLbl = !U ? 'Треков' : U.P.cal ? 'Треков за ' + U.P.start.toLocaleDateString('ru-RU', { month: 'long' }) : `Треков ${dm(U.P.start)}–${dm(U.P.last)}`;
+    const hist = ((u.subscription || {}).history || []).slice(-2).reverse();
+    const histHtml = hist.length && typeof PK_PLANS !== 'undefined' ? `<div class="cab-ac-hist">Оплаты: ${hist.map((h, i) => {
+      const t = `${(cabToDate(h.at) || now).toLocaleDateString('ru-RU')} · ${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}, ${h.period === 'y' || h.months === 12 ? 'год' : 'месяц'} · ${h.gift || h.method === 'gift' ? 'подарок' : h.amount > 0 ? h.amount.toLocaleString('ru-RU') + ' ' + cabEsc(h.cur || '') + (CAB_PAY_M[h.method] ? ' · ' + CAB_PAY_M[h.method] : '') : 'продлено'}${h.note ? ' (' + cabEsc(h.note) + ')' : ''}`;
+      return i === 0 ? `<b>${t}</b>` : t; }).join(' · ')}</div>` : '';
     const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" class="cab-usel">
         <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
     const fnd = `<label class="cab-uopt" title="Участник пилота: пробный период 3 месяца вместо 30 дней и цена −${PIKSTA_TARIFFS.founderDiscountPct}%, пока подписка продлевается без перерыва"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked,true)"> Пилот: 3 мес. и −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
@@ -2636,15 +2657,16 @@ function cabAdminRenderList() {
           <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>
         </div></div>
         <div class="cab-ac-m cab-ac-m1"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
+        <div class="cab-ac-m"><span>${useLbl}</span>${useHtml}</div>
+        <div class="cab-ac-m cab-ac-m3"><span>Закупок · поз.</span><b>${num(u._ships)} · ${num(u._items)}</b></div>
         <div class="cab-ac-m"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
-        <div class="cab-ac-m cab-ac-m3"><span>Закупок</span><b>${num(u._ships)}</b></div>
-        <div class="cab-ac-m"><span>Позиций</span><b>${num(u._items)}</b></div>
       </div>
+      ${histHtml}
       <div class="cab-ac-bot">
         ${ctry}${fnd}${ind}
         <div class="cab-ac-act">
           <button class="cab-filter-btn" onclick="cabAdminMailOpen('${u.id}')" title="Письмо"><i class="ti ti-mail"></i><span class="t"> Письмо</span></button>
-          <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}','${safeName}')" title="Продлить подписку"><i class="ti ti-calendar-plus"></i><span class="t"> Продлить</span></button>
+          <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}')" title="Продлить подписку"><i class="ti ti-calendar-plus"></i><span class="t"> Продлить</span></button>
           ${isBlocked
             ? `<button class="cab-filter-btn" onclick="cabAdminBlock('${u.id}',false)" title="Разблокировать"><i class="ti ti-lock-open"></i><span class="t"> Разблокировать</span></button>`
             : `<button class="cab-filter-btn" style="color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)" title="Заблокировать"><i class="ti ti-lock"></i><span class="t"> Заблокировать</span></button>`}
@@ -2703,21 +2725,80 @@ function cabAdminMailGo() {
   document.getElementById('cabMailOv').remove();
 }
 
-async function cabAdminSub(uid, name) {
-  const months = prompt('Подписка для ' + name + '\nКоличество месяцев (1, 2, 3, 6, 12):');
-  if (!months || isNaN(months) || parseInt(months) <= 0) return;
-  const m = parseInt(months);
-  // Продление идёт от текущей даты окончания подписки, если она ещё не наступила (оплатил заранее — дни не теряются)
-  const u = cabAdminUsers.find(x => x.id === uid) || {};
+// «Продлить»: тариф, срок 1 или 12 месяцев, оплата или подарок (02.11.2026). Продление — от текущей даты окончания, если она впереди.
+const CAB_PAY_M = { bnb: 'ЕРИП', tbank: 'Т-Банк', alipay: 'Alipay', trc20: 'USDT TRC20', bep20: 'USDT BEP20', other: 'другое', bot: 'бот' };
+let cabSubS = null;
+function cabSubAmt(S) {
+  if (typeof PK_BYN === 'undefined') return '';
+  const base = PK_BYN[S.plan][S.m === 12 ? 1 : 0] * (S.cur === 'BYN' ? 1 : PK_MARKUP);
+  if (S.cur === 'BYN') return base;
+  const r = PK_RATES[S.cur === 'USDT' ? 'USD' : S.cur]; if (!r) return '';
+  return pkUp(base / r, S.cur === 'RUB' || S.cur === 'KZT' ? 100 : 1);
+}
+function cabSubEnd(u, m) {
   const curEnd = u.subscription ? cabToDate(u.subscription.endDate) : null;
-  const endDate = curEnd && curEnd > new Date() ? new Date(curEnd) : new Date();
-  endDate.setMonth(endDate.getMonth() + m);
-  if (!confirm('Активировать подписку до ' + endDate.toLocaleDateString('ru') + '?')) return;
+  const from = curEnd && curEnd > new Date() ? curEnd : new Date();
+  const e = new Date(from); e.setMonth(e.getMonth() + m); return { e, ext: from !== null && curEnd && curEnd > new Date() };
+}
+function cabAdminSub(uid) {
+  const u = cabAdminUsers.find(x => x.id === uid); if (!u) return;
+  const sub = u.subscription || {}, pend = sub.pending;
+  const cur0 = { BY: 'BYN', RU: 'RUB', KZ: 'KZT' }[u.country] || 'BYN';
+  cabSubS = { uid, plan: pend ? pend.plan : (PK_PLANS[sub.plan] ? sub.plan : 'main'), m: pend ? (pend.months || 1) : 1, gift: false,
+    cur: pend ? pend.cur : cur0, method: pend ? pend.method : ({ BYN: 'bnb', RUB: 'tbank' }[cur0] || 'other'), amount: pend ? pend.amount : '', note: '', auto: !pend };
+  if (cabSubS.auto) cabSubS.amount = cabSubAmt(cabSubS);
+  const ov = document.createElement('div');
+  ov.id = 'cabSubOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  cabSubRender();
+}
+function cabSubSet(k, v) {
+  const S = cabSubS; S[k] = v;
+  if ((k === 'plan' || k === 'm' || k === 'cur') && S.auto) S.amount = cabSubAmt(S);
+  if (k === 'cur') S.method = { BYN: 'bnb', RUB: 'tbank', CNY: 'alipay', USDT: 'trc20' }[v] || 'other';
+  cabSubRender();
+}
+function cabSubRender() {
+  const ov = document.getElementById('cabSubOv'), S = cabSubS; if (!ov || !S) return;
+  const u = cabAdminUsers.find(x => x.id === S.uid) || {};
+  const pend = (u.subscription || {}).pending;
+  const seg = (k, opts) => `<div class="cab-sub-seg">${opts.map(([v, t]) => `<button type="button" class="${S[k] === v ? 'on' : ''}" onclick="cabSubSet('${k}',${typeof v === 'string' ? `'${v}'` : v})">${t}</button>`).join('')}</div>`;
+  const { e, ext } = cabSubEnd(u, S.m);
+  const inp = 'padding:9px 11px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;min-width:0';
+  ov.innerHTML = `<div class="cab-sub-box" role="dialog" aria-label="Продлить подписку">
+    <div style="font-size:18px;font-weight:700">Продлить · ${cabEsc(u.email || '')}</div>
+    ${pend ? `<div style="background:#fef3c7;color:#92400e;border-radius:10px;padding:9px 11px;font-size:13px">На проверке оплата из приложения: «${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}», ${pend.period === 'y' ? 'год' : 'месяц'}, ${cabEsc(pend.amount)} ${cabEsc(pend.cur)}. Поля заполнены по ней — после продления она закроется.</div>` : ''}
+    <div class="cab-sub-l">Тариф</div>${seg('plan', [['start', 'Старт'], ['main', 'Основной'], ['pro', 'Профи']])}
+    <div class="cab-sub-l">Срок</div>${seg('m', [[1, '1 месяц'], [12, '12 месяцев']])}
+    <div class="cab-sub-l">Основание</div>${seg('gift', [[false, 'Оплата'], [true, 'Подарок / промо']])}
+    ${S.gift ? '' : `<div style="display:flex;gap:8px">
+      <input id="cabSubAmt" value="${cabEsc(S.amount)}" inputmode="decimal" placeholder="Сумма" oninput="cabSubS.amount=this.value;cabSubS.auto=false" style="${inp};flex:1">
+      <select onchange="cabSubSet('cur',this.value)" style="${inp};width:96px">${['BYN', 'RUB', 'KZT', 'CNY', 'USDT'].map(c => `<option ${S.cur === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+      <select onchange="cabSubS.method=this.value" style="${inp};width:128px">${Object.entries(CAB_PAY_M).filter(([k]) => k !== 'bot').map(([k, t]) => `<option value="${k}" ${S.method === k ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`}
+    <input id="cabSubNote" value="${cabEsc(S.note)}" oninput="cabSubS.note=this.value" placeholder="Комментарий: например, «скидка пилота −30%»" style="${inp}">
+    <div style="background:#e7f8ee;color:#15803d;border-radius:10px;padding:9px 11px;font-size:13.5px">Будет: <b>${PK_PLANS[S.plan].n} до ${e.toLocaleDateString('ru-RU')}</b> — ${ext ? 'продление от текущей даты окончания' : 'от сегодня'}${S.gift ? ' · подарок' : ''}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="cab-filter-btn" onclick="document.getElementById('cabSubOv').remove()">Отмена</button>
+      <button class="cab-filter-btn" id="cabSubGo" style="color:#fff;background:#6C4DB8;border-color:#6C4DB8" onclick="cabSubSave()"><i class="ti ti-calendar-plus"></i> Продлить</button>
+    </div></div>`;
+}
+async function cabSubSave() {
+  const S = cabSubS, u = cabAdminUsers.find(x => x.id === S.uid); if (!S || !u) return;
+  const amount = S.gift ? 0 : Math.round(parseFloat(String(S.amount).replace(',', '.').replace(/\s/g, '')) * 100) / 100 || 0;
+  const { e } = cabSubEnd(u, S.m), TS = firebase.firestore.Timestamp, FV = firebase.firestore.FieldValue;
+  const h = { at: TS.now(), plan: S.plan, period: S.m === 12 ? 'y' : 'm', months: S.m, amount, cur: S.gift ? '' : S.cur, method: S.gift ? 'gift' : S.method, gift: !!S.gift, end: TS.fromDate(e), by: 'admin' };
+  if (S.note.trim()) h.note = S.note.trim().slice(0, 200);
+  const upd = { 'subscription.endDate': TS.fromDate(e), 'subscription.months': S.m, 'subscription.plan': S.plan, 'subscription.by': 'admin',
+    'subscription.activatedAt': FV.serverTimestamp(), 'subscription.history': FV.arrayUnion(h) };
+  if ((u.subscription || {}).pending) upd['subscription.pending'] = FV.delete();
+  const b = document.getElementById('cabSubGo'); if (b) { b.disabled = true; b.textContent = 'Сохраняю…'; }
   try {
-    await db.collection('users').doc(uid).update({
-      'subscription.endDate': firebase.firestore.Timestamp.fromDate(endDate), 'subscription.months': m, 'subscription.activatedAt': firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch (e) { alert('Ошибка: ' + e.message); }
+    await db.collection('users').doc(S.uid).update(upd);
+    document.getElementById('cabSubOv').remove();
+    showToast(`${u.email}: «${PK_PLANS[S.plan].n}» до ${e.toLocaleDateString('ru-RU')}`);
+  } catch (err) { if (b) { b.disabled = false; b.textContent = 'Продлить'; } alert('Ошибка: ' + err.message); return; }
   cabNav(cabCurrentSection);
 }
 

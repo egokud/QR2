@@ -1180,8 +1180,9 @@ async function deleteShipment() {
   if (!delId) return;
   const ship = allShipments.find(s => s.id === delId);
   const text = ship ? ship.name : 'закупку';
-  if (!confirm('Удалить "' + text + '"?')) return;
+  if (!confirm('Удалить "' + text + '"?' + (typeof pkLimDelNote === 'function' ? pkLimDelNote(ship) : ''))) return;
   await shipmentsRef().doc(delId).delete();
+  if (typeof pkLimDeleted === 'function') await pkLimDeleted(ship);
   await scannedRef(delId).delete().catch(() => {});
   if (activeShipmentId === delId) activeShipmentId = null;  // если удалили активный — сбросим
   editingShipmentId = null;
@@ -1212,6 +1213,7 @@ async function uploadCSV() {
         }
       }
       if (data.length === 0) { alert('Данные не найдены в CSV'); return; }
+      if (typeof pkLimitCheck === 'function' && !pkLimitCheck(data.length)) { closeUploadModal(); return; }
       // Курсы нового прихода: базовые курсы из кабинета (users/{uid}.baseRates); если их нет — с ПОСЛЕДНЕГО прихода (или дефолт)
       let newRates = { ...DEFAULT_RATES };
       if (userProfile && userProfile.baseRates) newRates = { ...DEFAULT_RATES, ...userProfile.baseRates };
