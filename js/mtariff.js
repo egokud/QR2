@@ -49,7 +49,7 @@ const PK_PAY = [
   { id: 'other', n: 'Другой способ', sub: 'напишите в поддержку', cur: '', ic: 'ti-message-circle' }
 ];
 const PK_GEO_CUR = { BY: 'BYN', RU: 'RUB', KZ: 'KZT' };
-let pkGeo = null, pkTPer = 'y', pkPayS = null;
+let pkGeo = null, pkTPer = 'y', pkPayS = null, pkTfSel = null;
 
 const pkN = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const pkD = d => d ? d.toLocaleDateString('ru-RU') : '';
@@ -118,15 +118,24 @@ function pkTariffs() {
   } catch (e) {}
 }
 function pkTfCards(cur, onPick, rec, curPlan) {
-  const P = PK_TP[cur], y = pkTPer === 'y';
+  const P = PK_TP[cur], y = pkTPer === 'y', sel = pkTfSel || rec;
   return ['start', 'main', 'pro'].map(k => {
     const [m, yr] = P[k], save = m * 12 - yr, isRec = k === rec, isCur = k === curPlan;
     const price = y ? `<span class="pk-tf-pr"><small>≈</small>${pkN(yr / 12)} <small>${P.s} / мес</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
     const yl = y ? `<span class="pk-tf-y">${pkN(yr)} ${P.s} раз в год · выгода ${pkN(save)}</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ≈${pkN(yr / 12)} ${P.s} в месяц при оплате за год</span>`;
-    return `<div class="pk-tf ${isRec ? 'rec' : ''}" onclick="${onPick}('${k}')" role="button" tabindex="0">${isCur ? '<span class="pk-tf-tag cur">Ваш тариф</span>' : isRec ? '<span class="pk-tf-tag">Подходит вам</span>' : ''}
+    // Нажатие на карточку только выделяет её (рамка + кнопка), к оплате ведёт кнопка
+    return `<div class="pk-tf ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="pkTfPick('${k}')" role="button" tabindex="0" aria-pressed="${k === sel}">${isCur ? '<span class="pk-tf-tag cur">Ваш тариф</span>' : isRec ? '<span class="pk-tf-tag">Подходит вам</span>' : ''}
       <div class="pk-tf-r"><b>${PK_PLANS[k].n}</b>${price}</div>${yl}<span class="pk-tf-d">${PK_PLANS[k].d}</span>
-      ${isRec ? `<button type="button" class="pk-btn" style="width:100%;margin-top:8px" onclick="event.stopPropagation();${onPick}('${k}')">${isCur ? 'Продлить' : 'Выбрать'} «${PK_PLANS[k].n}»</button>` : ''}</div>`;
+      <div class="pk-tf-go"><button type="button" class="pk-btn" tabindex="${k === sel ? 0 : -1}" onclick="event.stopPropagation();${onPick}('${k}')">${isCur ? 'Продлить' : 'Оплатить'} «${PK_PLANS[k].n}»</button></div></div>`;
   }).join('');
+}
+function pkTfPick(k) {
+  pkTfSel = k;
+  document.querySelectorAll('#pkTfList .pk-tf').forEach(el => {
+    const on = el.dataset.k === k;
+    el.classList.toggle('sel', on); el.setAttribute('aria-pressed', String(on));
+    const b = el.querySelector('.pk-tf-go button'); if (b) b.tabIndex = on ? 0 : -1;
+  });
 }
 function pkTariffRender() {
   const { A, sub, plan } = pkPlanNow();
