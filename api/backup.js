@@ -62,7 +62,7 @@ async function list(path) {
 async function gh(path, opt = {}) {
   const r = await fetch('https://api.github.com/repos/' + REPO + path, {
     ...opt,
-    headers: { authorization: 'Bearer ' + (process.env.GH_BACKUP_TOKEN || ''), accept: 'application/vnd.github+json', 'content-type': 'application/json', 'user-agent': 'piksta-backup' }
+    headers: { authorization: 'Bearer ' + (process.env.GH_BACKUP_TOKEN || '').trim(), accept: 'application/vnd.github+json', 'content-type': 'application/json', 'user-agent': 'piksta-backup' }
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`GitHub ${path}: ${r.status} ${j.message || ''}`);
