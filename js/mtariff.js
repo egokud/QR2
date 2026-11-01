@@ -3,33 +3,41 @@
 // скрин с кнопками «Подтвердить / Отклонить» → бот продлевает subscription (plan, endDate, history).
 // Пока ждём — subscription.pending; отклонено — subscription.rejected.
 
-// Цены тарифов: месяц / год. BYN, RUB, KZT утверждены 01.11.2026.
-// Суммы к оплате любым способом считаются от цены в BYN по официальному курсу НБРБ на сегодня (решение Егора 01.11.2026):
-// ₽ — вверх до 100, ¥ и USDT — вверх до целого. Курс берём с api.nbrb.by раз в день, запасной — на 01.11.2026.
-const PK_TP = {
-  BYN: { s: 'BYN', start: [15, 155], main: [25, 230], pro: [45, 400] },
-  RUB: { s: '₽', start: [590, 5980], main: [990, 9000], pro: [1690, 15480] },
-  KZT: { s: '₸', start: [2490, 25380], main: [4190, 38280], pro: [6990, 63480] },
-};
+// Цены тарифов (решение Егора 01.11.2026): основа — цена в BYN (месяц / год).
+// Россия, Казахстан и остальные — BYN + 10%, по официальному курсу НБРБ на сегодня, ₽ и ₸ вверх до 100.
+// Суммы к оплате: от той же основы (Беларусь — BYN, остальные — BYN + 10%): ₽ вверх до 100, ¥ и USDT вверх до целого.
+// Курс берём с api.nbrb.by раз в день, запасной — на 01.11.2026. Та же формула — на лендинге (index.html).
+const PK_BYN = { start: [15, 155], main: [25, 230], pro: [45, 400] };
+const PK_MARKUP = 1.1;
 const PK_SYM = { BYN: 'BYN', RUB: '₽', KZT: '₸', CNY: '¥', USDT: 'USDT' };
-let PK_RATES = { d: '2026-11-01', USD: 2.9462, CNY: 0.44286, RUB: 0.036624 };   // BYN за 1 единицу
+let PK_RATES = { d: '2026-11-01', USD: 2.9462, CNY: 0.44286, RUB: 0.036624, KZT: 0.0064906 };   // BYN за 1 единицу
+const pkUp = (x, step) => Math.ceil((x - 1e-6) / step) * step;
+// «≈ в месяц» при оплате за год: BYN — до целого, ₽ и ₸ — до 10
+const pkMo = (yr, cur) => cur === 'BYN' ? Math.round(yr / 12) : Math.round(yr / 120) * 10;
+// Цены тарифов в валюте cur: { s, start: [месяц, год], main, pro }
+function pkTP(cur) {
+  const o = { s: PK_SYM[cur] || cur };
+  for (const k in PK_BYN) o[k] = PK_BYN[k].map(v => cur === 'BYN' ? v : pkUp(v * PK_MARKUP / (PK_RATES[cur] || PK_RATES.RUB), 100));
+  return o;
+}
 function pkLoadRates() {
   const today = new Date().toISOString().slice(0, 10);
-  try { const c = JSON.parse(localStorage.getItem('pk_nbrb') || 'null'); if (c && c.USD) { PK_RATES = c; if (c.t === today) return Promise.resolve(c); } } catch (e) {}
+  try { const c = JSON.parse(localStorage.getItem('pk_nbrb') || 'null'); if (c && c.USD && c.KZT) { PK_RATES = c; if (c.t === today) return Promise.resolve(c); } } catch (e) {}
   return fetch('https://api.nbrb.by/exrates/rates?periodicity=0').then(r => r.json()).then(L => {
     const R = { t: today };
-    for (const x of L) if (['USD', 'CNY', 'RUB'].includes(x.Cur_Abbreviation)) { R[x.Cur_Abbreviation] = x.Cur_OfficialRate / x.Cur_Scale; R.d = String(x.Date).slice(0, 10); }
-    if (R.USD && R.CNY && R.RUB) { PK_RATES = R; try { localStorage.setItem('pk_nbrb', JSON.stringify(R)); } catch (e) {} }
+    for (const x of L) if (['USD', 'CNY', 'RUB', 'KZT'].includes(x.Cur_Abbreviation)) { R[x.Cur_Abbreviation] = x.Cur_OfficialRate / x.Cur_Scale; R.d = String(x.Date).slice(0, 10); }
+    if (R.USD && R.CNY && R.RUB && R.KZT) { PK_RATES = R; try { localStorage.setItem('pk_nbrb', JSON.stringify(R)); } catch (e) {} }
     return PK_RATES;
   }).catch(() => PK_RATES);
 }
-// Сумма к оплате способом с валютой cur: от цены в BYN по курсу НБРБ
+// Основа суммы в BYN: Беларусь — цена в BYN, остальные — BYN + 10%
+function pkPayBase(plan, per) { const v = PK_BYN[plan][per === 'y' ? 1 : 0]; return pkGeoCur() === 'BYN' ? v : v * PK_MARKUP; }
+// Сумма к оплате способом с валютой cur
 function pkPayAmount(cur, plan, per) {
-  const byn = PK_TP.BYN[plan][per === 'y' ? 1 : 0];
-  if (cur === 'BYN') return byn;
+  const base = pkPayBase(plan, per);
+  if (cur === 'BYN') return base;
   const rate = PK_RATES[cur === 'USDT' ? 'USD' : cur]; if (!rate) return 0;
-  const x = byn / rate - 1e-6;
-  return cur === 'RUB' ? Math.ceil(x / 100) * 100 : Math.ceil(x);
+  return pkUp(base / rate, cur === 'RUB' || cur === 'KZT' ? 100 : 1);
 }
 const pkRateNote = () => { const d = PK_RATES.d ? PK_RATES.d.split('-').reverse().join('.') : ''; return 'по курсу НБРБ' + (d ? ' на ' + d : ''); };
 const PK_PLANS = {
@@ -54,7 +62,7 @@ let pkGeo = null, pkTPer = 'y', pkPayS = null, pkTfSel = null;
 const pkN = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const pkD = d => d ? d.toLocaleDateString('ru-RU') : '';
 function pkGeoCur() {
-  try { const s = localStorage.getItem('pk_cur'); if (PK_TP[s]) return s; } catch (e) {}
+  try { const s = localStorage.getItem('pk_cur'); if (PK_SYM[s] && s !== 'CNY' && s !== 'USDT') return s; } catch (e) {}
   return PK_GEO_CUR[pkGeo] || 'RUB';
 }
 function pkLoadGeo() {
@@ -105,7 +113,7 @@ function pkScrClose() {
 // ---------- «Тариф и оплата» ----------
 function pkTariffs() {
   pkTariffRender();
-  pkLoadGeo().then(() => { if (document.getElementById('pkTfList')) pkTariffRender(); });
+  Promise.all([pkLoadGeo(), pkLoadRates()]).then(() => { if (document.getElementById('pkTfList')) pkTariffRender(); });
   // свежий профиль: вдруг оплату уже подтвердили
   try {
     if (currentUser) db.collection('users').doc(currentUser.uid).get().then(d => {
@@ -118,11 +126,11 @@ function pkTariffs() {
   } catch (e) {}
 }
 function pkTfCards(cur, onPick, rec, curPlan) {
-  const P = PK_TP[cur], y = pkTPer === 'y', sel = pkTfSel || rec;
+  const P = pkTP(cur), y = pkTPer === 'y', sel = pkTfSel || rec;
   return ['start', 'main', 'pro'].map(k => {
     const [m, yr] = P[k], save = m * 12 - yr, isRec = k === rec, isCur = k === curPlan;
-    const price = y ? `<span class="pk-tf-pr"><small>≈</small>${pkN(yr / 12)} <small>${P.s} / мес</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
-    const yl = y ? `<span class="pk-tf-y">${pkN(yr)} ${P.s} раз в год · выгода ${pkN(save)}</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ≈${pkN(yr / 12)} ${P.s} в месяц при оплате за год</span>`;
+    const price = y ? `<span class="pk-tf-pr"><small>≈</small>${pkN(pkMo(yr, cur))} <small>${P.s} / мес</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
+    const yl = y ? `<span class="pk-tf-y">${pkN(yr)} ${P.s} раз в год · выгода ${pkN(save)}</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ≈${pkN(pkMo(yr, cur))} ${P.s} в месяц при оплате за год</span>`;
     // Нажатие на карточку только выделяет её (рамка + кнопка), к оплате ведёт кнопка
     return `<div class="pk-tf ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="pkTfPick('${k}')" role="button" tabindex="0" aria-pressed="${k === sel}">${isCur ? '<span class="pk-tf-tag cur">Ваш тариф</span>' : isRec ? '<span class="pk-tf-tag">Подходит вам</span>' : ''}
       <div class="pk-tf-r"><b>${PK_PLANS[k].n}</b>${price}</div>${yl}<span class="pk-tf-d">${PK_PLANS[k].d}</span>
@@ -162,11 +170,11 @@ function pkTariffRender() {
     <div class="pk-seg" role="tablist"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkTariffRender()">Помесячно</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkTariffRender()">За год · выгоднее</button></div>
     <div id="pkTfList" style="display:flex;flex-direction:column;gap:10px">${pkTfCards(cur, 'pkPayStart', rec, plan)}</div>
     ${hist.length ? `<div class="pk-lbl" style="margin-top:4px">История оплат</div><div class="pk-list">${hist.map(h => `<div class="pk-hist"><span>${pkD(pkToDate(h.at))} · ${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}, ${h.period === 'y' ? 'год' : 'месяц'}</span><b>${pkN(h.amount)} ${pkEsc(h.cur)}</b></div>`).join('')}</div>` : ''}
-    <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:2px 0 0">Цены — в валюте вашей страны · <button type="button" class="pk-lnk" onclick="pkCurPick()">${PK_TP[cur].s}</button> · вопросы — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener" class="pk-lnk">@piksta_support_bot</a></p>`);
+    <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:2px 0 0">Цены — в валюте вашей страны · <button type="button" class="pk-lnk" onclick="pkCurPick()">${PK_SYM[cur]}</button> · вопросы — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener" class="pk-lnk">@piksta_support_bot</a></p>`);
 }
 function pkCurPick() {
   const c = pkGeoCur();
-  pkSheet(`<h3>Валюта цен</h3><div class="pk-menu" style="margin-top:12px">${['BYN', 'RUB', 'KZT'].map(k => `<button onclick="try{localStorage.setItem('pk_cur','${k}')}catch(e){};pkSheetClose();pkTariffRender()"><span>${{ BYN: 'Белорусские рубли', RUB: 'Российские рубли', KZT: 'Тенге' }[k]}</span><small>${c === k ? '✓' : PK_TP[k].s}</small></button>`).join('')}</div>`);
+  pkSheet(`<h3>Валюта цен</h3><div class="pk-menu" style="margin-top:12px">${['BYN', 'RUB', 'KZT'].map(k => `<button onclick="try{localStorage.setItem('pk_cur','${k}')}catch(e){};pkSheetClose();pkTariffRender()"><span>${{ BYN: 'Белорусские рубли', RUB: 'Российские рубли', KZT: 'Тенге' }[k]}</span><small>${c === k ? '✓' : PK_SYM[k]}</small></button>`).join('')}</div>`);
 }
 
 // ---------- «Кабинет» на тарифе «Старт» ----------
@@ -176,15 +184,15 @@ function pkCabinetGate(section) {
   return false;
 }
 function pkUpgrade() {
-  pkLoadGeo().then(() => { if (document.getElementById('pkUpg')) pkUpgradeRender(); });
+  Promise.all([pkLoadGeo(), pkLoadRates()]).then(() => { if (document.getElementById('pkUpg')) pkUpgradeRender(); });
   pkUpgradeRender();
 }
 function pkUpgradeRender() {
-  const P = PK_TP[pkGeoCur()], [m, y] = P.main;
+  const cur = pkGeoCur(), P = pkTP(cur), [m, y] = P.main;
   pkScr('', `<div class="pk-upg" id="pkUpg"><div class="ic"><i class="ti ti-device-desktop" aria-hidden="true"></i></div><h2>Кабинет — с тарифа «Основной»</h2>
       <p>У вас «Старт»: Piksta работает на телефоне. Кабинет на компьютере открывается на «Основном».</p>
       <div class="ul"><div><i class="ti ti-check" aria-hidden="true"></i>Все закупки и клиенты на большом экране</div><div><i class="ti ti-check" aria-hidden="true"></i>Цены, курсы и расчёты в таблицах</div><div><i class="ti ti-check" aria-hidden="true"></i>До 1 500 треков в месяц вместо 300</div></div></div>
-    <div class="pk-tf rec" onclick="pkPayStart('main')" role="button" tabindex="0"><div class="pk-tf-r"><b>Основной</b><span class="pk-tf-pr"><small>≈</small>${pkN(y / 12)} <small>${P.s} / мес</small></span></div><span class="pk-tf-y">при оплате за год — ${pkN(y)} ${P.s} · выгода ${pkN(m * 12 - y)}</span><span class="pk-tf-d">или ${pkN(m)} ${P.s} помесячно</span></div>
+    <div class="pk-tf rec" onclick="pkPayStart('main')" role="button" tabindex="0"><div class="pk-tf-r"><b>Основной</b><span class="pk-tf-pr"><small>≈</small>${pkN(pkMo(y, cur))} <small>${P.s} / мес</small></span></div><span class="pk-tf-y">при оплате за год — ${pkN(y)} ${P.s} · выгода ${pkN(m * 12 - y)}</span><span class="pk-tf-d">или ${pkN(m)} ${P.s} помесячно</span></div>
     <button type="button" class="pk-btn" onclick="pkTPer='y';pkPayStart('main')">Перейти на «Основной»</button>
     <button type="button" class="pk-btn ghost" onclick="pkTariffs()">Сравнить все тарифы</button>
     <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:2px 0 0">Данные никуда не денутся — всё, что вы ведёте в телефоне, сразу появится в Кабинете</p>`);
@@ -210,11 +218,11 @@ function pkPayEnd() {
   base.setMonth(base.getMonth() + (pkTPer === 'y' ? 12 : 1)); return base;
 }
 function pkPayRender1() {
-  const S = pkPayS, cur = pkGeoCur(), P = PK_TP[cur], [m, y] = P[S.plan];
+  const S = pkPayS, cur = pkGeoCur(), P = pkTP(cur), [m, y] = P[S.plan];
   const L = pkPayMethods();
   const amt = x => x.cur ? pkN(pkPayAmount(x.cur, S.plan, pkTPer)) + ' ' + PK_SYM[x.cur] : '';
   pkScr(`Оплата «${PK_PLANS[S.plan].n}»`, `
-    <div class="pk-seg"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkPayRender1()">Помесячно · ${pkN(m)}</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkPayRender1()">За год · ≈${pkN(y / 12)} в мес</button></div>
+    <div class="pk-seg"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkPayRender1()">Помесячно · ${pkN(m)}</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkPayRender1()">За год · ≈${pkN(pkMo(y, cur))} в мес</button></div>
     <p class="pk-muted" style="font-size:13px;text-align:center;margin:-2px 0 0">${pkTPer === 'y' ? `${pkN(y)} ${P.s} раз в год · выгода ${pkN(m * 12 - y)} ${P.s}` : `${pkN(m)} ${P.s} в месяц`} · до ${pkD(pkPayEnd())}</p>
     <div class="pk-lbl">Чем платите</div>
     <div class="pk-mt">${L.map(x => `<button type="button" class="${x.id === S.method ? 'on' : ''}" onclick="pkPayS.method='${x.id}';pkPayRender1()"><i class="ti ${x.ic}" aria-hidden="true"></i><span>${x.n}<small>${x.sub}${x.cur ? ' · ' + amt(x) : ''}</small></span><i class="rd" aria-hidden="true"></i></button>`).join('')}</div>
@@ -233,9 +241,9 @@ function pkPayRender2() {
       <a class="pk-btn" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram" aria-hidden="true"></i> Написать в поддержку</a>`, pkPayRender1);
     return;
   }
-  const amount = pkPayAmount(x.cur, S.plan, pkTPer), s = PK_SYM[x.cur], byn = PK_TP.BYN[S.plan][pkTPer === 'y' ? 1 : 0];
+  const amount = pkPayAmount(x.cur, S.plan, pkTPer), s = PK_SYM[x.cur], vc = pkGeoCur(), vp = pkTP(vc)[S.plan][pkTPer === 'y' ? 1 : 0];
   S.amount = amount; S.cur = s;
-  let req = `<div><small>Сумма</small><span class="pk-pay-big">${pkN(amount)} <small>${s}</small></span>${x.cur !== 'BYN' ? `<small>= ${pkN(byn)} BYN ${pkRateNote()}, округлено вверх</small>` : ''}</div>`;
+  let req = `<div><small>Сумма</small><span class="pk-pay-big">${pkN(amount)} <small>${s}</small></span>${x.cur !== vc ? `<small>= ${pkN(vp)} ${PK_SYM[vc]} ${pkRateNote()}, округлено вверх</small>` : ''}</div>`;
   if (x.addr) req += `<div class="pk-qr"><img src="${x.qr}" alt="QR-код адреса ${pkEsc(x.net)}" width="200" height="200"></div>
       <div class="pk-rq"><span><small>Адрес USDT · ${pkEsc(x.net)}</small><b class="mono">${pkEsc(x.addr)}</b></span><button type="button" class="cp" onclick="pkCopy('${x.addr}','Адрес')" aria-label="Скопировать адрес"><i class="ti ti-copy" aria-hidden="true"></i></button></div>
       <div class="pk-pay-warn"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span>Отправляйте только USDT в сети <b>${pkEsc(x.net)}</b>. В другой сети деньги пропадут. Комиссию сети платит отправитель — до нас должно дойти ${pkN(amount)} USDT.</span></div>`;
