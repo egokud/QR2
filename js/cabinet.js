@@ -2715,7 +2715,7 @@ async function cabAdminSub(uid, name) {
   if (!confirm('Активировать подписку до ' + endDate.toLocaleDateString('ru') + '?')) return;
   try {
     await db.collection('users').doc(uid).update({
-      subscription: { endDate: firebase.firestore.Timestamp.fromDate(endDate), months: m, activatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+      'subscription.endDate': firebase.firestore.Timestamp.fromDate(endDate), 'subscription.months': m, 'subscription.activatedAt': firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch (e) { alert('Ошибка: ' + e.message); }
   cabNav(cabCurrentSection);

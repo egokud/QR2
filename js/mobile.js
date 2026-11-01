@@ -453,27 +453,78 @@ function pkRemind(enc, sum, encShip) {
 }
 
 // ---------- Деньги ----------
+// Сверху — долг клиентов сейчас; «Товар в пути» — закупки до раскладки (деньги в товаре);
+// «Итоги по закупкам» за период (по дате закупки); «Долги по закупкам» — по закупкам, люди — во вкладке «Клиенты».
+let pkMoneyPer = 'm0', pkMoneyOpen = {};
+const PK_MON_IN = ['январе', 'феврале', 'марте', 'апреле', 'мае', 'июне', 'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре'];
+function pkShipWhen(s) {
+  const d = typeof cabShipDate === 'function' ? cabShipDate(s) : null;
+  if (d) return d;
+  const c = s && s.created; const x = c ? (c.toDate ? c.toDate() : new Date(c)) : null;
+  return x && !isNaN(x) ? x : null;
+}
+function pkMoneyRange(k) {
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth();
+  const cap = d => { const t = d.toLocaleDateString('ru-RU', { month: 'long' }); return t.charAt(0).toUpperCase() + t.slice(1); };
+  if (k === 'm1') return { a: new Date(y, m - 1, 1), b: new Date(y, m, 1), l: cap(new Date(y, m - 1, 1)), t: 'отправленные в ' + PK_MON_IN[(m + 11) % 12] };
+  if (k === 'q') return { a: new Date(y, m - 2, 1), b: new Date(y, m + 1, 1), l: '3 месяца', t: 'за последние 3 месяца' };
+  if (k === 'y') return { a: new Date(y, 0, 1), b: new Date(y + 1, 0, 1), l: 'Год', t: 'за ' + y + ' год' };
+  return { a: new Date(y, m, 1), b: new Date(y, m + 1, 1), l: cap(n), t: 'отправленные в ' + PK_MON_IN[m] };
+}
 function pkRenderMoney() {
   const pane = document.getElementById('pkPane-money');
   const S = pkData();
   if (!S) { pane.innerHTML = '<div class="pk-card pk-empty">Нет данных</div>'; return; }
-  const all = S.list.filter(c => !c.isOwner);
-  const debtors = all.filter(c => c.unpaidDue > 0.005).sort((a, b) => b.unpaidDue - a.unpaidDue);
+  const cur = pkCur(), ships = allShipments || [];
+  const debtors = S.list.filter(c => !c.isOwner && c.unpaidDue > 0.005);
   const unpaid = debtors.reduce((n, c) => n + c.unpaidDue, 0);
-  let dueB = 0, paidB = 0;
-  for (const s of (allShipments || [])) { if (!cabIsBilled(s)) continue; const { clients } = cabGetClientsFromShipment(s); for (const c of clients) { if (c.isOwner) continue; dueB += c.due; paidB += Math.min(c.due, c.payPaid || 0); } }
+  let dueB = 0, paidB = 0, nB = 0;
+  const way = [], debts = [];
+  for (const s of ships) {
+    const st = s.status || 'forming';
+    if (st === 'done' && !cabIsBilled(s)) continue;
+    const { clients, rates } = cabGetClientsFromShipment(s);
+    const cl = clients.filter(c => !c.isOwner);
+    if (cabIsBilled(s)) {
+      nB++;
+      let due = 0, paid = 0; const who = [];
+      for (const c of cl) { due += c.due; paid += Math.min(c.due, c.payPaid || 0); if (c.payRest > 0.005) who.push(c); }
+      dueB += due; paidB += paid;
+      if (who.length) debts.push({ s, due, paid, rest: who.reduce((n, c) => n + c.payRest, 0), who: who.sort((a, b) => b.payRest - a.payRest), n: cl.length });
+    } else {
+      const cost = cl.reduce((n, c) => n + (c.buyYuan > 0 ? c.goodsCost : c.clientYuan * (rates.buyRate || 0)), 0);
+      if (cost > 0.5) way.push({ s, cost });
+    }
+  }
+  const ORD = { forming: 0, transit: 1, delayed: 1, warehouse: 2 };
+  way.sort((a, b) => (ORD[a.s.status || 'forming'] - ORD[b.s.status || 'forming']) || b.cost - a.cost);
+  debts.sort((a, b) => b.rest - a.rest);
+  const waySum = way.reduce((n, x) => n + x.cost, 0);
   const pct = dueB > 0 ? Math.round(paidB / dueB * 100) : 0;
-  const M = typeof cabMoney === 'function' ? cabMoney(allShipments || []) : { frozen: 0, realized: 0, nShips: 0 };
+  // итоги за период
+  const R = pkMoneyRange(pkMoneyPer);
+  let turn = 0, prof = 0, nP = 0;
+  for (const s of ships) {
+    const d = pkShipWhen(s); if (!d || d < R.a || d >= R.b) continue;
+    nP++;
+    for (const c of cabGetClientsFromShipment(s).clients) { if (c.isOwner) continue; turn += c.due; prof += c.profit; }
+  }
+  const enc = n => encodeURIComponent(n);
   pane.innerHTML = `<h1 class="pk-h1">Деньги</h1>
-    <div class="pk-money"><span style="font-size:14px;opacity:.85">Должны вам · ${debtors.length} ${pkPl(debtors.length, 'клиент', 'клиента', 'клиентов')}</span><div class="v">${pkFmt(unpaid)} <small>${pkCur()}</small></div><div class="pk-bar"><span style="width:${pct}%"></span></div><span style="font-size:13px;opacity:.85">Собрано ${pct}% по рассортированным закупкам</span></div>
-    <div class="pk-2"><div class="pk-card"><small>Вложено в товар</small><b>${pkFmt(M.frozen)} ${pkCur()}</b><small>ждёт оплаты клиентов</small></div><div class="pk-card"><small>Получено прибыли</small><b style="color:var(--pk-ok)">${pkFmt(M.realized)} ${pkCur()}</b><small>уже заплатили</small></div></div>
-    <div class="pk-row"><span class="pk-lbl">Кто должен</span><span class="pk-muted" style="font-size:12px">по сумме</span></div>
-    <div class="pk-list">${debtors.slice(0, 50).map(c => {
-      const x = c.ships.filter(y => cabIsBilled(y.ship) && y.c.payRest > 0.005).sort((a, b) => b.c.payRest - a.c.payRest)[0];
-      const enc = encodeURIComponent(c.name);
-      return `<div class="pk-li pk-cl" onclick="pkGo('clients');pkOpenClient('${enc}')"><span class="pk-av">${pkEsc(c.name.trim().charAt(0).toUpperCase())}</span><div><b>${pkEsc(c.name)}</b><small>${x ? pkEsc(x.ship.name) : ''}</small></div><span class="r due">${pkFmt(c.unpaidDue)} ${pkCur()}</span></div>`;
-    }).join('') || '<div class="pk-empty">Все оплатили</div>'}</div>
-    <p class="pk-muted" style="font-size:13px;text-align:center;margin:4px 0 0">Графики и аналитика — в Кабинете на компьютере</p>`;
+    <div class="pk-money"><span style="font-size:14px;opacity:.9">Вам должны сейчас · ${debtors.length} ${pkPl(debtors.length, 'клиент', 'клиента', 'клиентов')}</span><div class="v">${pkFmt(unpaid)} <small>${cur}</small></div>
+      ${nB ? `<div class="pk-bar"><span style="width:${pct}%"></span></div><span class="s">Собрано <b>${pkFmt(paidB)}</b> из ${pkFmt(dueB)} ${cur} · ${pct}%</span><span style="font-size:12.5px;opacity:.85;margin-top:-4px">по ${nB} ${pkPl(nB, 'рассортированной закупке', 'рассортированным закупкам', 'рассортированным закупкам')}</span>` : '<span class="s" style="opacity:.85">Долги появятся, когда закупка будет рассортирована</span>'}</div>
+    ${way.length ? `<div class="pk-way"><div class="hd"><b>Товар в пути</b><span>${pkFmt(waySum)} ${cur}</span></div><div class="sub">Вы уже заплатили за товар, клиенты будут должны после раскладки</div>
+      ${way.map(x => { const st = pkSt(x.s.status || 'forming'), n = (x.s.data || []).length; return `<div class="row" onclick="pkShipSheet('${x.s.id}')" role="button" tabindex="0"><i class="dot" style="background:${st.color}"></i><span>${pkEsc(x.s.name)}<small>${st.label} · ${n} ${pkPl(n, 'трек', 'трека', 'треков')}</small></span><b>${pkFmt(x.cost)}</b><i class="ti ti-chevron-right" aria-hidden="true"></i></div>`; }).join('')}</div>` : ''}
+    <div class="pk-lbl" style="margin-top:4px">Итоги по закупкам</div>
+    <div class="pk-chips">${['m0', 'm1', 'q', 'y'].map(k => `<button type="button" class="${pkMoneyPer === k ? 'on' : ''}" onclick="pkMoneyPer='${k}';pkRenderMoney()">${pkMoneyRange(k).l}</button>`).join('')}</div>
+    <div class="pk-t3"><div><small>Оборот</small><b>${pkFmt(turn)}</b></div><div><small>Прибыль</small><b style="color:var(--pk-ok)">${pkFmt(prof)}</b></div><div><small>Закупок</small><b>${nP}</b></div></div>
+    <p class="pk-muted" style="font-size:12.5px;margin:-2px 0 0;line-height:1.45">Закупки ${R.t}, ${cur}. Оборот — сколько должны все клиенты, прибыль — ваша наценка. До взвешивания доставка не учтена.</p>
+    ${debts.length ? `<div class="pk-lbl" style="margin-top:6px">Долги по закупкам</div>
+    ${debts.map(x => { const st = pkSt(x.s.status), p = x.due > 0 ? Math.round(x.paid / x.due * 100) : 0, open = pkMoneyOpen[x.s.id], list = open ? x.who : x.who.slice(0, 3);
+      return `<div class="pk-dsh"><div class="r" onclick="pkShipSheet('${x.s.id}')"><div><b>${pkEsc(x.s.name)}</b><br><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}</span></div><span class="sum">${pkFmt(x.rest)} ${cur}</span></div>
+        <div class="pb"><span style="width:${p}%"></span></div><span class="m">Должны ${x.who.length} из ${x.n} ${pkPl(x.n, 'клиента', 'клиентов', 'клиентов')} · собрано ${p}%</span>
+        <div class="who">${list.map(c => `<button type="button" onclick="pkGo('clients');pkOpenClient('${enc(c.name)}')"><span>${pkEsc(c.name)}</span><b>${pkFmt(c.payRest)}</b></button>`).join('')}${x.who.length > 3 ? `<button type="button" class="more" onclick="pkMoneyOpen['${x.s.id}']=${open ? 'false' : 'true'};pkRenderMoney()">${open ? 'свернуть' : 'ещё ' + (x.who.length - 3) + ' →'}</button>` : ''}</div></div>`; }).join('')}
+    <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:0">Кто должен по людям — «Клиенты» → «Должны»</p>` : ''}`;
 }
 
 // ---------- Ещё ----------
@@ -491,12 +542,21 @@ function pkRenderMore() {
       <button onclick="if(pkIsPhone())location.href='/extension';else window.open('/extension','_blank')"><i class="ti ti-puzzle" aria-hidden="true"></i><span>Расширение Piksta для Chrome<br><small>скачать и инструкция · ставится на компьютер</small></span></button>
       <button onclick="${activeShipmentId ? `cacheShipmentImages('${activeShipmentId}')` : ''}"><i class="ti ${off ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>Фото для работы без интернета</span><small>${off ? 'скачаны · ' + off : 'текущая закупка'}</small></button>
       <button onclick="pkTheme()"><i class="ti ti-moon" aria-hidden="true"></i><span>Тёмная тема</span><small>${document.body.classList.contains('dark') ? 'вкл' : 'выкл'}</small></button>
-      <button onclick="pkToCabinet('tariff')"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span></button>
+      <button onclick="pkTariffs()"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span>${pkTariffLine()}</button>
       <button onclick="pkHelp()"><i class="ti ti-help-circle" aria-hidden="true"></i><span>Помощь и связь</span></button>
       <button onclick="pkToCabinet()"><i class="ti ti-device-desktop" aria-hidden="true"></i><span>Полный Кабинет<br><small>цены, взвешивание, аналитика — удобнее на компьютере</small></span></button>
       ${isAdmin ? `<button onclick="pkToCabinet('admin')"><i class="ti ti-shield" aria-hidden="true"></i><span>Админ</span></button>` : ''}
     </div>
     <button class="pk-btn ghost" style="color:var(--pk-bad)" onclick="doLogout()">Выйти</button>`;
+}
+function pkTariffLine() {
+  if (typeof pkPlanNow !== 'function') return '';
+  const { A, sub, plan } = pkPlanNow();
+  if (sub.pending) return '<small style="color:var(--pk-warn)">оплата на проверке</small>';
+  if (A.kind === 'sub') return `<small>${PK_PLANS[plan].n} · до ${A.end.toLocaleDateString('ru-RU')}</small>`;
+  if (A.kind === 'trial') return `<small>пробный · ${A.left} дн.</small>`;
+  if (A.kind === 'grace' || A.kind === 'readonly') return '<small style="color:var(--pk-bad)">нужно оплатить</small>';
+  return '';
 }
 function pkTheme() {
   const cb = document.getElementById('themeToggle');
@@ -505,6 +565,7 @@ function pkTheme() {
   pkRender();
 }
 function pkToCabinet(section) {
+  if (typeof pkCabinetGate === 'function' && pkCabinetGate(section)) return;
   document.getElementById('appScreen').classList.add('hide');
   enterMode('cabinet');
   if (section) setTimeout(() => { try { cabNav(section); } catch (e) {} }, 400);
