@@ -70,7 +70,7 @@ function pkAccess(p) {
   const from = subEnd ? 'sub' : 'trial';
   const end = from === 'sub' ? subEnd : trialEnd;
   const until = new Date(end.getTime() + PK_GRACE_DAYS * DAY);
-  if (now < end) return { kind: from, end, left: Math.ceil((end - now) / DAY) };
+  if (now < end) return { kind: from, from, end, left: Math.ceil((end - now) / DAY) };
   if (now < until) return { kind: 'grace', from, end, until, left: Math.ceil((until - now) / DAY) };
   return { kind: 'readonly', from, end };
 }

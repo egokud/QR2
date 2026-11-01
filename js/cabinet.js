@@ -2499,32 +2499,29 @@ async function cabLoadAdminUsers(box) {
     const users = docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'admin');
     await Promise.all(users.map(async u => {
       u._acc = pkAccess(u);
-      u._ships = '—';
-      try { u._ships = (await db.collection('users').doc(u.id).collection('shipments').get()).size; } catch (e) {}
+      u._ships = '—'; u._items = '—';
+      try {
+        const ss = await db.collection('users').doc(u.id).collection('shipments').get();
+        u._ships = ss.size;
+        u._items = ss.docs.reduce((n, d) => n + ((d.data().data || []).length), 0);  // только число позиций, для статистики тарифов
+      } catch (e) {}
     }));
     users.sort((a, b) => (cabToDate(b.created) || 0) - (cabToDate(a.created) || 0));
     cabAdminUsers = users;
     for (const id of [...cabAdminSel]) if (!users.some(u => u.id === id)) cabAdminSel.delete(id);
-    const K = k => users.filter(u => u._acc.kind === k).length;
     box.innerHTML = `
       <div class="cab-table-wrap">
         <div class="cab-table-title"><i class="ti ti-shield-lock" style="margin-right:6px"></i>Пользователи Piksta</div>
-        <div class="cab-ustats">
-          <div class="cab-stat-card"><div class="cab-stat-val">${users.length}</div><div class="cab-stat-label">Всего пользователей</div></div>
-          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#16a34a">${K('sub')}</div><div class="cab-stat-label">С подпиской</div></div>
-          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#f59e0b">${K('trial')}</div><div class="cab-stat-label">На пробном</div></div>
-          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#dc2626">${K('grace') + K('readonly')}</div><div class="cab-stat-label">Не оплатили</div></div>
-          <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6b7280">${K('blocked')}</div><div class="cab-stat-label">Заблокировано</div></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 8px">
-          <div style="position:relative;flex:1;min-width:220px;max-width:380px">
+        <div class="cab-ustats" id="cabAdminStats"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 12px">
+          <div style="position:relative;flex:1 1 220px;max-width:340px">
             <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af"></i>
             <input id="cabAdminQ" type="search" placeholder="Поиск по e-mail или имени" value="${cabEsc(cabAdminQ)}" oninput="cabAdminQ=this.value;cabAdminRenderList()"
               style="width:100%;box-sizing:border-box;padding:8px 10px 8px 32px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px">
           </div>
-          <div id="cabAdminChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          <select id="cabAdminF" class="cab-usel" style="padding:8px 10px" onchange="cabAdminSetFilter(this.value)"></select>
+          <div id="cabAdminBar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex:1 1 auto;justify-content:flex-end;font-size:13px;color:#4a5260"></div>
         </div>
-        <div id="cabAdminBar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0 12px;font-size:13px;color:#4a5260"></div>
         <div class="cab-users" id="cabUList"></div>
       </div>`;
     cabAdminRenderList();
@@ -2558,20 +2555,22 @@ function cabAdminRenderBar() {
   const vis = cabAdminVisible(), n = cabAdminSel.size;
   const allOn = vis.length > 0 && vis.every(u => cabAdminSel.has(u.id));
   bar.innerHTML = `
-    <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="cabAdminSelectVisible(this.checked)"> Выбрать всех найденных (${vis.length})</label>
-    <span style="margin-left:auto">${n ? `Выбрано: <b>${n}</b>` : 'Никто не выбран'}</span>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-right:auto"><input type="checkbox" ${allOn ? 'checked' : ''} onchange="cabAdminSelectVisible(this.checked)"> Выбрать всех (${vis.length})</label>
+    ${n ? `<span>Выбрано: <b>${n}</b></span>` : ''}
     ${n ? `<button class="cab-filter-btn" onclick="cabAdminSel.clear();cabAdminRenderList()">Снять выбор</button>` : ''}
-    <button class="cab-filter-btn" ${n ? '' : 'disabled'} onclick="cabAdminCopyEmails()"><i class="ti ti-copy"></i> Скопировать адреса</button>
+    <button class="cab-filter-btn" ${n ? '' : 'disabled'} onclick="cabAdminCopyEmails()" title="Скопировать адреса выбранных"><i class="ti ti-copy"></i> Адреса</button>
     <button class="cab-filter-btn" ${n ? '' : 'disabled'} style="color:#fff;background:#6C4DB8;border-color:#6C4DB8" onclick="cabAdminMailOpen()"><i class="ti ti-mail"></i> Написать письмо</button>`;
 }
 
 function cabAdminRenderList() {
   const list = document.getElementById('cabUList'); if (!list) return;
-  const chips = document.getElementById('cabAdminChips');
-  if (chips) chips.innerHTML = CAB_ADMIN_FILTERS.map(([k, t]) => {
-    const n = cabAdminUsers.filter(u => cabAdminMatch(u, k)).length;
-    return `<button class="cab-filter-btn${cabAdminF === k ? ' active' : ''}" onclick="cabAdminSetFilter('${k}')">${t} <span style="opacity:.6">${n}</span></button>`;
-  }).join('');
+  const cnt = k => cabAdminUsers.filter(u => cabAdminMatch(u, k)).length;
+  const sel = document.getElementById('cabAdminF');
+  if (sel) sel.innerHTML = CAB_ADMIN_FILTERS.map(([k, t]) => `<option value="${k}" ${cabAdminF === k ? 'selected' : ''}>${t} — ${cnt(k)}</option>`).join('');
+  const stats = document.getElementById('cabAdminStats');
+  if (stats) stats.innerHTML = [[cabAdminUsers.length, 'Всего пользователей', '#1a1a2e'], [cnt('sub'), 'С подпиской', '#16a34a'], [cnt('trial'), 'На пробном', '#f59e0b'],
+    [cnt('unpaid'), 'Не оплатили', '#dc2626'], [cnt('blocked'), 'Заблокировано', '#6b7280']]
+    .map(([v, l, c]) => `<div class="cab-stat-card"><div class="cab-stat-val" style="color:${c}">${v}</div><div class="cab-stat-label">${l}</div></div>`).join('');
   const now = new Date();
   const rows = cabAdminVisible().map(u => {
     const A = u._acc, created = cabToDate(u.created) || now;
@@ -2590,14 +2589,16 @@ function cabAdminRenderList() {
     const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индивидуальный тариф</label>`;
     const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
     const endTxt = end ? `${end.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em>` : '—';
+    const num = v => typeof v === 'number' ? v.toLocaleString('ru-RU') : v;
     return `<div class="cab-ucard${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}">
       <div class="cab-urow">
         <input type="checkbox" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
-        <div class="cab-uwho"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0"><div class="cab-uname">${cabEsc(u.name || '—')}</div><div class="cab-umail">${cabEsc(u.email || u.id)}</div></div></div>
-        <div class="cab-umeta"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
-        <div class="cab-umeta"><span>Закупок</span><b>${u._ships}</b></div>
-        <div class="cab-umeta"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
+        <div class="cab-uwho"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0"><div class="cab-uname">${cabEsc(u.email || u.id)}</div><div class="cab-umail">${cabEsc(u.name || '—')}</div></div></div>
         <span class="cab-upill" style="color:${st[1]};background:${st[2]}">${st[0]}</span>
+        <div class="cab-umeta" style="min-width:140px"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
+        <div class="cab-umeta"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
+        <div class="cab-umeta"><span>Закупок</span><b>${num(u._ships)}</b></div>
+        <div class="cab-umeta"><span>Позиций</span><b>${num(u._items)}</b></div>
       </div>
       <div class="cab-urow cab-urow2">
         ${ctry}${fnd}${ind}
