@@ -194,6 +194,7 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
       <div class="who ${who.length > 22 ? 'long' : ''}">${who}</div>
       ${q > 1 ? `<div class="warn">×${q} — под этим треком ${q} ${pkPl(q, 'вещь', 'вещи', 'вещей')}, проверьте, что все в пакете</div>` : ''}
       ${many ? `<div class="warn">В посылке товары для нескольких клиентов — разложите по пакетам</div>` : ''}
+      ${row && row[6] ? `<div class="pnm">${pkEsc(row[6])}</div>` : ''}
       <div class="trk">${pkEsc(track)}</div>
     </div>
     <button class="pk-btn" style="width:100%" onclick="pkResOk()">Следующая посылка</button>
@@ -363,7 +364,7 @@ function pkRenderClientCard(pane, name) {
   for (const x of c.ships) {
     if (x.ship.status === 'done') continue;
     for (const row of (x.ship.data || [])) {
-      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'];
+      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1', row.n || ''];
       if (splitWarehouses(r[1] || '').some(p => p.toLowerCase() === name.toLowerCase())) items.push({ r, ship: x.ship });
       if (items.length >= 30) break;
     }
@@ -376,7 +377,7 @@ function pkRenderClientCard(pane, name) {
       <div class="pk-muted" style="font-size:12px;margin-top:8px">«Напомнить» копирует вежливое сообщение — вставьте в переписку</div></div>`).join('')}
     ${!debts.length ? `<div class="pk-card pk-row"><span>Долгов нет</span><b style="color:var(--pk-ok)">оплачено</b></div>` : ''}
     <div class="pk-lbl">Что заказала сейчас</div>
-    <div class="pk-list">${items.map(({ r, ship }) => `<div class="pk-li"><span class="ph" ${r[2] ? `style="background-image:url('${pkEsc(r[2])}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${pkEsc(ship.name)} · ${pkSt(ship.status || 'forming').label}</small></div><span class="r">${(parseInt(r[5] || '1', 10) || 1) > 1 ? '×' + r[5] : ''}</span></div>`).join('') || '<div class="pk-empty">Сейчас ничего не заказано</div>'}</div>
+    <div class="pk-list">${items.map(({ r, ship }) => `<div class="pk-li"><span class="ph" ${r[2] ? `style="background-image:url('${pkEsc(r[2])}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) + ' · ' : ''}${pkEsc(ship.name)} · ${pkSt(ship.status || 'forming').label}</small></div><span class="r">${(parseInt(r[5] || '1', 10) || 1) > 1 ? '×' + r[5] : ''}</span></div>`).join('') || '<div class="pk-empty">Сейчас ничего не заказано</div>'}</div>
     <div class="pk-2"><div class="pk-card"><small>Всего купила</small><b>${pkFmt(totalBought)} ${pkCur()}</b></div><div class="pk-card"><small>Позиций</small><b>${c.totalItems}</b></div></div>`;
 }
 async function pkMarkPaid(shipId, enc, due) {

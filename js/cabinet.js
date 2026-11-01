@@ -816,7 +816,7 @@ function cabShipItemsHtml() {
       const k = (r[1] || '').trim().toLowerCase();
       if (k !== lastWh) {
         lastWh = k;
-        head = `<tr class="cab-item-grp"><td colspan="5" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без склада'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
+        head = `<tr class="cab-item-grp"><td colspan="4" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без склада'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
       }
     }
     const qty = parseInt(r[5]) || 1;
@@ -826,7 +826,6 @@ function cabShipItemsHtml() {
       <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${r[2] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком — из одного магазина, могут быть разными</div>` : ''}</td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
       <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
-      <td><input data-idx="${i}" value="${r[4] || ''}" onchange="cabEditCell(this,4)" inputmode="decimal" placeholder="${r[3] || '—'}" style="${cabInp};width:80px;color:#6C4DB8"></td>
     </tr>`;
   }).join('');
   const noPdd = TABLE.filter(r => !r[2]).length;
@@ -840,8 +839,8 @@ function cabShipItemsHtml() {
       </div>
     </div>
     <table class="cab-table">
-      <thead><tr><th></th><th>Трек</th><th>Клиент</th><th>Выкуп ¥</th><th>Клиент ¥</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
+      <thead><tr><th></th><th>Трек</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
     </table>
   </div>`;
 }

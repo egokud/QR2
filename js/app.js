@@ -292,7 +292,7 @@ function renderPriceEditor() {
   const q = (document.getElementById('peSearch').value || '').toLowerCase().trim();
   let items = TABLE.map((r, i) => ({
     idx: i, track: r[0], wh: r[1]||'', img: r[2]||'',
-    buy: r[3]||'', client: r[4]||'', qty: parseInt(r[5])||1
+    buy: r[3]||'', client: r[4]||'', qty: parseInt(r[5])||1, name: r[6]||''
   }));
   if (peExactWh) {
     // Точное совпадение склада (выбран из подсказки)
@@ -329,12 +329,12 @@ function renderPriceEditor() {
     <div class="pe-item ${r.qty>1?'multi':''}">
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
-        <div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>
+        <input class="pe-name" data-idx="${r.idx}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="+ название" maxlength="40" onchange="onEditName(this)" onclick="event.stopPropagation()" autocomplete="off">
+        <div class="pe-bot"><div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>
         ${byWh ? '' : `<div style="position:relative"><input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" oninput="showClientHints(this)" onfocus="showClientHints(this)" onblur="hideClientHints(this)" onclick="event.stopPropagation()" autocomplete="off"></div>`}
-      </div>
+      </div></div>
       <div class="pe-prices">
         <label class="pe-price-field"><span>Выкуп ¥</span><input type="number" step="0.01" inputmode="decimal" class="buy" data-idx="${r.idx}" value="${r.buy}" placeholder="—" onchange="onEditBuy(this)"></label>
-        <label class="pe-price-field"><span>Клиент ¥</span><input type="number" step="0.01" inputmode="decimal" class="client" data-idx="${r.idx}" value="${r.client}" placeholder="${r.buy||'—'}" onchange="onEditClient(this)"></label>
       </div>
     </div>`;
   }).join('');
@@ -415,6 +415,16 @@ async function onEditClientName(input) {
   if (peSortMode === 'warehouse') renderPriceEditor();
 }
 
+// Название товара (по желанию, 1–3 слова) — TABLE[idx][6], в базе поле n
+async function onEditName(input) {
+  const idx = parseInt(input.dataset.idx);
+  if (idx<0 || idx>=TABLE.length) return;
+  const v = (input.value || '').trim().slice(0, 40);
+  input.value = v;
+  TABLE[idx][6] = v;
+  await savePriceAt(idx);
+}
+
 async function onEditBuy(input) {
   const idx = parseInt(input.dataset.idx);
   if (idx<0 || idx>=TABLE.length) return;
@@ -442,6 +452,11 @@ async function savePriceAt(idx) {
     if (!doc.exists) return;
     const data = doc.data().data;
     if (!data || !data[idx]) return;
+    const nm = String(TABLE[idx][6]||'').trim();
+    if (Array.isArray(data[idx]) && nm) {
+      // старый формат-массив: чтобы сохранить название, переводим строку в объект
+      const a = data[idx]; data[idx] = { t: a[0], w: a[1]||'', img: a[2]||'', p: a[3]||'', pc: a[4]||'', q: a[5]||'1' };
+    }
     if (Array.isArray(data[idx])) {
       // старый формат-массив [t,w,img,p,pc,q]
       data[idx][1] = String(TABLE[idx][1]||'');  // склад/клиент
@@ -451,6 +466,7 @@ async function savePriceAt(idx) {
       data[idx].w = String(TABLE[idx][1]||'');   // склад/клиент
       data[idx].p = String(TABLE[idx][3]||'');
       data[idx].pc = String(TABLE[idx][4]||'');
+      if (nm) data[idx].n = nm; else delete data[idx].n;
     }
     t.update(ref, { data });
   });
@@ -1120,7 +1136,7 @@ let currentDueOverride = {};
 // Разложить данные документа прихода по глобальным переменным (используется при загрузке и при живой синхронизации)
 function applyShipDoc(d) {
   d = d || {};
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1']);
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'']);  // [6] — название товара (по желанию)
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};
   currentTare = d.tare || 0;
