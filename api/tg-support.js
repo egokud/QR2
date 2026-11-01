@@ -75,9 +75,9 @@ async function setDoc(id, fields, mustBeNew) {
   const body = {}; for (const k in fields) body[k] = enc(fields[k]);
   await fs(`/support/${id}?${mask}${mustBeNew ? '&currentDocument.exists=false' : ''}`, { method: 'PATCH', body: JSON.stringify({ fields: body }) });
 }
-let GROUP = undefined;
+let GROUP = null;   // кешируем только найденную группу: «не подключена» перепроверяем каждый раз
 async function groupId() {
-  if (GROUP !== undefined) return GROUP;
+  if (GROUP) return GROUP;
   try { const c = await getDoc('config'); GROUP = (c && c.groupId) || null; } catch (e) { GROUP = null; }
   return GROUP;
 }
