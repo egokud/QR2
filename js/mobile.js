@@ -1,6 +1,6 @@
 // Piksta — мобильная версия (сканер + карманный Кабинет). Работает поверх app.js и cabinet.js, их логику не меняет.
 // Вкладки: Сканер · Закупки · Клиенты · Деньги · Ещё. Скины: compact (по умолчанию), lenta, bottom.
-let pkTab = 'scan';
+let pkTab = 'ships';   // по умолчанию — Закупки (01.11)
 let pkShipFilter = 'all';
 let pkClientFilter = 'all';
 let pkClientQuery = '';
@@ -62,8 +62,8 @@ function pkBuild() {
   }
   const tabs = document.createElement('nav');
   tabs.className = 'pk-tabs'; tabs.id = 'pkTabs'; tabs.setAttribute('aria-label', 'Разделы');
-  tabs.innerHTML = '<div class="in">' + [['scan', 'ti-scan', 'Сканер'], ['ships', 'ti-package', 'Закупки'], ['clients', 'ti-users', 'Клиенты'], ['money', 'ti-wallet', 'Деньги'], ['more', 'ti-layout-grid', 'Ещё']]
-    .map(([k, ic, l]) => `<button type="button" id="pkT-${k}" data-t="${k}" onclick="pkGo('${k}')"><i class="ti ${ic}" aria-hidden="true"></i>${l}</button>`).join('') + '</div>';
+  tabs.innerHTML = '<div class="in">' + [['ships', 'ti-package', 'Закупки'], ['clients', 'ti-users', 'Клиенты'], ['scan', 'ti-scan', 'Сканер'], ['money', 'ti-wallet', 'Деньги'], ['more', 'ti-layout-grid', 'Ещё']]
+    .map(([k, ic, l]) => `<button type="button" id="pkT-${k}" data-t="${k}"${k === 'scan' ? ' class="pk-c"' : ''} onclick="pkGo('${k}')"><i class="ti ${ic}" aria-hidden="true"></i>${l}</button>`).join('') + '</div>';
   document.body.appendChild(tabs);
 
   const bg = document.createElement('div'); bg.className = 'pk-sheet-bg'; bg.id = 'pkSheetBg'; bg.onclick = pkSheetClose;
@@ -278,11 +278,22 @@ function pkRenderShips() {
   pkShipSearch();
   if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
 }
+// Телефон или компьютер: расширение Chrome ставится только на компьютере
+function pkIsPhone() { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''); }
 function pkNewShip() {
+  const phone = pkIsPhone();
+  const opt = (ic, t, sub, fn) => `<button onclick="${fn}"><i class="ti ${ic}" aria-hidden="true"></i><span><b style="display:block;font-weight:600">${t}</b><small class="pk-muted" style="display:block;font-size:13px;font-weight:400;line-height:1.35;margin-top:2px">${sub}</small></span></button>`;
   pkSheet(`<h3>Новая закупка</h3>
     <p class="pk-muted" style="font-size:14px;line-height:1.5;margin:10px 0 14px">Обычно закупка появляется сама — после импорта заказов в расширении Piksta на компьютере: треки, фото и цены приходят одной кнопкой.</p>
-    <div class="pk-menu"><button onclick="pkSheetClose();openUploadModal()"><i class="ti ti-upload" aria-hidden="true"></i><span>Загрузить таблицу с треками</span></button></div>`);
+    <div class="pk-menu">
+      ${phone
+        ? opt('ti-file-type-pdf', 'Через расширение Piksta в Chrome', 'Ставится только на компьютер. Откроется инструкция PDF и ссылка для компьютера', "pkSheetClose();window.open('/extension','_blank')")
+        : opt('ti-puzzle', 'Через расширение Piksta в Chrome', 'Откроется страница с инструкцией и последней версией расширения', "pkSheetClose();window.open('/extension','_blank')")}
+      ${opt('ti-upload', 'Загрузить таблицу с треками', 'Файл Excel или CSV от карго', 'pkSheetClose();openUploadModal()')}
+      ${opt('ti-pencil-plus', 'Создать вручную', 'Название закупки, треки добавите сами', 'pkSheetClose();pkNewManual()')}
+    </div>`);
 }
+function pkNewManual() { if (typeof showToast === 'function') showToast('Скоро: создание закупки вручную'); }
 function pkShipSheet(id) {
   const s = (allShipments || []).find(x => x.id === id); if (!s) return;
   const cur = s.status || 'forming';
@@ -417,6 +428,7 @@ function pkRenderMore() {
     <div class="pk-lbl">Вид сканера</div>
     <div class="pk-skins">${PK_SKINS.map(([k, l]) => `<button type="button" class="pk-skin ${skin === k ? 'on' : ''}" onclick="pkSetSkin('${k}')" aria-pressed="${skin === k}"><span class="pv">${pv[k]}</span><span>${l}</span></button>`).join('')}</div>
     <div class="pk-menu">
+      <button onclick="window.open('/extension','_blank')"><i class="ti ti-puzzle" aria-hidden="true"></i><span>Расширение Piksta для Chrome<br><small>скачать и инструкция · ставится на компьютер</small></span></button>
       <button onclick="${activeShipmentId ? `cacheShipmentImages('${activeShipmentId}')` : ''}"><i class="ti ${off ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>Фото для работы без интернета</span><small>${off ? 'скачаны · ' + off : 'текущая закупка'}</small></button>
       <button onclick="pkTheme()"><i class="ti ti-moon" aria-hidden="true"></i><span>Тёмная тема</span><small>${document.body.classList.contains('dark') ? 'вкл' : 'выкл'}</small></button>
       <button onclick="pkToCabinet('tariff')"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span></button>

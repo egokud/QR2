@@ -2291,7 +2291,7 @@ function renderCabSettings(container) {
     <div class="cab-table-wrap" style="margin-top:16px">
       <div class="cab-table-title"><i class="ti ti-puzzle" style="margin-right:6px"></i>Расширение для Chrome</div>
       <div style="font-size:14px;color:#4a5260;line-height:1.6;margin-bottom:12px">Импорт заказов из Pinduoduo в закупку — с фото, ценами и сверкой с файлом карго. Ставится один раз; обновление — так же, новой папкой.</div>
-      <a href="https://github.com/egokud/QR2/raw/main/piksta-extension.zip" download style="display:inline-flex;align-items:center;gap:8px;background:#6C4DB8;color:#fff;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:500;text-decoration:none"><i class="ti ti-download" style="font-size:18px"></i> Скачать расширение</a>
+      <a href="/extension" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:#6C4DB8;color:#fff;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:500;text-decoration:none"><i class="ti ti-download" style="font-size:18px"></i> Скачать расширение</a>
       <ol style="font-size:14px;color:#4a5260;line-height:1.7;margin:12px 0 0;padding-left:20px">
         <li>Распакуйте архив — получится папка с расширением.</li>
         <li>Откройте в Chrome адрес <span style="font-family:monospace;color:#6C4DB8">chrome://extensions</span> и включите «Режим разработчика» (справа вверху).</li>
