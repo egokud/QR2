@@ -12,6 +12,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/extension",
+      "destination": "/extension.html"
+    },
+    {
       "source": "/offer",
       "destination": "/offer.html"
     },

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расширение Piksta для Chrome — скачать и установить</title>
+<meta name="description" content="Расширение Piksta для Chrome: заказы с Pinduoduo — треки, фото и цены — одной кнопкой в закупку Piksta. Скачать последнюю версию и инструкция по установке.">
+<meta name="theme-color" content="#6C4DB8">
+<link rel="icon" type="image/x-icon" href="/favicon.ico?v=5">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#17142a;background:#fbfaf7;line-height:1.55}
+a{color:#6C4DB8}
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px 48px}
+.top{display:flex;align-items:center;gap:10px;text-decoration:none;color:#17142a;font-family:Unbounded,sans-serif;font-weight:800;font-size:20px}
+.top img{width:36px;height:36px;border-radius:9px}
+h1{font-family:Unbounded,sans-serif;font-weight:800;font-size:clamp(26px,5vw,40px);line-height:1.15;margin:28px 0 12px}
+.lead{font-size:17px;color:#4b4760;max-width:680px;margin:0 0 24px}
+.card{background:#fff;border:1px solid #ebe7f3;border-radius:20px;padding:22px;margin:0 0 18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:14px;padding:15px 22px;font:inherit;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer;background:#6C4DB8;color:#fff}
+.btn.ghost{background:#fff;color:#6C4DB8;border:1.5px solid #e2dcf3}
+.btn i{font-size:20px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.muted{color:#6b6780;font-size:14px}
+.addr{font-family:Unbounded,sans-serif;font-weight:700;font-size:clamp(20px,6vw,28px);color:#6C4DB8;word-break:break-all;margin:6px 0 4px}
+.warn{background:#fff7ed;border-color:#fed7aa}
+.steps{margin:6px 0 0;padding-left:22px;font-size:16px}
+.steps li{margin:6px 0}
+code{background:#f3f1f8;border-radius:6px;padding:1px 6px;font-size:15px}
+.pdf{width:100%;height:80vh;min-height:560px;border:1px solid #ebe7f3;border-radius:14px;background:#fff}
+.phone .pc-only,.pc .phone-only{display:none!important}
+.foot{margin-top:28px;font-size:14px;color:#6b6780}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="top" href="/"><img src="/icons/icon-192x192.png" alt="">Piksta</a>
+  <h1>Расширение Piksta для Chrome</h1>
+  <p class="lead">Небольшая программа-помощник для браузера Chrome. Забирает ваши заказы с Pinduoduo — треки, фото и цены — и одной кнопкой создаёт закупку в Piksta. Бесплатно, для всех тарифов.</p>
+
+  <!-- На телефоне: расширение не ставится — даём адрес и способы отправить ссылку на компьютер -->
+  <div class="card warn phone-only">
+    <b style="font-size:17px">Расширение ставится только на компьютер, в браузер Chrome.</b>
+    <div class="muted" style="margin-top:6px">Откройте на компьютере адрес:</div>
+    <div class="addr">piksta.online/extension</div>
+    <div class="row" style="margin-top:14px">
+      <a class="btn" href="/docs/piksta-import.pdf" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Открыть инструкцию (PDF)</a>
+      <a class="btn ghost" id="mailLink"><i class="ti ti-mail"></i>Отправить ссылку себе на почту</a>
+      <a class="btn ghost" id="tgLink" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i>Отправить в Telegram</a>
+      <button class="btn ghost" type="button" onclick="copyLink(this)"><i class="ti ti-copy"></i>Скопировать ссылку</button>
+    </div>
+  </div>
+
+  <!-- На компьютере: скачать -->
+  <div class="card pc-only">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <b style="font-size:18px">Шаг 1. Скачайте расширение</b>
+        <div class="muted">Последняя версия · файл <code>piksta-extension.zip</code> сохранится в «Загрузки»</div>
+      </div>
+      <a class="btn" href="https://github.com/egokud/QR2/raw/main/piksta-extension.zip" download><i class="ti ti-download"></i>Скачать расширение</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <b style="font-size:18px">Как установить — коротко</b>
+    <ol class="steps">
+      <li>Распакуйте <code>piksta-extension.zip</code> — двойной щелчок (Windows: правая кнопка → «Извлечь всё»).</li>
+      <li>В Chrome откройте адрес <code>chrome://extensions</code>.</li>
+      <li>Справа вверху включите <b>«Режим разработчика»</b>.</li>
+      <li>Нажмите <b>«Загрузить распакованное расширение»</b> и выберите папку <code>piksta-extension</code>.</li>
+      <li>Закрепите значок: пазл справа от адресной строки → булавка рядом с Piksta.</li>
+    </ol>
+    <div class="row" style="margin-top:16px">
+      <a class="btn ghost" href="/docs/piksta-import.pdf" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Инструкция с картинками (PDF)</a>
+    </div>
+  </div>
+
+  <div class="pc-only">
+    <iframe class="pdf" src="/docs/piksta-import.pdf#view=FitH" title="Инструкция: как загрузить заказы через расширение Piksta в Chrome" loading="lazy"></iframe>
+  </div>
+
+  <div class="foot">Не получилось? Напишите в поддержку: Telegram <a href="https://t.me/piksta_support_bot">@piksta_support_bot</a> или <a href="mailto:support@piksta.online">support@piksta.online</a>.</div>
+</div>
+<script>
+(function(){
+  var phone=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
+  document.body.classList.add(phone?'phone':'pc');
+  var url='https://www.piksta.online/extension';
+  var m=document.getElementById('mailLink');
+  m.href='mailto:?subject='+encodeURIComponent('Piksta — расширение для Chrome')+'&body='+encodeURIComponent('Открыть на компьютере в Chrome: '+url);
+  document.getElementById('tgLink').href='https://t.me/share/url?url='+encodeURIComponent(url)+'&text='+encodeURIComponent('Расширение Piksta — открыть на компьютере в Chrome');
+  window.copyLink=function(b){
+    var done=function(){b.innerHTML='<i class="ti ti-check"></i>Скопировано';};
+    if(navigator.clipboard){navigator.clipboard.writeText(url).then(done,function(){prompt('Скопируйте ссылку:',url);});}
+    else prompt('Скопируйте ссылку:',url);
+  };
+})();
+</script>
+</body>
+</html>
