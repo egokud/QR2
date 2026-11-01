@@ -217,9 +217,9 @@ async function fromGroup(m, gid) {
   await deliver(link.uid, m);
 }
 
+// Баннер клиент видит до «Старт» (картинка описания бота в BotFather), поэтому после «Старт» — только текст и кнопки
 async function sendGreeting(chat, u) {
-  const p = await tg('sendPhoto', { chat_id: chat, photo: WELCOME_IMG, caption: greeting(u), parse_mode: 'HTML', reply_markup: MENU });
-  if (!p.ok) await say(chat, greeting(u), { reply_markup: MENU });
+  await say(chat, greeting(u), { reply_markup: MENU });
 }
 
 async function fromAdminDM(m) {
