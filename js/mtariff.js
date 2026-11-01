@@ -246,6 +246,7 @@ function pkPayRender2() {
   pkScr(x.n, `<div class="pk-card pk-req">${req}</div>
     <div class="pk-lbl">После оплаты</div>
     <label class="pk-drop" id="pkPayDrop"><input type="file" accept="image/*" hidden onchange="pkPayImg(this)"><span id="pkPayDropIn"><i class="ti ti-photo-plus" aria-hidden="true"></i><b>Прикрепите скрин оплаты</b><small>чек из банка или кошелька</small></span></label>
+    <label class="pk-offer"><input type="checkbox" id="pkPayOffer" onchange="pkPayReady()"><span>Принимаю условия <a href="/offer" target="_blank" rel="noopener">публичной оферты</a>. Скрин чека нужен только для проверки оплаты — <a href="/privacy" target="_blank" rel="noopener">как мы храним данные</a></span></label>
     <button type="button" class="pk-btn ok" id="pkPaySend" onclick="pkPaySend()" disabled>Я оплатил</button>
     <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:0">Проверим и включим тариф — обычно в течение пары часов</p>`, pkPayRender1);
 }
@@ -261,21 +262,26 @@ function pkPayImg(inp) {
       pkPayS.img = c.toDataURL('image/jpeg', 0.82);
       document.getElementById('pkPayDropIn').innerHTML = `<span class="th" style="background-image:url('${pkPayS.img}')"></span><span style="text-align:left"><b style="color:var(--pk-ok)">Скрин добавлен</b><small>нажмите, чтобы заменить</small></span>`;
       document.getElementById('pkPayDrop').classList.add('ok');
-      document.getElementById('pkPaySend').disabled = false;
+      pkPayReady();
     };
     im.onerror = () => showToast('Не получилось открыть картинку');
     im.src = fr.result;
   };
   fr.readAsDataURL(f);
 }
+function pkPayReady() {
+  const b = document.getElementById('pkPaySend'), o = document.getElementById('pkPayOffer');
+  if (b) b.disabled = !(pkPayS && pkPayS.img && o && o.checked);
+}
 async function pkPaySend() {
-  const S = pkPayS, b = document.getElementById('pkPaySend');
+  const S = pkPayS, b = document.getElementById('pkPaySend'), o = document.getElementById('pkPayOffer');
   if (!S || !S.img) return showToast('Прикрепите скрин оплаты');
+  if (!o || !o.checked) return showToast('Отметьте согласие с офертой');
   b.disabled = true; b.textContent = 'Отправляю…';
   try {
     const idToken = await firebase.auth().currentUser.getIdToken();
     const r = await fetch('/api/tg-admin?pay=1', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ idToken, plan: S.plan, period: pkTPer, method: S.method, amount: S.amount, cur: S.cur, img: S.img }) });
+      body: JSON.stringify({ idToken, plan: S.plan, period: pkTPer, method: S.method, amount: S.amount, cur: S.cur, img: S.img, offer: true }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || ('ошибка ' + r.status));
     userProfile.subscription = Object.assign({}, userProfile.subscription || {}, { pending: { plan: S.plan, period: pkTPer, amount: S.amount, cur: S.cur, method: S.method, at: new Date() } });
