@@ -125,7 +125,7 @@ async function openTopic(gid, u, fresh) {
   await setDoc('t' + tid, { uid: u.id });
   await say(gid,
     `👤 <a href="tg://user?id=${u.id}">${esc(fullName(u))}</a>` + (u.username ? ` · @${esc(u.username)}` : '') +
-    '\n━━━━━━━━━━━━━━━',   // карточка в одну строку: имя (ссылка на профиль) и @ник, ниже разделитель
+    '\n━━━━━━━',   // карточка в одну строку: имя (ссылка на профиль) и @ник, ниже разделитель
     { message_thread_id: tid });
   return tid;
 }
