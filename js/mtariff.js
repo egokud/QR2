@@ -193,7 +193,9 @@ function pkUpgradeRender() {
 // ---------- оплата: шаг 1 — срок и способ ----------
 function pkPayMethods() {
   const g = pkGeo || '';
-  const L = PK_PAY.filter(x => x.id === 'other' || x.qr || x.card || x.phone || x.iban);
+  // ЕРИП — только тем, у кого цены в BYN (Беларусь); России, Казахстану и остальным — Т-Банк, Alipay, USDT
+  const byn = pkGeoCur() === 'BYN';
+  const L = PK_PAY.filter(x => (x.id === 'other' || x.qr || x.card || x.phone || x.iban) && (x.id !== 'bnb' || byn));
   return L.sort((a, b) => (b.geo === g) - (a.geo === g));
 }
 function pkPayStart(plan) {
