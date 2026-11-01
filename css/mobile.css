@@ -368,3 +368,10 @@ a.pk-btn{text-decoration:none}
 .pk-offer{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.45;color:var(--pk-muted);cursor:pointer}
 .pk-offer input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--pk-acc)}
 .pk-offer a{color:var(--pk-acc);font-weight:600}
+.pk-tf{transition:border-color .2s ease,box-shadow .2s ease}
+.pk-tf.sel{border-color:var(--pk-acc);box-shadow:0 0 0 1px var(--pk-acc),0 6px 18px rgba(108,77,184,.14)}
+.pk-tf-go{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .25s ease,opacity .2s ease,margin .25s ease}
+.pk-tf-go>button{min-height:0;overflow:hidden;width:100%}
+.pk-tf.sel .pk-tf-go{grid-template-rows:1fr;opacity:1;margin-top:8px}
+.pk-tf-go>.pk-btn{padding-top:0;padding-bottom:0;height:0;transition:height .25s ease}
+.pk-tf.sel .pk-tf-go>.pk-btn{height:46px}
