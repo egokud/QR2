@@ -222,8 +222,9 @@ module.exports = async (req, res) => {
     // Подключение вебхука: GET /api/tg-admin?setup=1 (безвредно — привязывает бота к этому же адресу)
     if (req.method === 'GET') {
       if (req.query && req.query.setup && TOKEN()) {
-        const r = await tg('setWebhook', { url: HOOK_URL, secret_token: SECRET(), allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
-        return res.status(200).json({ ok: !!r.ok, description: r.description || '' });
+        const r = await tg('setWebhook', { url: req.query.setup === 'apex' ? 'https://piksta.online/api/tg-admin' : HOOK_URL, secret_token: SECRET(), allowed_updates: ['message', 'callback_query'], drop_pending_updates: true });
+        const info = await tg('getWebhookInfo', {});
+        return res.status(200).json({ ok: !!r.ok, description: r.description || '', url: info.result && info.result.url, lastError: info.result && info.result.last_error_message });
       }
       return res.status(200).send('ok');
     }
