@@ -935,10 +935,11 @@ const SHIP_STATUSES = {
 };
 
 async function loadShipments() {
-  let shipments = [];
+  let shipments = [], loadedOk = false;
   try {
     const docs = await fsList('users/' + savedUid + '/shipments');
     shipments = docs.map(d => ({ id: d.id, ...d.data() }));
+    loadedOk = true;
     // сортировка по created desc
     shipments.sort((a,b) => {
       const ta = a.created ? new Date(a.created).getTime() : 0;
@@ -947,6 +948,15 @@ async function loadShipments() {
     });
   } catch(e) { console.warn('loadShipments REST:', e.message); }
   allShipments = shipments;
+  // Сводка «закупки / позиции» в профиле (её видят админка и бот; расширение добавляет закупки мимо приложения)
+  if (loadedOk && userProfile) {
+    const st = shipments.map(s => ({ name: s.name || '', count: (s.data || []).length }));
+    const key = a => (a || []).map(x => x.name + ':' + x.count).join('|');
+    if (key(st) !== key(userProfile.shipmentStats)) {
+      userProfile.shipmentStats = st;
+      db.collection('users').doc(savedUid).update({ shipmentStats: st }).catch(() => {});
+    }
+  }
   // Скрытый select держим синхронно (некоторый код читает shipmentSelect)
   const sel = document.getElementById('shipmentSelect');
   sel.innerHTML = shipments.length === 0
