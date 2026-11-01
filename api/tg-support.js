@@ -99,10 +99,13 @@ const ADMIN_HELP =
   '<b>Как работает:</b> у каждого клиента своя тема в группе «Piksta · Обращения». Откройте тему и просто пишите — ' +
   'текст, фото, файлы и голосовые уходят клиенту от имени бота. Доставленное отмечается 👍.\n\n' +
   '• <code>// текст</code> — заметка для себя, клиенту не уходит\n' +
-  '• <code>/close</code> в теме — закрыть обращение (клиент напишет снова — тема откроется сама)\n' +
+  '• кнопки <b>«✅ Закрыть»</b> и <b>«👋 Попрощаться и закрыть»</b> под сообщениями клиента (или <code>/close</code>) — закрыть обращение; клиент напишет снова — тема откроется сама\n' +
   '• <code>/test текст</code> мне в личку — придёт как обращение от вас самих\n' +
   '• <code>/bind</code> в группе — подключить группу (делается один раз)';
 const ICONS = [0x6FB9F0, 0xFFD67E, 0xCB86DB, 0x8EEE98, 0xFF93B2, 0xFB6F5F];
+// Кнопки под сообщениями клиента в теме
+const CLOSE_KB = { inline_keyboard: [[{ text: '✅ Закрыть', callback_data: 'close' }, { text: '👋 Попрощаться и закрыть', callback_data: 'bye' }]] };
+const BYE = 'Рады были помочь! 🙌\nЕсли появятся вопросы — просто напишите сюда, мы на связи.';
 
 // ---------- Клиент → тема ----------
 async function openTopic(gid, u, fresh) {
@@ -124,15 +127,15 @@ async function openTopic(gid, u, fresh) {
     `👤 <a href="tg://user?id=${u.id}">${esc(fullName(u))}</a>` + (u.username ? ` · @${esc(u.username)}` : '') +
     `\nTelegram id ${u.id}` + (u.language_code ? ` · язык ${esc(u.language_code)}` : '') +
     `\nНовое обращение: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Minsk' })}\n\n` +
-    'Пишите в эту тему — ответ уйдёт клиенту. <code>//</code> в начале — заметка. <code>/close</code> — закрыть.',
+    'Пишите в эту тему — ответ уйдёт клиенту. <code>//</code> в начале — заметка. Закрыть обращение — кнопкой под сообщением клиента.',
     { message_thread_id: tid });
   return tid;
 }
 
 async function toTopic(gid, tid, m, text) {
   return text != null
-    ? say(gid, esc(text), { message_thread_id: tid })
-    : tg('copyMessage', { chat_id: gid, message_thread_id: tid, from_chat_id: m.chat.id, message_id: m.message_id });
+    ? say(gid, esc(text), { message_thread_id: tid, reply_markup: CLOSE_KB })
+    : tg('copyMessage', { chat_id: gid, message_thread_id: tid, from_chat_id: m.chat.id, message_id: m.message_id, reply_markup: CLOSE_KB });
 }
 
 // text != null — отправить этот текст вместо копии сообщения (для /test)
@@ -235,6 +238,24 @@ async function fromAdminDM(m) {
     : 'Не понял, кому ответить. Сделайте <b>«Ответить»</b> на сообщение клиента с пометкой <code>#u…</code>.');
 }
 
+// Кнопки «Закрыть» / «Попрощаться и закрыть» в теме
+async function onCallback(q) {
+  const gid = await groupId();
+  const msg = q.message;
+  if (!gid || !msg || msg.chat.id !== gid || !msg.message_thread_id || !q.from || q.from.is_bot) return tg('answerCallbackQuery', { callback_query_id: q.id });
+  const tid = msg.message_thread_id;
+  let note = 'Обращение закрыто';
+  if (q.data === 'bye') {
+    const link = await getDoc('t' + tid);
+    const sent = link && link.uid ? await say(link.uid, BYE) : null;
+    if (sent && sent.ok) { await say(gid, '👋 Клиенту отправлено: «Рады были помочь!»', { message_thread_id: tid }); note = 'Клиенту отправлено «Рады были помочь», обращение закрыто'; }
+    else note = 'Прощание не доставлено, обращение закрыто';
+  }
+  const r = await tg('closeForumTopic', { chat_id: gid, message_thread_id: tid });
+  if (!r.ok) note = /TOPIC_NOT_MODIFIED/i.test(r.description || '') ? 'Обращение уже закрыто' : 'Не удалось закрыть: ' + (r.description || '');
+  await tg('answerCallbackQuery', { callback_query_id: q.id, text: note });
+}
+
 async function bind(m) {
   const chat = await tg('getChat', { chat_id: m.chat.id });
   if (!chat.ok || !chat.result.is_forum) return say(m.chat.id, 'Включите в настройках группы «Темы» и отправьте /bind ещё раз.');
@@ -252,7 +273,7 @@ module.exports = async (req, res) => {
     // Подключение вебхука и описания бота: GET /api/tg-support?setup=1
     if (req.method === 'GET') {
       if (req.query && req.query.setup && TOKEN()) {
-        const r = await tg('setWebhook', { url: HOOK_URL, secret_token: SECRET(), allowed_updates: ['message'], drop_pending_updates: true });
+        const r = await tg('setWebhook', { url: HOOK_URL, secret_token: SECRET(), allowed_updates: ['message', 'callback_query'], drop_pending_updates: false });
         await tg('setMyDescription', { description: 'Поддержка Piksta — сервиса для организаторов совместных покупок и закупок из Китая.\n\nСпасибо, что вы с нами! Поможем в любой ситуации: импорт заказов, сканирование, клиенты, расчёты, тариф и оплата.\n\nНажмите «Старт» и напишите вопрос — ответим здесь.' });
         await tg('setMyShortDescription', { short_description: 'Поддержка Piksta · поможем в любой ситуации · piksta.online' });
         await tg('setMyCommands', { commands: [{ command: 'start', description: 'Начать' }] });
@@ -265,6 +286,7 @@ module.exports = async (req, res) => {
       return res.status(200).send('ok');
     }
     if (!TOKEN() || req.headers['x-telegram-bot-api-secret-token'] !== SECRET()) return res.status(200).send('ok');
+    if (req.body && req.body.callback_query) { await onCallback(req.body.callback_query); return res.status(200).send('ok'); }
     const m = (req.body || {}).message;
     if (!m || !m.from || !m.chat || m.from.is_bot || !hasContent(m)) return res.status(200).send('ok');
     const u = m.from;
