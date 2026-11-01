@@ -47,3 +47,51 @@ let scanning = false;
 let allCameras = [];
 let activeCameraId = null;
 
+
+// ============ ДОСТУП: подписка / тест / 5 дней льготы / только чтение ============
+// Должно совпадать с правилами Firestore (canWrite): тест 90 дн. с регистрации, после окончания
+// подписки или теста — ещё 5 календарных дней всё работает, затем только просмотр. Заблокирован — сразу только просмотр.
+const PK_TRIAL_DAYS = 90, PK_GRACE_DAYS = 5;
+function pkToDate(v) {
+  if (!v) return null;
+  if (v.toDate) return v.toDate();
+  if (typeof v === 'object' && 'seconds' in v) return new Date(v.seconds * 1000);
+  const d = new Date(v); return isNaN(d) ? null : d;
+}
+function pkAccess(p) {
+  p = p || userProfile || {};
+  const now = new Date(), DAY = 864e5;
+  if (p.role === 'admin') return { kind: 'admin' };
+  if (p.blocked) return { kind: 'blocked' };
+  const trialEnd = new Date((pkToDate(p.created) || now).getTime() + PK_TRIAL_DAYS * DAY);
+  const subEnd = p.subscription ? pkToDate(p.subscription.endDate) : null;
+  const from = subEnd && subEnd >= trialEnd ? 'sub' : 'trial';
+  const end = from === 'sub' ? subEnd : trialEnd;
+  const until = new Date(end.getTime() + PK_GRACE_DAYS * DAY);
+  if (now < end) return { kind: from, end, left: Math.ceil((end - now) / DAY) };
+  if (now < until) return { kind: 'grace', from, end, until, left: Math.ceil((until - now) / DAY) };
+  return { kind: 'readonly', from, end };
+}
+// Режим «только просмотр»: запись в свои закупки/отметки/историю не уходит, вместо ошибки — понятная подсказка.
+// Сервер (правила Firestore) запрещает то же самое независимо от этого кода.
+(function () {
+  const F = firebase.firestore; let lastMsg = 0;
+  const ro = path => !!(userProfile && userProfile._readonly && currentUser && String(path || '').startsWith('users/' + currentUser.uid + '/'));
+  const deny = () => {
+    if (Date.now() - lastMsg > 4000) {
+      lastMsg = Date.now();
+      const m = userProfile && userProfile.blocked ? 'Доступ ограничен: только просмотр. Обратитесь в техподдержку.'
+        : 'Подписка истекла — сейчас только просмотр. Продлите подписку, и всё снова заработает.';
+      if (typeof showToast === 'function') showToast(m); else alert(m);
+    }
+    const e = new Error('Только просмотр: подписка истекла'); e.code = 'permission-denied'; return e;
+  };
+  const D = F.DocumentReference && F.DocumentReference.prototype;
+  if (D) ['set', 'update', 'delete'].forEach(m => { const o = D[m]; D[m] = function () { return ro(this.path) ? Promise.reject(deny()) : o.apply(this, arguments); }; });
+  const C = F.CollectionReference && F.CollectionReference.prototype;
+  if (C) { const o = C.add; C.add = function () { return ro(this.path + '/_') ? Promise.reject(deny()) : o.apply(this, arguments); }; }
+  [F.WriteBatch, F.Transaction].forEach(K => {
+    const P = K && K.prototype; if (!P) return;
+    ['set', 'update', 'delete'].forEach(m => { const o = P[m]; P[m] = function (ref) { if (ref && ro(ref.path)) throw deny(); return o.apply(this, arguments); }; });
+  });
+})();

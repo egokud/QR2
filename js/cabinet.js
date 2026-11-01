@@ -74,6 +74,7 @@ function cabNav(section) {
     admin: renderCabAdmin
   };
   (renderers[section] || renderCabStub)(main, section);
+  cabAccessMark();
 }
 
 // ============ УТИЛИТЫ ============
@@ -2335,20 +2336,24 @@ const PIKSTA_TARIFFS = {
 const PIKSTA_COUNTRIES = { BY: 'Беларусь', RU: 'Россия', KZ: 'Казахстан' };
 let cabTariffPeriod = PIKSTA_TARIFFS.defaultPeriod;
 
-// Доступ пользователя: тот же расчёт, что и баннер в мобильной версии (app.js)
-function cabAccessInfo() {
-  const now = new Date();
-  if (userProfile && userProfile.role === 'admin') return { kind: 'admin' };
-  const sub = userProfile && userProfile.subscription;
-  const subEnd = sub && sub.endDate ? cabToDate(sub.endDate) : null;
-  if (subEnd) {
-    const left = Math.ceil((subEnd - now) / 864e5);
-    return left > 0 ? { kind: 'sub', end: subEnd, left } : { kind: 'expired', end: subEnd };
-  }
-  const created = cabToDate(userProfile && userProfile.created) || now;
-  const trialEnd = new Date(created.getTime() + PIKSTA_TARIFFS.trialDays * 864e5);
-  const left = Math.ceil((trialEnd - now) / 864e5);
-  return left > 0 ? { kind: 'trial', end: trialEnd, left } : { kind: 'demo', end: trialEnd };
+// Доступ пользователя: общий расчёт pkAccess (init.js) — тот же, что баннер сканера и правила Firestore
+function cabAccessInfo() { return pkAccess(userProfile); }
+
+// Плашка в боковом меню Кабинета: 5 дней льготы / только просмотр / заблокирован
+function cabAccessMark() {
+  const nav = document.getElementById('cabNav'); if (!nav) return;
+  let el = document.getElementById('cabAccess');
+  const A = pkAccess(userProfile);
+  const d = x => x.toLocaleDateString('ru-RU');
+  const ended = A.from === 'sub' ? 'Подписка закончилась' : 'Тест закончился';
+  const m = A.kind === 'grace' ? { c: '#dc2626', bg: '#fef2f2', i: 'ti-alert-triangle', t: ended, s: `${d(A.end)}. Всё работает ещё ${A.left} ${cabDaysWord(A.left)} — до ${d(A.until)}, потом только просмотр` }
+    : A.kind === 'readonly' ? { c: '#4a5260', bg: '#f3f4f6', i: 'ti-lock', t: 'Только просмотр', s: `${ended} ${d(A.end)}. Данные сохранены, изменения недоступны` }
+    : A.kind === 'blocked' ? { c: '#4a5260', bg: '#f3f4f6', i: 'ti-lock', t: 'Доступ ограничен', s: 'Только просмотр. Обратитесь в техподдержку' } : null;
+  if (!m) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'cabAccess'; nav.after(el); }
+  el.style.cssText = `margin:10px 12px;padding:10px 12px;border-radius:10px;background:${m.bg};color:${m.c};font-size:12px;line-height:1.35;cursor:pointer;white-space:normal;overflow:visible;flex-shrink:0`;
+  el.onclick = () => cabNav('tariffs');
+  el.innerHTML = `<div style="font-weight:600;font-size:13px;margin-bottom:2px;white-space:normal"><i class="ti ${m.i}" style="vertical-align:-2px"></i> ${m.t}</div><div style="white-space:normal">${m.s}</div>`;
 }
 
 function cabDaysWord(n) {
@@ -2387,8 +2392,9 @@ function renderCabTariffs(container) {
     admin:   { icon: 'ti-shield-check', color: '#6C4DB8', bg: '#f0ecf9', title: 'Администратор', text: 'Доступ без ограничений' },
     sub:     { icon: 'ti-circle-check', color: '#16a34a', bg: '#f0fdf4', title: 'Подписка активна', text: A.end ? `До ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}` : '' },
     trial:   { icon: 'ti-hourglass',    color: '#ea580c', bg: '#fff7ed', title: 'Пробный период', text: A.end ? `До ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}` : '' },
-    expired: { icon: 'ti-alert-triangle', color: '#dc2626', bg: '#fef2f2', title: 'Подписка закончилась', text: A.end ? `${d(A.end)} · сейчас видно только 5 треков в закупке, данные сохранены` : '' },
-    demo:    { icon: 'ti-lock',         color: '#4a5260', bg: '#f3f4f6', title: 'Пробный период закончился', text: 'Сейчас видно только 5 треков в закупке, данные сохранены' }
+    grace:   { icon: 'ti-alert-triangle', color: '#dc2626', bg: '#fef2f2', title: A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился', text: A.end ? `${d(A.end)} · всё работает ещё ${A.left} ${cabDaysWord(A.left)} (до ${A.until ? d(A.until) : ''}), потом только просмотр` : '' },
+    readonly:{ icon: 'ti-lock',         color: '#4a5260', bg: '#f3f4f6', title: 'Только просмотр', text: A.end ? `${A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился'} ${d(A.end)} · данные сохранены, изменения недоступны` : '' },
+    blocked: { icon: 'ti-lock',         color: '#4a5260', bg: '#f3f4f6', title: 'Доступ ограничен', text: 'Только просмотр · обратитесь в техподдержку' }
   }[A.kind];
   const V = cabTrackVolume();
   const vol = Math.max(V.nCur, V.nPrev);

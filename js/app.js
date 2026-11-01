@@ -145,44 +145,34 @@ async function showApp() {
 
   // Check blocked
   if (userProfile.blocked) {
+    userProfile._readonly = true;
     document.getElementById('blockedBanner').style.display='block';
     document.querySelectorAll('.shipment-section,.gun-section,.scanner-section,.stats,.progress-wrap,.bottom-section,.history').forEach(e=>e.style.display='none');
     return;
   }
 
-  // Trial/Subscription banner for non-admin
+  // Подписка / тест / 5 дней льготы / только просмотр (расчёт — pkAccess в init.js, совпадает с правилами Firestore)
   if (userProfile.role !== 'admin') {
     const banner = document.getElementById('trialBanner');
-    const sub = userProfile.subscription;
-
-    // Check paid subscription first
-    if (sub && sub.endDate) {
-      const subEnd = sub.endDate.toDate ? sub.endDate.toDate() : new Date(sub.endDate);
-      const subDaysLeft = Math.ceil((subEnd - new Date()) / (24*60*60*1000));
-      if (subDaysLeft > 0) {
-        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#16a34a;font-weight:500';
-        banner.innerHTML = '<i class="ti ti-license" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Лицензия действует до ' + subEnd.toLocaleDateString('ru');
-      } else {
-        userProfile._demo = true;
-        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#dc2626;font-weight:500';
-        banner.innerHTML = '<i class="ti ti-alert-triangle" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Подписка истекла. Демо-версия: 5 треков<br><span style="font-size:12px;font-weight:400;color:#999">Для продления обратитесь в техподдержку</span>';
-      }
-    } else {
-      // No subscription — check trial
-      const created = userProfile.created?.toDate ? userProfile.created.toDate() : new Date(userProfile.created || Date.now());
-      const trialEnd = new Date(created.getTime() + 90*24*60*60*1000);
-      const daysLeft = Math.ceil((trialEnd - new Date()) / (24*60*60*1000));
-      if (daysLeft <= 0) {
-        userProfile._demo = true;
-        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#f5f5f5;border:1.5px solid #d4d4d4;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#555;font-weight:500';
-        banner.innerHTML = '<i class="ti ti-lock" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Демо-версия: отображаются 5 треков<br><span style="font-size:12px;font-weight:400;color:#999">Для приобретения подписки обратитесь в техподдержку</span>';
-      } else if (daysLeft <= 14) {
-        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#ea580c;font-weight:500';
-        banner.innerHTML = '<i class="ti ti-clock" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Тестовый период: осталось ' + daysLeft + ' дней';
-      } else {
-        banner.style.cssText = 'display:block;margin:0 16px 14px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px;text-align:center;font-size:14px;color:#ea580c;font-weight:500';
-        banner.innerHTML = '<i class="ti ti-hourglass" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> Тестовый период: ' + daysLeft + ' дней';
-      }
+    const A = pkAccess(userProfile);
+    userProfile._readonly = A.kind === 'readonly';
+    const d = x => x.toLocaleDateString('ru');
+    const css = (bg, bd, c) => 'display:block;margin:0 16px 14px;background:' + bg + ';border:1.5px solid ' + bd + ';border-radius:12px;padding:12px;text-align:center;font-size:14px;color:' + c + ';font-weight:500';
+    const ic = n => '<i class="ti ' + n + '" style="font-size:16px;vertical-align:-2px;margin-right:4px"></i> ';
+    const sm = t => '<br><span style="font-size:12px;font-weight:400;color:#999">' + t + '</span>';
+    const ended = A.from === 'sub' ? 'Подписка истекла ' : 'Тестовый период закончился ';
+    if (A.kind === 'sub') {
+      banner.style.cssText = css('#f0fdf4', '#86efac', '#16a34a');
+      banner.innerHTML = ic('ti-license') + 'Лицензия действует до ' + d(A.end);
+    } else if (A.kind === 'trial') {
+      banner.style.cssText = css('#fff7ed', '#fed7aa', '#ea580c');
+      banner.innerHTML = A.left <= 14 ? ic('ti-clock') + 'Тестовый период: осталось ' + A.left + ' ' + cabDaysWord(A.left) : ic('ti-hourglass') + 'Тестовый период: ' + A.left + ' ' + cabDaysWord(A.left);
+    } else if (A.kind === 'grace') {
+      banner.style.cssText = css('#fef2f2', '#fca5a5', '#dc2626');
+      banner.innerHTML = ic('ti-alert-triangle') + ended + d(A.end) + sm('Всё работает ещё ' + A.left + ' ' + cabDaysWord(A.left) + ' — до ' + d(A.until) + '. Потом только просмотр. Для продления обратитесь в техподдержку');
+    } else if (A.kind === 'readonly') {
+      banner.style.cssText = css('#f5f5f5', '#d4d4d4', '#555');
+      banner.innerHTML = ic('ti-lock') + 'Только просмотр' + sm(ended + d(A.end) + '. Данные сохранены, изменения недоступны. Для продления обратитесь в техподдержку');
     }
   }
 
@@ -1133,8 +1123,6 @@ function applyShipDoc(d) {
   shipmentDeparted = d.departed || false;
   currentDueOverride = d.dueOverride ? { ...d.dueOverride } : {};
   applyClientRules();
-  // Demo mode: limit to 5 tracks
-  if (userProfile && userProfile._demo) TABLE = TABLE.slice(0, 5);
 }
 
 async function loadShipmentData(id, keepActive) {
