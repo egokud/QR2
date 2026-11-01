@@ -288,7 +288,7 @@ function pkNewShip() {
     <p class="pk-muted" style="font-size:14px;line-height:1.5;margin:10px 0 14px">Обычно закупка появляется сама — после импорта заказов в расширении Piksta на компьютере: треки, фото и цены приходят одной кнопкой.</p>
     <div class="pk-menu">
       ${phone
-        ? opt('ti-file-type-pdf', 'Через расширение Piksta в Chrome', 'Ставится только на компьютер. Откроется инструкция PDF и ссылка для компьютера', "pkSheetClose();window.open('/extension','_blank')")
+        ? opt('ti-file-type-pdf', 'Через расширение Piksta в Chrome', 'Ставится только на компьютер. Откроется инструкция PDF и ссылка для компьютера', "pkSheetClose();location.href='/extension'")
         : opt('ti-puzzle', 'Через расширение Piksta в Chrome', 'Откроется страница с инструкцией и последней версией расширения', "pkSheetClose();window.open('/extension','_blank')")}
       ${opt('ti-upload', 'Загрузить таблицу с треками', 'Файл Excel или CSV от карго', 'pkSheetClose();openUploadModal()')}
       ${opt('ti-pencil-plus', 'Создать вручную', 'Название закупки, треки добавите сами', 'pkSheetClose();pkNewManual()')}
@@ -436,7 +436,7 @@ function pkRenderMore() {
     <div class="pk-lbl">Вид сканера</div>
     <div class="pk-skins">${PK_SKINS.map(([k, l]) => `<button type="button" class="pk-skin ${skin === k ? 'on' : ''}" onclick="pkSetSkin('${k}')" aria-pressed="${skin === k}"><span class="pv">${pv[k]}</span><span>${l}</span></button>`).join('')}</div>
     <div class="pk-menu">
-      <button onclick="window.open('/extension','_blank')"><i class="ti ti-puzzle" aria-hidden="true"></i><span>Расширение Piksta для Chrome<br><small>скачать и инструкция · ставится на компьютер</small></span></button>
+      <button onclick="if(pkIsPhone())location.href='/extension';else window.open('/extension','_blank')"><i class="ti ti-puzzle" aria-hidden="true"></i><span>Расширение Piksta для Chrome<br><small>скачать и инструкция · ставится на компьютер</small></span></button>
       <button onclick="${activeShipmentId ? `cacheShipmentImages('${activeShipmentId}')` : ''}"><i class="ti ${off ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>Фото для работы без интернета</span><small>${off ? 'скачаны · ' + off : 'текущая закупка'}</small></button>
       <button onclick="pkTheme()"><i class="ti ti-moon" aria-hidden="true"></i><span>Тёмная тема</span><small>${document.body.classList.contains('dark') ? 'вкл' : 'выкл'}</small></button>
       <button onclick="pkToCabinet('tariff')"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span></button>
