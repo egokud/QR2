@@ -669,7 +669,8 @@
 .cab-items-wrap{max-width:1040px}
 .cab-items-t td{vertical-align:middle}
 /* Тариф и оплата в Кабинете — как в мобильной (03.11.2026) */
-.ctf{max-width:1080px}
+.ctf{max-width:1080px;white-space:normal}.ctf *{white-space:normal}.ctf .ctf-tag,.ctf-seg button{white-space:nowrap}
+.cab-items-wrap{white-space:normal}
 .ctf-now{display:flex;align-items:center;gap:14px;border-radius:14px;padding:16px 18px;margin-bottom:14px;background:#f0ecf9;color:#5b3fb0}
 .ctf-now.ok{background:#f0fdf4;color:#15803d}.ctf-now.bad{background:#fef2f2;color:#b91c1c}.ctf-now.mut{background:#f3f4f6;color:#4a5260}
 .ctf-now>i{font-size:30px;flex:none}
@@ -707,3 +708,6 @@
 .cab-paybk{display:none;position:fixed;inset:0;background:rgba(15,12,30,.5);z-index:899}
 body.pk-cabpay .cab-paybk{display:block}
 body.pk-cabpay .pk-scr{top:4vh;bottom:4vh;max-width:500px;border-radius:20px;box-shadow:0 24px 70px rgba(15,12,30,.4);overflow:hidden}
+/* Экраны мобильной версии (.pk-man) на широком экране: закрытый экран прячем целиком, а не только сдвигаем вправо */
+.pk-man:not(.on){visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s}
+.pk-man.on{visibility:visible}
