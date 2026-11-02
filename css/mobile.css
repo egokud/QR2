@@ -391,3 +391,23 @@ a.pk-btn{text-decoration:none}
 .pk-pcband span{flex:1;min-width:0}
 .pk-pcband button{flex:none;border:0;background:#fff;color:#6C4DB8;font:inherit;font-weight:700;font-size:13.5px;border-radius:9px;padding:7px 14px;cursor:pointer}
 .pk-pcband button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* данные клиента (02.11.2026) */
+.pk-fold{font-size:11px;font-weight:700;background:var(--pk-acc-soft);color:var(--pk-acc);border-radius:8px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+.pk-cic{margin-left:6px;font-size:15px;vertical-align:-1px}.pk-cic .tg{color:#2AABEE}.pk-cic .ph{color:var(--pk-ok);margin-left:3px}
+.pk-cadd{border:1.5px dashed var(--pk-line);background:var(--pk-card);color:var(--pk-acc);border-radius:14px;padding:13px;font:inherit;font-weight:600;font-size:14.5px;display:flex;gap:8px;align-items:center;justify-content:center;cursor:pointer;width:100%}
+.pk-cct{display:flex;flex-direction:column;gap:9px}
+.pk-chd{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:var(--pk-muted);text-transform:uppercase;letter-spacing:.05em}
+.pk-chd button{border:0;background:none;color:var(--pk-acc);font:inherit;font-size:13.5px;font-weight:600;text-transform:none;letter-spacing:0;display:flex;gap:4px;align-items:center;cursor:pointer;padding:4px}
+.pk-cln{display:flex;gap:10px;align-items:center;font-size:15px;word-break:break-word}.pk-cln i{font-size:19px;color:var(--pk-acc);width:22px;text-align:center;flex:none}.pk-cln small{display:block;color:var(--pk-muted);font-size:12px}
+.pk-cnote{background:var(--pk-warn-soft);color:var(--pk-warn);border-radius:10px;padding:8px 10px;font-size:14px;display:flex;gap:8px;line-height:1.38;white-space:pre-wrap}.pk-cnote i{font-size:17px;flex:none}
+a.pk-btn{text-decoration:none}
+.pk-btn.tgb{background:#2AABEE;border-color:#2AABEE;color:#fff}
+.pk-cform{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.pk-cform label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pk-cform label>span,.pk-cl2{font-size:12.5px;font-weight:600;color:var(--pk-muted)}.pk-cform label>span b{color:var(--pk-bad)}
+.pk-cl2{display:block;margin-bottom:6px}
+.pk-cform textarea{resize:vertical;font-family:inherit;min-height:56px}
+.pk-cform .pk-man-i{width:100%;box-sizing:border-box}
+.pk-cform textarea.pk-man-i{height:auto;min-height:64px;padding:10px 12px;line-height:1.4}
+.pk-cform .pk-man-chips{margin-top:0}
+.pk-cform .pk-man-chips button.on{background:var(--pk-acc);color:#fff;border-color:var(--pk-acc)}

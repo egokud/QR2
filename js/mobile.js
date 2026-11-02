@@ -343,11 +343,11 @@ function pkRenderClients() {
   const debt = all.filter(c => c.unpaidDue > 0.005);
   const forg = all.filter(c => c.status === 'forgotten');
   let list = pkClientFilter === 'debt' ? debt : pkClientFilter === 'forg' ? forg : pkClientFilter === 'new' ? all.filter(c => c.status === 'new') : all;
-  if (pkClientQuery) { const q = pkClientQuery.toLowerCase(); list = list.filter(c => c.name.toLowerCase().includes(q)); }
+  if (pkClientQuery) list = list.filter(c => pkClientHit(c, pkClientQuery));
   const chip = (k, l) => `<button type="button" class="${pkClientFilter === k ? 'on' : ''}" onclick="pkClientFilter='${k}';pkRender()">${l}</button>`;
   const stl = c => (typeof CAB_CLIENT_STATUS !== 'undefined' && CAB_CLIENT_STATUS[c.status]) ? CAB_CLIENT_STATUS[c.status].label : '';
   pane.innerHTML = `<h1 class="pk-h1">Клиенты</h1>
-    <label class="pk-search"><i class="ti ti-search" aria-hidden="true"></i><input id="pkClientQ" type="search" placeholder="Имя клиента" value="${pkEsc(pkClientQuery)}" oninput="pkClientQuery=this.value;pkRenderClientsList()"></label>
+    <label class="pk-search"><i class="ti ti-search" aria-hidden="true"></i><input id="pkClientQ" type="search" placeholder="Имя, телефон или @логин" value="${pkEsc(pkClientQuery)}" oninput="pkClientQuery=this.value;pkRenderClientsList()"></label>
     <div class="pk-chips">${chip('all', 'Все ' + all.length)}${chip('debt', 'Должны ' + debt.length)}${chip('forg', 'Забытые ' + forg.length)}${chip('new', 'Новые ' + all.filter(c => c.status === 'new').length)}</div>
     <div class="pk-list" id="pkClientList"></div>`;
   pkClientListCache = { list, stl };
@@ -357,9 +357,72 @@ let pkClientListCache = null;
 function pkRenderClientsList() {
   if (!pkClientListCache) return;
   let { list, stl } = pkClientListCache;
-  if (pkClientQuery) { const q = pkClientQuery.toLowerCase(); list = list.filter(c => c.name.toLowerCase().includes(q)); }
+  if (pkClientQuery) list = list.filter(c => pkClientHit(c, pkClientQuery));
   const el = document.getElementById('pkClientList'); if (!el) return;
-  el.innerHTML = list.slice(0, 200).map(c => `<div class="pk-li pk-cl" onclick="pkOpenClient('${encodeURIComponent(c.name)}')"><span class="pk-av">${pkEsc(c.name.trim().charAt(0).toUpperCase())}</span><div><b>${pkEsc(c.name)}</b><small>${pkEsc(stl(c))} · ${c.ships.length} ${pkPl(c.ships.length, 'закупка', 'закупки', 'закупок')}</small></div><span class="r ${c.unpaidDue > 0.005 ? 'due' : 'okk'}">${c.unpaidDue > 0.005 ? pkFmt(c.unpaidDue) + ' ' + pkCur() : 'оплачено'}</span></div>`).join('') || '<div class="pk-empty">Никого не нашли</div>';
+  el.innerHTML = list.slice(0, 200).map(c => `<div class="pk-li pk-cl" onclick="pkOpenClient('${encodeURIComponent(c.name)}')"><span class="pk-av">${pkEsc(c.name.trim().charAt(0).toUpperCase())}</span><div><b>${pkEsc(pkFullName(c.name))}${pkClientTags(c.name)}</b><small>${pkEsc(stl(c))} · ${c.ships.length} ${pkPl(c.ships.length, 'закупка', 'закупки', 'закупок')}</small></div><span class="r ${c.unpaidDue > 0.005 ? 'due' : 'okk'}">${c.unpaidDue > 0.005 ? pkFmt(c.unpaidDue) + ' ' + pkCur() : 'оплачено'}</span></div>`).join('') || '<div class="pk-empty">Никого не нашли</div>';
+}
+// данные клиента (02.11.2026): фамилия, Telegram, телефон, папка, заметка — хранение и запись в cabinet.js (cabClientInfo / cabSaveClientInfo)
+const pkCInfo = n => (typeof cabClientInfo === 'function' ? cabClientInfo(n) : {});
+const pkFullName = n => (typeof cabFullName === 'function' ? cabFullName(n) : n);
+function pkClientHit(c, q) {
+  q = String(q || '').toLowerCase().trim(); if (!q) return true;
+  const I = pkCInfo(c.name), qd = q.replace(/[^\d]/g, '');
+  return c.name.toLowerCase().includes(q) || (I.ln || '').toLowerCase().includes(q) || (I.tg || '').toLowerCase().includes(q.replace(/^@/, '')) || (I.note || '').toLowerCase().includes(q)
+    || (qd.length >= 3 && String(I.ph || '').replace(/[^\d]/g, '').includes(qd));
+}
+function pkClientTags(name) {
+  const I = pkCInfo(name), fd = typeof cabFolderOf === 'function' ? cabFolderOf(name) : '';
+  return (fd ? `<span class="pk-fold">${pkEsc(fd)}</span>` : '') + (I.tg || I.ph ? `<span class="pk-cic">${I.tg ? '<i class="ti ti-brand-telegram tg" aria-label="есть Telegram"></i>' : ''}${I.ph ? '<i class="ti ti-phone ph" aria-label="есть телефон"></i>' : ''}</span>` : '');
+}
+function pkClientContacts(name) {
+  const I = pkCInfo(name), enc = encodeURIComponent(name), fd = typeof cabFolderOf === 'function' ? cabFolderOf(name) : '';
+  const tg = typeof cabTgUser === 'function' ? cabTgUser(I.tg) : '', ph = typeof cabTel === 'function' ? cabTel(I.ph) : '';
+  if (!tg && !ph && !fd && !I.note && !I.ln) return `<button type="button" class="pk-cadd" onclick="pkClientEdit('${enc}')"><i class="ti ti-user-plus" aria-hidden="true"></i> Добавить контакты и заметку</button>`;
+  const ln = (ic, v, l) => `<div class="pk-cln"><i class="ti ${ic}" aria-hidden="true"></i><div>${v}<small>${l}</small></div></div>`;
+  return `<div class="pk-card pk-cct">
+    <div class="pk-chd">Контакты<button type="button" onclick="pkClientEdit('${enc}')"><i class="ti ti-pencil" aria-hidden="true"></i>Изменить</button></div>
+    ${tg ? ln('ti-brand-telegram', '@' + pkEsc(tg), 'Telegram') : ''}${I.ph ? ln('ti-phone', pkEsc(I.ph), 'Телефон') : ''}${fd ? ln('ti-folder', pkEsc(fd), 'Папка') : ''}
+    ${I.note ? `<div class="pk-cnote"><i class="ti ti-note" aria-hidden="true"></i><span>${pkEsc(I.note)}</span></div>` : ''}
+    ${tg || ph ? `<div class="pk-row" style="gap:8px">${tg ? `<a class="pk-btn tgb" style="flex:1" href="https://t.me/${tg}" target="_blank" rel="noopener"><i class="ti ti-brand-telegram" aria-hidden="true"></i> Написать</a>` : ''}${ph ? `<a class="pk-btn ghost" style="flex:1" href="tel:${ph}"><i class="ti ti-phone" aria-hidden="true"></i> Позвонить</a>` : ''}</div>` : ''}
+  </div>`;
+}
+let pkCEdit = null;
+function pkClientEdit(enc) {
+  const name = decodeURIComponent(enc), I = pkCInfo(name);
+  const F = typeof cabFolders === 'function' ? cabFolders() : { list: [], map: {} };
+  pkCEdit = { name, fd: (typeof cabFolderOf === 'function' ? cabFolderOf(name) : '') || '' };
+  const chips = ['', ...F.list].map(fd => `<button type="button" class="${pkCEdit.fd === fd ? 'on' : ''}" onclick="pkCEdit.fd=this.dataset.f;document.querySelectorAll('#pkCFd button').forEach(b=>b.classList.toggle('on',b===this))" data-f="${pkEsc(fd)}">${fd ? pkEsc(fd) : 'Без папки'}</button>`).join('');
+  pkSheet(`<h3>Данные клиента</h3>
+    <div class="pk-cform">
+      <div class="pk-row" style="gap:8px;align-items:flex-start"><label style="flex:1"><span>Имя <b>*</b></span><input id="pkCName" class="pk-man-i" value="${pkEsc(name)}" autocomplete="off"></label><label style="flex:1"><span>Фамилия</span><input id="pkCLn" class="pk-man-i" value="${pkEsc(I.ln || '')}" placeholder="по желанию" autocomplete="off"></label></div>
+      <div class="pk-muted" style="font-size:12.5px;margin-top:-2px">Имя — как клиент записан в закупках. Поменяете — поменяется везде.</div>
+      <label><span>Telegram</span><input id="pkCTg" class="pk-man-i" value="${I.tg ? '@' + pkEsc(I.tg) : ''}" placeholder="@логин" autocomplete="off" autocapitalize="off"></label>
+      <label><span>Телефон</span><input id="pkCPh" class="pk-man-i" type="tel" value="${pkEsc(I.ph || '')}" placeholder="+375 …" autocomplete="off"></label>
+      <div><span class="pk-cl2">Папка</span><div class="pk-man-chips" id="pkCFd">${chips}</div><input id="pkCNewFd" class="pk-man-i" style="margin-top:6px" placeholder="или новая папка — впишите название" autocomplete="off"></div>
+      <label><span>Заметка</span><textarea id="pkCNote" class="pk-man-i" rows="2" placeholder="Например: берёт только детское">${pkEsc(I.note || '')}</textarea></label>
+      <button class="pk-btn" style="width:100%" id="pkCSave" onclick="pkClientSave()"><i class="ti ti-check" aria-hidden="true"></i> Сохранить</button>
+    </div>`);
+}
+async function pkClientSave() {
+  if (!pkCEdit) return;
+  const v = id => (document.getElementById(id) || {}).value || '';
+  const old = pkCEdit.name, nn = v('pkCName').trim().replace(/\s+/g, ' ');
+  if (!nn) return showToast('Имя обязательно');
+  const b = document.getElementById('pkCSave'); b.disabled = true; b.textContent = 'Сохраняю…';
+  try {
+    await cabSaveClientInfo(old, { ln: v('pkCLn'), tg: v('pkCTg'), ph: v('pkCPh'), note: v('pkCNote') });
+    const newFd = v('pkCNewFd').trim().slice(0, 40), F = cabFolders(), k = old.toLowerCase();
+    let fd = newFd || pkCEdit.fd;
+    if (newFd && !F.list.includes(newFd)) F.list.push(newFd);
+    if (fd) F.map[k] = fd; else delete F.map[k];
+    userProfile.clientFolders = F;
+    await db.collection('users').doc(savedUid).update({ clientFolders: F });
+    let name = old;
+    if (nn !== old) { cabShipmentsCache = allShipments || []; if (await cabRenameClient(old, nn)) { name = nn; await loadShipments(); } }
+    pkSheetClose(); pkCEdit = null;
+    pkClientOpen = name; pkRender();
+    showToast('Сохранено');
+  } catch (e) { b.disabled = false; b.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Сохранить'; showToast('Не сохранилось: ' + (e.message || e)); }
 }
 function pkOpenClient(enc) { pkClientOpen = decodeURIComponent(enc); pkRender(); window.scrollTo(0, 0); }
 function pkRenderClientCard(pane, name) {
@@ -380,7 +443,8 @@ function pkRenderClientCard(pane, name) {
   }
   const totalBought = c.totalDue;
   pane.innerHTML = `<button class="pk-btn ghost sm" style="align-self:flex-start" onclick="pkClientOpen=null;pkRender()"><i class="ti ti-chevron-left" aria-hidden="true"></i> Клиенты</button>
-    <div class="pk-me"><span class="pk-av" style="width:52px;height:52px;border-radius:26px;font-size:20px">${pkEsc(name.trim().charAt(0).toUpperCase())}</span><div><h1 class="pk-h1" style="font-size:22px">${pkEsc(name)}</h1><div class="pk-muted" style="font-size:14px">${pkEsc(stl)} · ${c.ships.length} ${pkPl(c.ships.length, 'закупка', 'закупки', 'закупок')}</div></div></div>
+    <div class="pk-me"><span class="pk-av" style="width:52px;height:52px;border-radius:26px;font-size:20px">${pkEsc(name.trim().charAt(0).toUpperCase())}</span><div><h1 class="pk-h1" style="font-size:22px">${pkEsc(pkFullName(name))}</h1><div class="pk-muted" style="font-size:14px">${pkEsc(stl)} · ${c.ships.length} ${pkPl(c.ships.length, 'закупка', 'закупки', 'закупок')}</div></div></div>
+    ${pkClientContacts(name)}
     ${debts.map(x => { const due0 = Math.round((x.c.settle ? x.c.dueBeforeSettle : x.c.due) * 100) / 100, pd = x.c.payPaid || 0, pct = due0 > 0 ? Math.min(100, Math.round(pd / due0 * 100)) : 0; const at = (((x.ship.payments || {})[x.c.name] || {}).at || '').slice(0, 10); const atS = at ? ' · ' + at.slice(8, 10) + '.' + at.slice(5, 7) : '';
       return `<div class="pk-card pk-debt"><div class="pk-row" style="align-items:flex-end"><span style="min-width:0"><small class="pk-muted" style="display:block;font-size:13px">Долг за закупку</small><b>${pkEsc(x.ship.name)}</b></span><b style="font-size:22px;color:var(--pk-due);white-space:nowrap">${pkFmt(x.c.payRest)} ${pkCur()}</b></div>
       ${pd > 0.004 ? `<div class="pk-pbar"><span style="width:${pct}%"></span></div><div class="pk-muted" style="font-size:13px">Оплачено <b style="color:var(--pk-ok)">${pkFmt(pd)}</b> из ${pkFmt(due0)} ${pkCur()}${atS}</div>` : ''}

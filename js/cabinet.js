@@ -1225,6 +1225,13 @@ async function cabMergeClients(fromName, toName) {
       await db.collection('users').doc(savedUid).update({ clientRules: nr });
       userProfile.clientRules = nr;
     }
+    // данные клиента (фамилия, Telegram, телефон, заметка) — переносим, если у основного своих нет
+    const info = (userProfile && userProfile.clientInfo) || {};
+    if (info[fl]) {
+      const ni = { ...info }; if (!ni[tl]) ni[tl] = ni[fl]; delete ni[fl];
+      await db.collection('users').doc(savedUid).update({ clientInfo: ni });
+      userProfile.clientInfo = ni;
+    }
   } catch (e) { alert('Не удалось объединить: ' + e.message); }
   await loadCabinetData();
   cabClientOpen = cabClientOpen ? toName : null;
@@ -1243,6 +1250,68 @@ let cabMergeSkipConfirm = false;
 function cabMergeIntoOpen(sel) {
   const from = sel.value; sel.selectedIndex = 0;
   if (from && cabClientOpen) cabMergeClients(from, cabClientOpen);
+}
+
+// ---- ДАННЫЕ КЛИЕНТА (02.11.2026) ----
+// Имя — как клиент записан в закупках (обязательное, меняется переименованием во всех закупках). Остальное по желанию:
+// userProfile.clientInfo = { 'имя в нижнем регистре': { ln: фамилия, tg: логин Telegram, ph: телефон, note: заметка } }; папка — в clientFolders.
+function cabClientInfo(name) { const m = (userProfile && userProfile.clientInfo) || {}; return m[String(name || '').toLowerCase()] || {}; }
+const cabTgUser = v => String(v || '').trim().replace(/^https?:\/\/(t\.me|telegram\.me)\//i, '').replace(/^@/, '').replace(/[^\w]/g, '');
+const cabTel = v => String(v || '').replace(/[^\d+]/g, '');
+const cabFullName = name => { const ln = cabClientInfo(name).ln; return ln && !String(name).toLowerCase().includes(ln.toLowerCase()) ? name + ' ' + ln : name; };
+async function cabSaveClientInfo(name, info) {
+  const k = String(name).toLowerCase(), all = { ...((userProfile && userProfile.clientInfo) || {}) };
+  const clean = {};
+  for (const f of ['ln', 'tg', 'ph', 'note']) {
+    let v = String((info || {})[f] || '').trim().slice(0, f === 'note' ? 500 : 80);
+    if (f === 'tg') v = cabTgUser(v);
+    if (v) clean[f] = v;
+  }
+  if (Object.keys(clean).length) all[k] = clean; else delete all[k];
+  userProfile.clientInfo = all;
+  await db.collection('users').doc(savedUid).update({ clientInfo: all });
+}
+// Переименование клиента во всех закупках (если имя уже занято — это объединение, со своим вопросом)
+async function cabRenameClient(oldName, newName) {
+  newName = String(newName || '').trim().replace(/\s+/g, ' ');
+  if (!newName || newName === oldName) return false;
+  const S = cabClientsSummary(), exists = S.list.some(x => x.name.toLowerCase() === newName.toLowerCase() && x.name.toLowerCase() !== oldName.toLowerCase());
+  if (exists) { await cabMergeClients(oldName, newName); return true; }
+  const n = cabShipmentsCache.filter(s => (s.data || []).some(row => splitWarehouses((Array.isArray(row) ? row[1] : row.w) || '').some(p => p.toLowerCase() === oldName.toLowerCase()))).length;
+  if (!confirm(`Переименовать «${oldName}» в «${newName}» во всех закупках (${n})?`)) return false;
+  cabMergeSkipConfirm = true;
+  try { await cabMergeClients(oldName, newName); } finally { cabMergeSkipConfirm = false; }
+  return true;
+}
+// Блок «Данные клиента» в карточке Кабинета: поля сохраняются сами при уходе с поля
+function cabClientInfoHtml(name) {
+  const I = cabClientInfo(name), enc = encodeURIComponent(name), tg = cabTgUser(I.tg), ph = cabTel(I.ph);
+  const inp = 'width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d5d8dd;border-radius:8px;font-size:14px;font-family:inherit;background:#fff';
+  const lab = t => `<div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:4px">${t}</div>`;
+  const fld = (f, t, ph0, v) => `<div>${lab(t)}<input value="${cabEsc(v || '')}" placeholder="${ph0}" onchange="cabCInfoSet('${enc}','${f}',this.value)" style="${inp}"></div>`;
+  return `<div class="cab-table-wrap cab-cinfo" style="padding:14px 18px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><b style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Данные клиента</b><span style="font-size:12.5px;color:#6b7280"><i class="ti ti-device-floppy"></i> сохраняется само</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+      <div>${lab('Имя *')}<input value="${cabEsc(name)}" onchange="cabCInfoRename('${enc}',this)" title="Как клиент записан в закупках — поменяется везде" style="${inp}"></div>
+      ${fld('ln', 'Фамилия', 'по желанию', I.ln)}${fld('tg', 'Telegram', '@логин', I.tg ? '@' + cabTgUser(I.tg) : '')}${fld('ph', 'Телефон', '+375 …', I.ph)}
+    </div>
+    <div style="margin-top:10px">${lab('Заметка')}<textarea rows="2" placeholder="Например: берёт только детское" onchange="cabCInfoSet('${enc}','note',this.value)" style="${inp};resize:vertical">${cabEsc(I.note || '')}</textarea></div>
+    <div id="cabCInfoBtns">${cabCInfoBtns(name)}</div>
+  </div>`;
+}
+function cabCInfoBtns(name) {
+  const I = cabClientInfo(name), tg = cabTgUser(I.tg), ph = cabTel(I.ph);
+  return tg || ph ? `<div style="display:flex;gap:8px;margin-top:10px">${tg ? `<a class="cab-filter-btn" href="https://t.me/${tg}" target="_blank" rel="noopener" style="background:#2AABEE;border-color:#2AABEE;color:#fff;text-decoration:none"><i class="ti ti-brand-telegram"></i> Написать</a>` : ''}${ph ? `<a class="cab-filter-btn" href="tel:${ph}" style="text-decoration:none"><i class="ti ti-phone"></i> Позвонить</a>` : ''}</div>` : '';
+}
+async function cabCInfoSet(enc, field, val) {
+  const name = decodeURIComponent(enc), I = { ...cabClientInfo(name) }; I[field] = val;
+  try { await cabSaveClientInfo(name, I); showToast('Сохранено'); } catch (e) { alert('Не удалось сохранить: ' + e.message); return; }
+  const b = document.getElementById('cabCInfoBtns'); if (b) b.innerHTML = cabCInfoBtns(name);
+  const t = document.querySelector('#cabMain .cab-main-title'); if (t && field === 'ln') t.textContent = cabFullName(name);
+}
+async function cabCInfoRename(enc, inp) {
+  const old = decodeURIComponent(enc);
+  if (!(await cabRenameClient(old, inp.value))) inp.value = old;
 }
 
 // ---- ПАПКИ КЛИЕНТОВ (откуда пришли: Threads, чат СП и т.п.) ----
@@ -1511,7 +1580,7 @@ function renderCabClients(container) {
     const enc = encodeURIComponent(c.name);
     return `<tr>
       <td class="cab-sel-td"><input type="checkbox" data-sel="${enc}" ${cabSel.has(c.name) ? 'checked' : ''} onchange="cabSelToggle('${enc}',this.checked)"></td>
-      <td style="font-weight:500"><a href="#" onclick="cabOpenClient('${encodeURIComponent(c.name)}');return false" style="color:#6C4DB8;text-decoration:none">${c.name}</a>${ownerBadge}</td>
+      <td style="font-weight:500"><a href="#" onclick="cabOpenClient('${encodeURIComponent(c.name)}');return false" style="color:#6C4DB8;text-decoration:none">${cabEsc(cabFullName(c.name))}</a>${ownerBadge}${(() => { const I = cabClientInfo(c.name); return (I.tg ? ' <i class="ti ti-brand-telegram" title="@' + cabEsc(cabTgUser(I.tg)) + '" style="color:#2AABEE"></i>' : '') + (I.ph ? ' <i class="ti ti-phone" title="' + cabEsc(I.ph) + '" style="color:#16a34a"></i>' : '') + (I.note ? ' <i class="ti ti-note" title="' + cabEsc(I.note) + '" style="color:#b45309"></i>' : ''); })()}</td>
       <td><span style="font-size:13px;background:${st.bg};color:${st.color};padding:3px 8px;border-radius:5px;font-weight:600">${st.label}</span></td>
       <td>${c.ships.length}</td>
       <td>${c.totalItems}</td>
@@ -1680,7 +1749,7 @@ function cabRenderClientCard(container, name) {
   container.innerHTML = `
     <a href="#" onclick="cabCloseClient();return false" style="display:inline-flex;align-items:center;gap:4px;color:#6C4DB8;text-decoration:none;font-size:14px;margin-bottom:10px"><i class="ti ti-arrow-left"></i> Все клиенты</a>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-      <div class="cab-main-title" style="margin:0">${m.name}</div>
+      <div class="cab-main-title" style="margin:0">${cabEsc(cabFullName(m.name))}</div>
       <span style="font-size:13px;background:${st.bg};color:${st.color};padding:3px 8px;border-radius:5px;font-weight:600">${st.label}</span>
       ${m.isOwner ? '<span style="font-size:13px;background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:5px">свой</span>' : ''}
       <select onchange="cabSetClientFolder('${enc}', this.value)" title="Папка клиента (откуда пришёл)" style="margin-left:auto;padding:7px 10px;border:1px solid #d5d8dd;border-radius:8px;font-size:14px;background:#fff;color:#4a5260;cursor:pointer">
@@ -1693,6 +1762,7 @@ function cabRenderClientCard(container, name) {
           return others.map(o => `<option value="${o.x.name.replace(/"/g, '&quot;')}">${o.x.name} (${o.x.ships.length} прих.)</option>`).join(''); })()}
       </select>
     </div>
+    ${cabClientInfoHtml(m.name)}
     <div class="cab-table-wrap" style="padding:14px 18px">
       <div style="display:flex;gap:24px;flex-wrap:wrap;row-gap:6px">
         ${ruleChk('owner', 'Это я')}${ruleChk('costGoods', 'Товар по себестоимости')}${ruleChk('costShip', 'Доставка по себестоимости')}
