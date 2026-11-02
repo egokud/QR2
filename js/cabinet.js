@@ -267,7 +267,7 @@ function cabGetClientsFromShipment(ship) {
 function renderCabStub(container, section) {
   const names = {
     shipments: 'Закупки', clients: 'Клиенты', prices: 'Цены',
-    calc: 'Расчёты', analytics: 'Аналитика', settings: 'Настройки', tariffs: 'Тариф', admin: 'Администрирование'
+    calc: 'Деньги', analytics: 'Аналитика', settings: 'Настройки', tariffs: 'Тариф', admin: 'Администрирование'
   };
   const icons = {
     shipments: 'ti-package', clients: 'ti-users', prices: 'ti-currency-yuan',
@@ -2129,6 +2129,8 @@ function renderCabPrices(container) {
 
 // ============ РАСЧЁТЫ ============
 const cabCalcOpen = new Set();
+// «Деньги»: закупка открывается сразу на вкладке «Расчёт»
+async function cabCalcGo(id) { await cabOpenShip(id); if (cabShipId === id && cabShipTab !== 'calc') cabShipTabSet('calc'); }
 function cabCalcToggle(id) {
   if (cabCalcOpen.has(id)) cabCalcOpen.delete(id); else cabCalcOpen.add(id);
   renderCabCalc(document.getElementById('cabMain'));
@@ -2158,7 +2160,7 @@ function renderCabCalc(container) {
   const shown = rows.filter(r => cabCalcFilter === 'all' || (cabCalcFilter === 'wait' && r.wait) || (cabCalcFilter === 'work' && !r.billed) || (cabCalcFilter === 'done' && r.isDone));
 
   const blocks = shown.map(({ ship, clients, billed, isDone, due, profit, paid, rest, kg, wait }) => {
-    const open = cabCalcOpen.has(ship.id);
+    const open = false;   // подробная таблица клиентов — во вкладке «Расчёт» закупки (03.11.2026)
     const pct = due > 0 ? Math.round(paid / due * 100) : 100;
     const rent = due > 0 ? profit / due * 100 : null;
     const date = cabNameHasDate(ship) ? '' : cabShipDateStr(ship);
@@ -2198,12 +2200,12 @@ function renderCabCalc(container) {
         </table></div>`;
     }
     return `<div class="cab-cc${isDone ? ' done' : ''}${open ? ' open' : ''}">
-      <div class="cab-cc-head" onclick="cabCalcToggle('${ship.id}')">
-        <i class="ti ti-chevron-${open ? 'down' : 'right'} cab-cc-chev"></i>
+      <div class="cab-cc-head" onclick="cabCalcGo('${ship.id}')" title="Открыть расчёт закупки">
+        <i class="ti ti-arrow-right cab-cc-chev"></i>
         <div class="cab-cc-title"><div><b>${ship.name || 'Без названия'}</b>${cabShipPill(ship.status)}</div><span>${date ? date + ' · ' : ''}${(ship.data || []).length} поз. · ${clients.length} ${cabPl(clients.length, 'клиент', 'клиента', 'клиентов')}</span></div>
         ${right}
       </div>
-      <div class="cab-cc-cells" onclick="cabCalcToggle('${ship.id}')">${cells}</div>
+      <div class="cab-cc-cells" onclick="cabCalcGo('${ship.id}')">${cells}</div>
       ${chips}
       ${table}
     </div>`;
@@ -2213,9 +2215,8 @@ function renderCabCalc(container) {
   const totPct = sumBilled > 0 ? Math.round(sumPaid / sumBilled * 100) : 100;
   container.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      <div class="cab-main-title" style="margin:0">Расчёты по закупкам</div>
-      <button class="cab-filter-btn" style="margin-left:auto" onclick="cabCalcAll(true)"><i class="ti ti-arrows-maximize"></i> Развернуть все</button>
-      <button class="cab-filter-btn" onclick="cabCalcAll(false)"><i class="ti ti-arrows-minimize"></i> Свернуть все</button>
+      <div class="cab-main-title" style="margin:0">Деньги</div>
+      <span style="color:#6b7280;font-size:14px">сбор оплат по всем закупкам · нажмите на закупку — откроется её расчёт</span>
     </div>
     <div class="cab-cc-top">
       <div class="cab-seg">${seg('all', 'Все', rows.length)}${seg('wait', 'Ждут оплаты', nWait)}${seg('work', 'До сортировки', nWork)}${seg('done', 'Архив', nDone)}</div>
