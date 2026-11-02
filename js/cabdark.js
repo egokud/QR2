@@ -30,6 +30,16 @@
         // иначе тёмное правило «базового» класса перебило бы их по специфичности
         let any = false;
         for (const prop in PROPS) { const v = r.style.getPropertyValue(prop); if (!v) continue; const n = PROPS[prop](v.trim()); if (n) any = true; d.push(prop + ':' + (n || v.trim()) + (r.style.getPropertyPriority(prop) ? '!important' : '')); }
+        // светлые градиенты (карточки «Наценка», «Ждут оплаты») — заменяем тёмным фоном с оттенком первого цвета
+        const bi = r.style.getPropertyValue('background-image');
+        if (/gradient/.test(bi)) {
+          const cols = bi.match(/rgba?\([^)]*\)|#[0-9a-f]{3,6}\b/gi) || [];
+          const ps = cols.map(parse).filter(Boolean);
+          if (ps.length && ps.every(p => toHls(p[0], p[1], p[2])[1] > .8)) {
+            const first = cols.find(c => { const p = parse(c); return p && toHls(p[0], p[1], p[2])[2] > .15; }) || cols[0];
+            d.push('background-image:none', 'background-color:' + (back(first) || '#1d1a2e'));
+          }
+        }
         if (d.length) out.push(darkSel(r.selectorText) + '{' + d.join(';') + '}');
       } else if (r.cssRules && r.conditionText !== undefined) {   // @media / @container
         const sub = []; rulesOf(r.cssRules, sub);
@@ -65,8 +75,33 @@ body.dark .cab-top-back,body.dark .cab-top-help{background:#1d1a2e;border-color:
     inline(out);
     const st = document.createElement('style'); st.id = 'cabDark'; st.textContent = out.join('\n') + BASE; document.head.appendChild(st);
   }
+  // инлайн-цвета, которые шаблоны собирают из переменных (плашки статусов и т.п.) — перекрашиваем на лету
+  const ROOTS = '#cabinetScreen,.cab-ovl,.cab-dlg,.cab-menu,.cab-help-pop';
+  function fixInline() {
+    document.querySelectorAll(ROOTS).forEach(root => root.querySelectorAll('[style]').forEach(el => {
+      if (el.dataset.dk) return;
+      const st = el.style, o = {};
+      const set = (prop, f, key) => { const v = st.getPropertyValue(prop); if (!v) return; const n = f(v.trim()); if (n) { o[key] = [prop, v, st.getPropertyPriority(prop)]; st.setProperty(prop, n, 'important'); } };
+      set('background-color', back, 'b'); set('color', text, 'c');
+      ['top', 'right', 'bottom', 'left'].forEach(k => set('border-' + k + '-color', line, 'r' + k));
+      const bi = st.getPropertyValue('background-image');
+      if (/gradient/.test(bi)) { const cols = bi.match(/rgba?\([^)]*\)|#[0-9a-f]{3,6}\b/gi) || []; const ps = cols.map(parse).filter(Boolean);
+        if (ps.length && ps.every(p => toHls(p[0], p[1], p[2])[1] > .8)) { o.g = ['background-image', bi, st.getPropertyPriority('background-image')]; st.setProperty('background-image', 'none', 'important'); st.setProperty('background-color', back(cols[0]) || '#1d1a2e', 'important'); } }
+      if (Object.keys(o).length) el.dataset.dk = JSON.stringify(o);
+    }));
+  }
+  function unfixInline() {
+    document.querySelectorAll('[data-dk]').forEach(el => { try { const o = JSON.parse(el.dataset.dk); for (const k in o) el.style.setProperty(o[k][0], o[k][1], o[k][2]); if (o.g) el.style.removeProperty('background-color'); } catch (e) {} delete el.dataset.dk; });
+  }
+  let fixT = null, wasDark = false;
+  new MutationObserver(() => { if (!document.body.classList.contains('dark')) return; clearTimeout(fixT); fixT = setTimeout(fixInline, 20); })
+    .observe(document.body, { childList: true, subtree: true });
   // строим, когда тема включена (или включится) — чтобы не тратить время в светлой
-  const go = () => { if (document.body.classList.contains('dark')) build(); };
+  const go = () => {
+    const dk = document.body.classList.contains('dark');
+    if (dk) { build(); fixInline(); } else if (wasDark) unfixInline();
+    wasDark = dk;
+  };
   if (document.readyState === 'complete') go(); else window.addEventListener('load', go);
   new MutationObserver(go).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
