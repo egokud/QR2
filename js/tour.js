@@ -9,17 +9,20 @@ const PK_TOUR_MENU_DAYS = 60;
 const PK_TOUR = {
   m: [
     { sel: '#pkT-scan', t: 'Сканер', d: 'Наведите камеру или сканер-пистолет на штрихкод — сразу видно фото товара и чья это посылка.' },
-    { sel: '#pkT-ships', t: 'Закупки', d: 'Все ваши закупки: импорт заказов, сверка с карго, статусы «В дороге» и «На складе».' },
+    { sel: '#pkT-ships', t: 'Закупки', d: 'Ваши закупки: создание, импорт заказов из Pinduoduo, статусы «В дороге» и «На складе».' },
     { sel: '#pkT-clients', t: 'Клиенты', d: 'Кто что заказал, контакты и долг каждого клиента.' },
     { sel: '#pkT-money', t: 'Деньги', d: 'Кто сколько должен и кто уже оплатил.' },
     { sel: '#pkT-more', t: 'Ещё', d: 'Тариф, настройки, помощь. Здесь же — «Подсказки по интерфейсу», если захотите пройти их заново.' }
   ],
   c: [
-    { sel: '.cab-nav-item[data-section="overview"]', t: 'Обзор', d: 'Сводка: что в пути, что приехало, сколько вам должны.' },
-    { sel: '.cab-nav-item[data-section="shipments"]', t: 'Закупки', d: 'Импорт заказов из Pinduoduo через расширение и сверка с карго.' },
-    { sel: '.cab-nav-item[data-section="clients"]', t: 'Клиенты', d: 'Карточки клиентов: заказы, контакты, долги.' },
+    { sel: '.cab-nav-item[data-section="overview"]', pre: 'overview', t: 'Обзор', d: 'Сводка: что в пути, что приехало, сколько вам должны.' },
+    { sel: '#cabMain .cab-help', t: 'Значок «?»', d: 'Есть почти у каждого блока. Нажмите на него — появится подробное пояснение, что здесь показано и как этим пользоваться.' },
+    { sel: '.cab-nav-item[data-section="shipments"]', t: 'Закупки', d: 'Создавайте и редактируйте закупки, импортируйте заказы из Pinduoduo, задавайте курсы конвертации, ведите взаиморасчёты с клиентами и вносите данные взвешивания.' },
+    { sel: '.cab-nav-item[data-section="clients"]', t: 'Клиенты', d: 'Работа с клиентской базой: карточка и индивидуальные настройки каждого клиента, забытые и разовые клиенты.' },
     { sel: '.cab-nav-item[data-section="calc"]', t: 'Расчёты', d: 'Вес, доставка и кто сколько должен по каждой закупке.' },
-    { sel: '.cab-nav-item[data-section="tariffs"]', t: 'Тариф и настройки', d: 'Подписка, курсы валют и данные профиля. Пройти подсказки заново — пункт «Подсказки по интерфейсу» в меню.' }
+    { sel: '.cab-nav-item[data-section="analytics"]', t: 'Аналитика', d: 'Главные экономические показатели вашего бизнеса: что приносит прибыль, а что убыточно. Здесь будут появляться новые инструменты.' },
+    { sel: '.cab-nav-item[data-section="tariffs"]', t: 'Тариф', d: 'Выберите тариф под свои задачи: Старт, Основной или Профи.' },
+    { sel: '#cabTourBtn', t: 'Подсказки', d: 'Захотите пройти обучение заново — оно здесь.' }
   ]
 };
 
@@ -29,7 +32,7 @@ const PK_TOUR = {
 #pkTour *{box-sizing:border-box}
 #pkTour .bk{position:absolute;inset:0;background:rgba(15,12,30,.62)}
 #pkTour .hole{position:absolute;border-radius:14px;box-shadow:0 0 0 3px #a78bfa,0 0 18px rgba(167,139,250,.6);pointer-events:none}
-#pkTour .dm{position:absolute;background:rgba(15,12,30,.62)}
+#pkTour svg.dm{position:absolute;inset:0;width:100%;height:100%}
 #pkTour .tip{position:absolute;width:min(320px,calc(100vw - 24px));background:#fff;border-radius:16px;box-shadow:0 12px 34px rgba(0,0,0,.28);padding:15px 16px 13px;transition:top .28s ease,left .28s ease}
 #pkTour .tip.c{left:50%!important;top:50%!important;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 32px));text-align:center;padding:22px 20px 16px}
 #pkTour .ar{position:absolute;width:14px;height:14px;background:#fff;transform:rotate(45deg);border-radius:2px}
@@ -93,22 +96,25 @@ function pkTourDraw() {
     return;
   }
   const st = S.steps[S.i];
+  if (st.pre && !S.preDone) {   // сначала открыть нужный раздел, потом подсвечивать
+    S.preDone = 1;
+    try { if (typeof cabNav === 'function') cabNav(st.pre); } catch (e) {}
+    return setTimeout(pkTourDraw, 450);
+  }
   const el = [...document.querySelectorAll(st.sel)].find(e => e.offsetParent !== null || e.getClientRects().length);
   if (!el) { if (S.i < S.steps.length - 1) { S.i++; return pkTourDraw(); } return pkTourEnd(); }
   try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
   const r = el.getBoundingClientRect(), pad = 5, W = innerWidth, H = innerHeight;
   const last = S.i === S.steps.length - 1;
-  o.innerHTML = `<div class="dm"></div><div class="dm"></div><div class="dm"></div><div class="dm"></div><div class="hole"></div><div class="tip"><div class="ar"></div><div class="n">${S.i + 1} из ${S.steps.length}</div><h3>${st.t}</h3><p>${st.d}</p>
+  o.innerHTML = `<svg class="dm"><path fill="rgba(15,12,30,.62)" fill-rule="evenodd"/></svg><div class="hole"></div><div class="tip"><div class="ar"></div><div class="n">${S.i + 1} из ${S.steps.length}</div><h3>${st.t}</h3><p>${st.d}</p>
     <div class="row"><button class="sk" onclick="pkTourEnd()">${last ? '' : 'Пропустить'}</button><div class="dots">${S.steps.map((_, k) => `<i class="${k === S.i ? 'on' : ''}"></i>`).join('')}</div><button class="go" onclick="pkTourNext()">${last ? 'Готово' : 'Дальше'}</button></div></div>`;
   const h = o.querySelector('.hole'), tip = o.querySelector('.tip'), ar = o.querySelector('.ar');
   const hx = r.left - pad, hy = r.top - pad, hw = r.width + pad * 2, hh = r.height + pad * 2;
-  Object.assign(h.style, { left: hx + 'px', top: hy + 'px', width: hw + 'px', height: hh + 'px' });
-  // затемнение — четыре прямоугольника вокруг подсвеченной кнопки
-  const px = v => Math.max(0, v) + 'px', D = o.querySelectorAll('.dm');
-  Object.assign(D[0].style, { left: 0, top: 0, width: '100%', height: px(hy) });
-  Object.assign(D[1].style, { left: 0, top: px(hy + hh), width: '100%', bottom: 0 });
-  Object.assign(D[2].style, { left: 0, top: px(hy), width: px(hx), height: px(hh) });
-  Object.assign(D[3].style, { left: px(hx + hw), top: px(hy), right: 0, height: px(hh) });
+  const rad = Math.min(14, hh / 2, hw / 2);
+  Object.assign(h.style, { left: hx + 'px', top: hy + 'px', width: hw + 'px', height: hh + 'px', borderRadius: rad + 'px' });
+  // затемнение с закруглённым «окном» точно по рамке
+  const q = rad, x2 = hx + hw, y2 = hy + hh;
+  o.querySelector('svg.dm path').setAttribute('d', `M0 0H${W}V${H}H0Z M${hx + q} ${hy}H${x2 - q}A${q} ${q} 0 0 1 ${x2} ${hy + q}V${y2 - q}A${q} ${q} 0 0 1 ${x2 - q} ${y2}H${hx + q}A${q} ${q} 0 0 1 ${hx} ${y2 - q}V${hy + q}A${q} ${q} 0 0 1 ${hx + q} ${hy}Z`);
   const tw = tip.offsetWidth, th = tip.offsetHeight, gap = 14;
   let left, top, side;
   if (S.mode === 'c' && r.right + gap + tw < W - 8 && r.width < W * 0.4 && r.left < W * 0.3) {   // меню слева (Кабинет) — подсказка справа
@@ -126,7 +132,7 @@ function pkTourDraw() {
 function pkTourNext() {
   const S = pkTourS; if (!S) return;
   if (S.i >= S.steps.length - 1) return pkTourEnd();
-  S.i++; pkTourDraw();
+  S.i++; S.preDone = 0; pkTourDraw();
 }
 
 function pkTourEnd() {
