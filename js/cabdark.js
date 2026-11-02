@@ -26,7 +26,10 @@
       if (r.type === 1) {   // обычное правило
         if (/body\.dark/.test(r.selectorText)) continue;
         const d = [];
-        for (const prop in PROPS) { const v = r.style.getPropertyValue(prop); if (!v) continue; const n = PROPS[prop](v.trim()); if (n) d.push(prop + ':' + n); }
+        // цвета, которые не надо менять (насыщенные кнопки, :hover, .active), тоже повторяем под body.dark —
+        // иначе тёмное правило «базового» класса перебило бы их по специфичности
+        let any = false;
+        for (const prop in PROPS) { const v = r.style.getPropertyValue(prop); if (!v) continue; const n = PROPS[prop](v.trim()); if (n) any = true; d.push(prop + ':' + (n || v.trim()) + (r.style.getPropertyPriority(prop) ? '!important' : '')); }
         if (d.length) out.push(darkSel(r.selectorText) + '{' + d.join(';') + '}');
       } else if (r.cssRules && r.conditionText !== undefined) {   // @media / @container
         const sub = []; rulesOf(r.cssRules, sub);
@@ -36,8 +39,8 @@
   }
   // инлайн-цвета из шаблонов cabinet.js: c — текст, b — фон, r — рамка
   const INL = {
-    c: '15803d 16a34a 1a1a2e 2563a8 2aabee 3cb371 4a5260 5f6470 6b7280 6c4db8 92400e 9aa0ab 9ca3af b45309 dc2626 eab308 f59e0b',
-    b: 'e7f8ee f0ecf9 f3f4f6 fde68a fee2e2 fef2f2 fef3c7 fff fffbeb fffdf5',
+    c: '15803d 16a34a 1a1a2e 2563a8 2aabee 3cb371 4a5260 5b3fb0 5f6470 6b7280 6c4db8 92400e 9aa0ab 9ca3af b45309 dc2626 eab308 f59e0b',
+    b: 'e7f8ee f0ecf9 f1edfb f3f4f6 fde68a fee2e2 fef2f2 fef3c7 fff fffbeb fffdf5',
     r: 'b9a8e3 d5d8dd e5e7eb fca5a5 fde68a 86efac'
   };
   const SC = 'body.dark :is(#cabinetScreen,.cab-ovl,.cab-dlg,.cab-menu,.cab-zoom,#cabImgZoom,.cab-help-pop)';
