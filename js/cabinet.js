@@ -2582,8 +2582,9 @@ function renderCabTariffs(container) {
   // карточки тарифов
   const cards = ['start', 'main', 'pro'].map(k => {
     const [m, yr] = P[k], save = m * 12 - yr, isCur = k === plan, isRec = k === rec;
-    const big = y ? `<span class="ctf-pr"><small>≈</small>${pkN(pkMo(yr, cur))}<small> ${P.s} / мес</small></span>` : `<span class="ctf-pr">${pkN(m)}<small> ${P.s} / мес</small></span>`;
-    const line = y ? `<div class="ctf-y ok">${pkN(yr)} ${P.s} за год · выгода ${pkN(save)} ${P.s}</div>` : `<div class="ctf-y">или ≈${pkN(pkMo(yr, cur))} ${P.s} в месяц при оплате за год</div>`;
+    // только точные суммы (03.11.2026): помесячно — цена за месяц, за год — цена за год, без «≈ в месяц»
+    const big = y ? `<span class="ctf-pr">${pkN(yr)}<small> ${P.s} / год</small></span>` : `<span class="ctf-pr">${pkN(m)}<small> ${P.s} / мес</small></span>`;
+    const line = y ? `<div class="ctf-y ok">выгода ${pkN(save)} ${P.s} против помесячной оплаты</div>` : `<div class="ctf-y">или ${pkN(yr)} ${P.s} за год — выгода ${pkN(save)} ${P.s}</div>`;
     const feats = CAB_TF_FEATS.map(([f, on]) => on.includes(k) ? `<li><i class="ti ti-check"></i>${f}</li>` : `<li class="off"><i class="ti ti-minus"></i>${f}</li>`).join('');
     const lim = PK_PLANS[k].lim === Infinity ? 'Без лимита по трекам' : `До ${pkN(PK_PLANS[k].lim)} треков в месяц`;
     return `<div class="ctf-card ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="cabTfPick('${k}')">

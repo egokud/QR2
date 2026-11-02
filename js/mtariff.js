@@ -12,7 +12,7 @@ const PK_MARKUP = 1.1;
 const PK_SYM = { BYN: 'BYN', RUB: '₽', KZT: '₸', CNY: '¥', USDT: 'USDT' };
 let PK_RATES = { d: '2026-11-01', USD: 2.9462, CNY: 0.44286, RUB: 0.036624, KZT: 0.0064906 };   // BYN за 1 единицу
 const pkUp = (x, step) => Math.ceil((x - 1e-6) / step) * step;
-// «≈ в месяц» при оплате за год: BYN — до целого, ₽ и ₸ — до 10
+// (03.11.2026) «≈ в месяц» больше нигде не показываем — только точные суммы: за месяц и за год
 const pkMo = (yr, cur) => cur === 'BYN' ? Math.round(yr / 12) : Math.round(yr / 120) * 10;
 // Цены тарифов в валюте cur: { s, start: [месяц, год], main, pro }
 function pkTP(cur) {
@@ -130,8 +130,8 @@ function pkTfCards(cur, onPick, rec, curPlan) {
   const P = pkTP(cur), y = pkTPer === 'y', sel = pkTfSel || rec;
   return ['start', 'main', 'pro'].map(k => {
     const [m, yr] = P[k], save = m * 12 - yr, isRec = k === rec, isCur = k === curPlan;
-    const price = y ? `<span class="pk-tf-pr"><small>≈</small>${pkN(pkMo(yr, cur))} <small>${P.s} / мес</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
-    const yl = y ? `<span class="pk-tf-y">${pkN(yr)} ${P.s} раз в год · выгода ${pkN(save)}</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ≈${pkN(pkMo(yr, cur))} ${P.s} в месяц при оплате за год</span>`;
+    const price = y ? `<span class="pk-tf-pr">${pkN(yr)} <small>${P.s} / год</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
+    const yl = y ? `<span class="pk-tf-y">выгода ${pkN(save)} ${P.s} против помесячной оплаты</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ${pkN(yr)} ${P.s} за год — выгода ${pkN(save)} ${P.s}</span>`;
     // Нажатие на карточку только выделяет её (рамка + кнопка), к оплате ведёт кнопка
     return `<div class="pk-tf ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="pkTfPick('${k}')" role="button" tabindex="0" aria-pressed="${k === sel}">${isCur ? '<span class="pk-tf-tag cur">Ваш тариф</span>' : isRec ? '<span class="pk-tf-tag">Подходит вам</span>' : ''}
       <div class="pk-tf-r"><b>${PK_PLANS[k].n}</b>${price}</div>${yl}<span class="pk-tf-d">${PK_PLANS[k].d}</span>
@@ -196,7 +196,7 @@ function pkUpgradeRender() {
   pkScr('', `<div class="pk-upg" id="pkUpg"><div class="ic"><i class="ti ti-device-desktop" aria-hidden="true"></i></div><h2>Кабинет — с тарифа «Основной»</h2>
       <p>У вас «Старт»: Piksta работает на телефоне. Кабинет на компьютере открывается на «Основном».</p>
       <div class="ul"><div><i class="ti ti-check" aria-hidden="true"></i>Все закупки и клиенты на большом экране</div><div><i class="ti ti-check" aria-hidden="true"></i>Цены, курсы и расчёты в таблицах</div><div><i class="ti ti-check" aria-hidden="true"></i>До 1 500 треков в месяц вместо 300</div></div></div>
-    <div class="pk-tf rec" onclick="pkPayStart('main')" role="button" tabindex="0"><div class="pk-tf-r"><b>Основной</b><span class="pk-tf-pr"><small>≈</small>${pkN(pkMo(y, cur))} <small>${P.s} / мес</small></span></div><span class="pk-tf-y">при оплате за год — ${pkN(y)} ${P.s} · выгода ${pkN(m * 12 - y)}</span><span class="pk-tf-d">или ${pkN(m)} ${P.s} помесячно</span></div>
+    <div class="pk-tf rec" onclick="pkPayStart('main')" role="button" tabindex="0"><div class="pk-tf-r"><b>Основной</b><span class="pk-tf-pr">${pkN(y)} <small>${P.s} / год</small></span></div><span class="pk-tf-y">выгода ${pkN(m * 12 - y)} ${P.s} против помесячной оплаты</span><span class="pk-tf-d">или ${pkN(m)} ${P.s} помесячно</span></div>
     <button type="button" class="pk-btn" onclick="pkTPer='y';pkPayStart('main')">Перейти на «Основной»</button>
     <button type="button" class="pk-btn ghost" onclick="pkTariffs()">Сравнить все тарифы</button>
     <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:2px 0 0">Данные никуда не денутся — всё, что вы ведёте в телефоне, сразу появится в Кабинете</p>`);
@@ -226,7 +226,7 @@ function pkPayRender1() {
   const L = pkPayMethods();
   const amt = x => x.cur ? pkN(pkPayAmount(x.cur, S.plan, pkTPer)) + ' ' + PK_SYM[x.cur] : '';
   pkScr(`Оплата «${PK_PLANS[S.plan].n}»`, `
-    <div class="pk-seg"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkPayRender1()">Помесячно · ${pkN(m)}</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkPayRender1()">За год · ≈${pkN(pkMo(y, cur))} в мес</button></div>
+    <div class="pk-seg"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkPayRender1()">Помесячно · ${pkN(m)}</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkPayRender1()">За год · ${pkN(y)}</button></div>
     <p class="pk-muted" style="font-size:13px;text-align:center;margin:-2px 0 0">${pkTPer === 'y' ? `${pkN(y)} ${P.s} раз в год · выгода ${pkN(m * 12 - y)} ${P.s}` : `${pkN(m)} ${P.s} в месяц`} · до ${pkD(pkPayEnd())}</p>
     <div class="pk-lbl">Чем платите</div>
     <div class="pk-mt">${L.map(x => `<button type="button" class="${x.id === S.method ? 'on' : ''}" onclick="pkPayS.method='${x.id}';pkPayRender1()"><i class="ti ${x.ic}" aria-hidden="true"></i><span>${x.n}<small>${x.sub}${x.cur ? ' · ' + amt(x) : ''}</small></span><i class="rd" aria-hidden="true"></i></button>`).join('')}</div>
