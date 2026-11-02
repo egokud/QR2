@@ -26,7 +26,8 @@ const PK_TOUR = {
 #pkTour{position:fixed;inset:0;z-index:250;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#17142a}
 #pkTour *{box-sizing:border-box}
 #pkTour .bk{position:absolute;inset:0;background:rgba(15,12,30,.62)}
-#pkTour .hole{position:absolute;border-radius:14px;box-shadow:0 0 0 9999px rgba(15,12,30,.62),0 0 0 3px #a78bfa;transition:all .28s ease;pointer-events:none}
+#pkTour .hole{position:absolute;border-radius:14px;box-shadow:0 0 0 3px #a78bfa,0 0 18px rgba(167,139,250,.6);pointer-events:none}
+#pkTour .dm{position:absolute;background:rgba(15,12,30,.62)}
 #pkTour .tip{position:absolute;width:min(320px,calc(100vw - 24px));background:#fff;border-radius:16px;box-shadow:0 12px 34px rgba(0,0,0,.28);padding:15px 16px 13px;transition:top .28s ease,left .28s ease}
 #pkTour .tip.c{left:50%!important;top:50%!important;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 32px));text-align:center;padding:22px 20px 16px}
 #pkTour .ar{position:absolute;width:14px;height:14px;background:#fff;transform:rotate(45deg);border-radius:2px}
@@ -85,13 +86,20 @@ function pkTourDraw() {
   try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
   const r = el.getBoundingClientRect(), pad = 5, W = innerWidth, H = innerHeight;
   const last = S.i === S.steps.length - 1;
-  o.innerHTML = `<div class="hole"></div><div class="tip"><div class="ar"></div><div class="n">${S.i + 1} из ${S.steps.length}</div><h3>${st.t}</h3><p>${st.d}</p>
+  o.innerHTML = `<div class="dm"></div><div class="dm"></div><div class="dm"></div><div class="dm"></div><div class="hole"></div><div class="tip"><div class="ar"></div><div class="n">${S.i + 1} из ${S.steps.length}</div><h3>${st.t}</h3><p>${st.d}</p>
     <div class="row"><button class="sk" onclick="pkTourEnd()">${last ? '' : 'Пропустить'}</button><div class="dots">${S.steps.map((_, k) => `<i class="${k === S.i ? 'on' : ''}"></i>`).join('')}</div><button class="go" onclick="pkTourNext()">${last ? 'Готово' : 'Дальше'}</button></div></div>`;
   const h = o.querySelector('.hole'), tip = o.querySelector('.tip'), ar = o.querySelector('.ar');
-  Object.assign(h.style, { left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (r.height + pad * 2) + 'px' });
+  const hx = r.left - pad, hy = r.top - pad, hw = r.width + pad * 2, hh = r.height + pad * 2;
+  Object.assign(h.style, { left: hx + 'px', top: hy + 'px', width: hw + 'px', height: hh + 'px' });
+  // затемнение — четыре прямоугольника вокруг подсвеченной кнопки
+  const px = v => Math.max(0, v) + 'px', D = o.querySelectorAll('.dm');
+  Object.assign(D[0].style, { left: 0, top: 0, width: '100%', height: px(hy) });
+  Object.assign(D[1].style, { left: 0, top: px(hy + hh), width: '100%', bottom: 0 });
+  Object.assign(D[2].style, { left: 0, top: px(hy), width: px(hx), height: px(hh) });
+  Object.assign(D[3].style, { left: px(hx + hw), top: px(hy), right: 0, height: px(hh) });
   const tw = tip.offsetWidth, th = tip.offsetHeight, gap = 14;
   let left, top, side;
-  if (r.right + gap + tw < W - 8 && r.width < W * 0.4 && r.left < W * 0.3) {   // меню слева (Кабинет) — подсказка справа
+  if (S.mode === 'c' && r.right + gap + tw < W - 8 && r.width < W * 0.4 && r.left < W * 0.3) {   // меню слева (Кабинет) — подсказка справа
     left = r.right + gap; top = Math.min(Math.max(8, r.top + r.height / 2 - th / 2), H - th - 8); side = 'l';
   } else if (r.top + r.height / 2 > H / 2) {                                    // кнопка внизу — подсказка над ней
     top = r.top - pad - gap - th; left = Math.min(Math.max(12, r.left + r.width / 2 - tw / 2), W - tw - 12); side = 'b';
