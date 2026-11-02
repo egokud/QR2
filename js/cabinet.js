@@ -2480,6 +2480,7 @@ function cabTfPay(k) {
   pkPayStart(k);
 }
 function cabTfPayClose() {
+  try { pkPayS = null; } catch (e) {}   // иначе догрузка курсов снова откроет окно оплаты
   if (typeof pkScrClose === 'function') pkScrClose();
   document.body.classList.remove('pk-cabpay');
   if (cabInCabinet() && cabCurrentSection === 'tariffs') renderCabTariffs(document.getElementById('cabMain'));
