@@ -727,7 +727,7 @@ body.pk-cabpay .pk-scr{top:4vh;bottom:4vh;max-width:500px;border-radius:20px;box
 @media(max-width:640px){.cab-top{margin-top:-4px}}
 /* Настройки Кабинета (03.11.2026) */
 .cab-set{max-width:820px;white-space:normal}
-.cab-set .cab-table-wrap{margin-bottom:16px}
+.cab-set .cab-table-wrap{margin-bottom:16px;white-space:normal}
 .cab-set-row{display:flex;align-items:center;gap:14px;padding:9px 0;border-top:1px solid #f0eef5;flex-wrap:wrap}.cab-set-row:first-of-type{border-top:0}
 .cab-set-l{width:150px;flex:none;color:#6b7280;font-size:14px}
 .cab-set-v{flex:1;min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14.5px;color:#1f2430}
