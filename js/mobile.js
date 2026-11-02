@@ -608,6 +608,7 @@ function pkRenderMore() {
       <button onclick="${activeShipmentId ? `cacheShipmentImages('${activeShipmentId}')` : ''}"><i class="ti ${off ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>Фото для работы без интернета</span><small>${off ? 'скачаны · ' + off : 'текущая закупка'}</small></button>
       <button onclick="pkTheme()"><i class="ti ti-moon" aria-hidden="true"></i><span>Тёмная тема</span><small>${document.body.classList.contains('dark') ? 'вкл' : 'выкл'}</small></button>
       <button onclick="pkTariffs()"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span>${pkTariffLine()}</button>
+      <button onclick="pkTourStart('m')"><i class="ti ti-route" aria-hidden="true"></i><span>Как пользоваться</span><small>подсказки по экрану</small></button>
       <button onclick="pkHelp()"><i class="ti ti-help-circle" aria-hidden="true"></i><span>Помощь и связь</span></button>
       <button onclick="pkToCabinet()"><i class="ti ti-device-desktop" aria-hidden="true"></i><span>Полный Кабинет<br><small>цены, взвешивание, аналитика — удобнее на компьютере</small></span></button>
       ${isAdmin ? `<button onclick="pkToCabinet('admin')"><i class="ti ti-shield" aria-hidden="true"></i><span>Админ</span></button>` : ''}

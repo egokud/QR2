@@ -134,6 +134,7 @@
     <div class="cab-sidebar-bottom">
       <div class="cab-sidebar-user" id="cabUserName">—</div>
       <div class="cab-sidebar-role" id="cabUserRole">—</div>
+      <button class="cab-sidebar-logout" onclick="pkTourStart('c')"><i class="ti ti-route" style="font-size:16px"></i> Как пользоваться</button>
       <button class="cab-sidebar-logout" style="background:#f1edfb;color:#5b3fb0;font-weight:600" onclick="if(cabShipId){cabShipId=null;restoreActiveEditing();}document.getElementById('cabinetScreen').classList.remove('show');enterMode('scanner')"><i class="ti ti-device-mobile" style="font-size:16px"></i> Мобильная версия</button>
       <button class="cab-sidebar-logout" onclick="exitCabinet()"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
     </div>
@@ -477,5 +478,6 @@
 <script src="/js/app.js"></script>
 <script src="/js/mobile.js"></script>
 <script src="/js/mtariff.js"></script>
+<script src="/js/tour.js"></script>
 </body>
 </html>
