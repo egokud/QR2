@@ -1,23 +1,25 @@
 // ============ ОБУЧАЛКА ПРИ ПЕРВОМ ВХОДЕ (02.11.2026) ============
 // Затемнение + подсвеченная кнопка + пара слов. Отдельно для телефона (m) и Кабинета (c).
 // Показывается один раз — отметка в профиле (users/{uid}.tour.m / .tour.c), поэтому не всплывёт на другом устройстве.
-// Кому: новые регистрации (с запуска подтверждения e-mail). Заново — «Ещё → Как пользоваться» / «Как пользоваться» в Кабинете.
+// Кому: новые регистрации (с запуска подтверждения e-mail). Заново — пункт «Подсказки по интерфейсу» в «Ещё» / в меню Кабинета.
+// Пункт виден первые PK_TOUR_MENU_DAYS дней после регистрации (админу — всегда), потом исчезает.
 // Предпросмотр: /app?tour=1
 const PK_TOUR_SINCE = Date.parse('2026-11-02T19:00:00Z');
+const PK_TOUR_MENU_DAYS = 60;
 const PK_TOUR = {
   m: [
     { sel: '#pkT-scan', t: 'Сканер', d: 'Наведите камеру или сканер-пистолет на штрихкод — сразу видно фото товара и чья это посылка.' },
     { sel: '#pkT-ships', t: 'Закупки', d: 'Все ваши закупки: импорт заказов, сверка с карго, статусы «В дороге» и «На складе».' },
     { sel: '#pkT-clients', t: 'Клиенты', d: 'Кто что заказал, контакты и долг каждого клиента.' },
     { sel: '#pkT-money', t: 'Деньги', d: 'Кто сколько должен и кто уже оплатил.' },
-    { sel: '#pkT-more', t: 'Ещё', d: 'Тариф, настройки, помощь. Здесь же можно снова посмотреть эти подсказки.' }
+    { sel: '#pkT-more', t: 'Ещё', d: 'Тариф, настройки, помощь. Здесь же — «Подсказки по интерфейсу», если захотите пройти их заново.' }
   ],
   c: [
     { sel: '.cab-nav-item[data-section="overview"]', t: 'Обзор', d: 'Сводка: что в пути, что приехало, сколько вам должны.' },
     { sel: '.cab-nav-item[data-section="shipments"]', t: 'Закупки', d: 'Импорт заказов из Pinduoduo через расширение и сверка с карго.' },
     { sel: '.cab-nav-item[data-section="clients"]', t: 'Клиенты', d: 'Карточки клиентов: заказы, контакты, долги.' },
     { sel: '.cab-nav-item[data-section="calc"]', t: 'Расчёты', d: 'Вес, доставка и кто сколько должен по каждой закупке.' },
-    { sel: '.cab-nav-item[data-section="tariffs"]', t: 'Тариф и настройки', d: 'Подписка, курсы валют и данные профиля. Снова посмотреть подсказки — кнопка «Как пользоваться» внизу меню.' }
+    { sel: '.cab-nav-item[data-section="tariffs"]', t: 'Тариф и настройки', d: 'Подписка, курсы валют и данные профиля. Пройти подсказки заново — пункт «Подсказки по интерфейсу» в меню.' }
   ]
 };
 
@@ -47,7 +49,17 @@ let pkTourS = null;   // { mode, i, steps }
 const pkTourForce = /[?&]tour=1/.test(location.search);
 const pkTourMode = () => document.getElementById('cabinetScreen') && document.getElementById('cabinetScreen').classList.contains('show') ? 'c' : (document.body.classList.contains('pk-m') ? 'm' : null);
 
+// Пункт меню «Подсказки по интерфейсу»: первые 60 дней после регистрации
+function pkTourMenuOn() {
+  if (!currentUser || !userProfile) return false;
+  if (userProfile.role === 'admin') return true;
+  const born = Date.parse((currentUser.metadata && currentUser.metadata.creationTime) || '') || 0;
+  return Date.now() - born < PK_TOUR_MENU_DAYS * 864e5;
+}
+function pkTourMenuSync() { const b = document.getElementById('cabTourBtn'); if (b) b.style.display = pkTourMenuOn() ? '' : 'none'; }
+
 function pkTourMaybe() {
+  pkTourMenuSync();
   if (pkTourS || !currentUser || !userProfile || userProfile.blocked) return;
   const g = document.getElementById('pkVGate'); if (g && g.style.display !== 'none') return;
   const mode = pkTourMode(); if (!mode) return;

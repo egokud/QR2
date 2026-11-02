@@ -128,13 +128,13 @@
       <button class="cab-nav-item" data-section="analytics" onclick="cabNav('analytics')"><i class="ti ti-chart-bar"></i> Аналитика</button>
       <button class="cab-nav-item" data-section="tariffs" onclick="cabNav('tariffs')"><i class="ti ti-receipt"></i> Тариф</button>
       <button class="cab-nav-item" data-section="settings" onclick="cabNav('settings')"><i class="ti ti-settings"></i> Настройки</button>
+      <button class="cab-nav-item" id="cabTourBtn" style="display:none" onclick="pkTourStart('c')" title="Подсказки по интерфейсу"><i class="ti ti-route"></i> Подсказки по интерфейсу</button>
       <div class="cab-nav-divider" id="cabAdminDivider" style="display:none"></div>
       <button class="cab-nav-item" data-section="admin" onclick="cabNav('admin')" id="cabAdminBtn" style="display:none"><i class="ti ti-shield-lock"></i> Админ</button>
     </div>
     <div class="cab-sidebar-bottom">
       <div class="cab-sidebar-user" id="cabUserName">—</div>
       <div class="cab-sidebar-role" id="cabUserRole">—</div>
-      <button class="cab-sidebar-logout" onclick="pkTourStart('c')"><i class="ti ti-route" style="font-size:16px"></i> Как пользоваться</button>
       <button class="cab-sidebar-logout" style="background:#f1edfb;color:#5b3fb0;font-weight:600" onclick="if(cabShipId){cabShipId=null;restoreActiveEditing();}document.getElementById('cabinetScreen').classList.remove('show');enterMode('scanner')"><i class="ti ti-device-mobile" style="font-size:16px"></i> Мобильная версия</button>
       <button class="cab-sidebar-logout" onclick="exitCabinet()"><i class="ti ti-logout" style="font-size:16px"></i> Выйти</button>
     </div>
