@@ -41,6 +41,8 @@ function pkNeedsVerify(user, prof) {
 #pkVGate .er{color:#b91c1c;font-size:13px;min-height:0}
 #pkVBar{position:fixed;z-index:120;left:12px;right:12px;bottom:calc(88px + env(safe-area-inset-bottom,0px));background:#fff;border:1.5px solid #fcd34d;border-radius:14px;box-shadow:0 8px 24px rgba(23,20,42,.14);padding:10px 12px;display:flex;gap:10px;align-items:center;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:13.5px;color:#17142a;line-height:1.35}
 @media(min-width:700px){#pkVBar{left:auto;right:20px;bottom:20px;width:380px}}
+body.pk-m #pkVBar{left:50%;right:auto;width:min(536px,calc(100% - 24px));transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+@media(min-width:700px){body:has(#cabinetScreen.show) #pkVBar{left:auto;right:20px;bottom:20px;width:380px;transform:none}}
 #pkVBar b{white-space:nowrap}#pkVBar>i{font-size:24px;color:#f59e0b;flex:none}#pkVBar .x{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
 #pkVBar button{border:none;border-radius:9px;font-weight:700;font-size:12.5px;padding:7px 10px;cursor:pointer;font-family:inherit;background:#6C4DB8;color:#fff;white-space:nowrap}
 #pkVBar button.c{background:none;color:#8a85a0;font-size:18px;padding:2px 4px}`;
