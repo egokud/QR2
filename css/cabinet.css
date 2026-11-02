@@ -665,3 +665,45 @@
 .cab-cl-av{width:26px;height:26px;flex:0 0 26px;border-radius:13px;background:#ede9fe;color:#5b3fb0;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
 .cab-nw{display:inline-block;margin-left:4px;font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;border-radius:999px;padding:2px 8px}
 @container (max-width:900px){.cab-wg{grid-template-columns:minmax(0,1fr)}.cab-wg-side{position:static}.cab-cs{grid-template-columns:minmax(0,1fr)}}
+/* Товары и цены: таблица не растягивается на весь экран (03.11.2026) */
+.cab-items-wrap{max-width:1040px}
+.cab-items-t td{vertical-align:middle}
+/* Тариф и оплата в Кабинете — как в мобильной (03.11.2026) */
+.ctf{max-width:1080px}
+.ctf-now{display:flex;align-items:center;gap:14px;border-radius:14px;padding:16px 18px;margin-bottom:14px;background:#f0ecf9;color:#5b3fb0}
+.ctf-now.ok{background:#f0fdf4;color:#15803d}.ctf-now.bad{background:#fef2f2;color:#b91c1c}.ctf-now.mut{background:#f3f4f6;color:#4a5260}
+.ctf-now>i{font-size:30px;flex:none}
+.ctf-now-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}.ctf-now-b b{font-size:17px}.ctf-now-b span{font-size:14px;color:#4a5260}
+.ctf-bar{height:8px;border-radius:4px;background:rgba(0,0,0,.08);overflow:hidden;margin-top:6px;max-width:420px}.ctf-bar span{display:block;height:100%;background:currentColor;border-radius:4px}
+.ctf-bar.warn span{background:#d97706}.ctf-bar.bad span{background:#dc2626}
+.ctf-vol{display:flex;gap:18px;flex:none;padding-left:18px;border-left:1px solid rgba(0,0,0,.08)}.ctf-vol div{display:flex;flex-direction:column;align-items:flex-end}.ctf-vol span{font-size:12px;color:#6b7280}.ctf-vol b{font-size:20px;color:#1f2430}
+.ctf-note{display:flex;gap:12px;align-items:flex-start;border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px}.ctf-note i{font-size:22px}.ctf-note div{display:flex;flex-direction:column;gap:2px}
+.ctf-note.wait{background:#fffbeb;color:#92400e}.ctf-note.bad{background:#fef2f2;color:#b91c1c}.ctf-note span{color:#4a5260}.ctf-note a{color:#6C4DB8}
+.ctf-seg-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:6px 0 22px}
+.ctf-seg{display:inline-flex;background:#ebe7f3;border-radius:12px;padding:3px;gap:3px}
+.ctf-seg button{border:0;background:none;font:inherit;font-size:14px;font-weight:600;padding:9px 18px;border-radius:9px;color:#6b6780;cursor:pointer}
+.ctf-seg button.on{background:#fff;color:#6C4DB8;box-shadow:0 1px 3px rgba(23,20,42,.1)}
+.ctf-cur{margin-left:auto;font-size:13px;color:#6b7280;position:relative}.ctf-cur>button{border:1px solid #ddd5f3;background:#fff;color:#6C4DB8;font-weight:600;border-radius:8px;padding:3px 8px;cursor:pointer;font:inherit;font-size:13px}
+.ctf-curmenu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(23,20,42,.15);padding:6px;z-index:20;min-width:220px;display:flex;flex-direction:column}
+.ctf-curmenu button{display:flex;justify-content:space-between;gap:10px;border:0;background:none;font:inherit;font-size:14px;padding:9px 10px;border-radius:8px;cursor:pointer;color:#1f2430;text-align:left}.ctf-curmenu button:hover{background:#f6f4fb}.ctf-curmenu button.on{color:#6C4DB8;font-weight:600}.ctf-curmenu small{color:#9ca3af}
+.ctf-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:24px}
+.ctf-card{position:relative;background:#fff;border:1.5px solid #e7e3f1;border-radius:18px;padding:22px 20px 20px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s}
+.ctf-card:hover{border-color:#cfc3ef}
+.ctf-card.sel{border-color:#6C4DB8;box-shadow:0 10px 30px rgba(108,77,184,.16);transform:translateY(-2px)}
+.ctf-tag{position:absolute;top:-11px;left:20px;background:#6C4DB8;color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}.ctf-tag.cur{background:#15803d}
+.ctf-name{font-size:20px;font-weight:700;color:#1a1a2e}
+.ctf-lim{font-size:13.5px;color:#6b7280;margin:2px 0 14px}
+.ctf-pr{font-size:34px;font-weight:800;color:#1a1a2e;line-height:1.1;letter-spacing:-.5px}.ctf-pr small{font-size:14px;font-weight:500;color:#6b7280;letter-spacing:0}
+.ctf-y{font-size:13.5px;color:#6b7280;margin-top:6px;min-height:20px}.ctf-y.ok{color:#15803d;font-weight:600}
+.ctf-feats{list-style:none;padding:0;margin:16px 0 18px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:#1f2430;flex:1}
+.ctf-feats li{display:flex;gap:8px;align-items:flex-start;line-height:1.35}.ctf-feats i{color:#15803d;font-size:17px;flex:none}.ctf-feats li.off{color:#a3a3b3}.ctf-feats li.off i{color:#c9c6d4}
+.ctf-btn{border:1.5px solid #ddd5f3;background:#fff;color:#6C4DB8;font:inherit;font-size:15px;font-weight:700;border-radius:12px;height:46px;cursor:pointer;transition:background .2s,color .2s}
+.ctf-card.sel .ctf-btn{background:#6C4DB8;border-color:#6C4DB8;color:#fff}
+.ctf-btn:hover{border-color:#6C4DB8}
+.ctf-hist{max-width:760px}
+.ctf-foot{font-size:13px;color:#6b7280;line-height:1.5;max-width:760px}.ctf-foot a{color:#6C4DB8}
+@media(max-width:900px){.ctf-cards{grid-template-columns:minmax(0,1fr)}.ctf-vol{display:none}}
+/* окно оплаты поверх Кабинета (шаги из mtariff.js) */
+.cab-paybk{display:none;position:fixed;inset:0;background:rgba(15,12,30,.5);z-index:899}
+body.pk-cabpay .cab-paybk{display:block}
+body.pk-cabpay .pk-scr{top:4vh;bottom:4vh;max-width:500px;border-radius:20px;box-shadow:0 24px 70px rgba(15,12,30,.4);overflow:hidden}

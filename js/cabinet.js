@@ -711,7 +711,8 @@ const cabInp = 'padding:6px 8px;border:1px solid #d5d8dd;border-radius:6px;font-
 async function cabOpenShip(id) {
   if (!activeShipmentId) activeShipmentId = id;
   cabShipId = id;
-  cabShipTab = 'items';
+  // Вкладка по умолчанию: пока товар едет — «Товары и цены», когда приехал — «Расчёт»
+  { const sh = cabShipmentsCache.find(s => s.id === id) || {}; cabShipTab = ['warehouse', 'sorted', 'done'].includes(sh.status) ? 'calc' : 'items'; }
   document.querySelectorAll('#cabNav .cab-nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.section === 'shipments'));
   document.getElementById('cabMain').innerHTML = '<div class="cab-main-title">Загрузка…</div>';
   await loadShipmentData(id, true);
@@ -732,7 +733,7 @@ function cabRenderShip() {
   const calc = computeClientCalc();
   const order = ['forming','transit','delayed','warehouse','sorted','done'];
   const opts = order.map(k => `<option value="${k}" ${(ship.status || 'forming') === k ? 'selected' : ''}>${SHIP_STATUSES[k].label}</option>`).join('');
-  const tabs = [['items','Товары и цены'],['weigh','Взвешивание'],['calc','Расчёт'],['rates','Курсы']]
+  const tabs = [['calc','Расчёт'],['weigh','Взвешивание'],['items','Товары и цены'],['rates','Курсы']]
     .map(([k, l]) => `<button class="cab-filter-btn ${cabShipTab === k ? 'active' : ''}" onclick="cabShipTabSet('${k}')">${l}</button>`).join('');
   let body = '';
   if (cabShipTab === 'items') body = cabShipItemsHtml();
@@ -816,31 +817,33 @@ function cabShipItemsHtml() {
       const k = (r[1] || '').trim().toLowerCase();
       if (k !== lastWh) {
         lastWh = k;
-        head = `<tr class="cab-item-grp"><td colspan="4" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без склада'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
+        head = `<tr class="cab-item-grp"><td colspan="5" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без склада'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
       }
     }
     const qty = parseInt(r[5]) || 1;
     const img = r[2] ? `<img src="${r[2]}" loading="lazy" onclick="cabImgZoom(event,this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
-    return head + `<tr class="cab-item-row" data-q="${((r[0] || '') + ' ' + (r[1] || '')).toLowerCase()}">
+    return head + `<tr class="cab-item-row" data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '')).toLowerCase().replace(/"/g, '')}">
       <td style="width:52px">${img}</td>
       <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${r[2] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком — из одного магазина, могут быть разными</div>` : ''}</td>
+      <td><input data-idx="${i}" value="${(r[6] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,6)" maxlength="40" placeholder="название, 1–3 слова" style="${cabInp};width:100%"></td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
       <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
     </tr>`;
   }).join('');
   const noPdd = TABLE.filter(r => !r[2]).length;
-  return `<div class="cab-table-wrap">
+  return `<div class="cab-table-wrap cab-items-wrap">
     ${noPdd ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px;color:#92400e;line-height:1.5;white-space:normal"><b>${noPdd} ${cabPl(noPdd, 'трек', 'трека', 'треков')} без данных Pinduoduo</b> — нет фото, цену нужно вписать вручную. Они пришли только из файла карго: заказ раньше выбранной при импорте даты, продавец отправил поздно или заказано с другого аккаунта. В расширении Piksta 1.9.15 и новее есть кнопка «Поискать за 3 месяца».</div>` : ''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку или клиенту" style="${cabInp};width:100%;max-width:340px">
+      <input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку, названию или клиенту" style="${cabInp};width:100%;max-width:340px">
       <div style="display:flex;gap:6px;margin-left:auto">
         <button class="cab-filter-btn ${cabItemSort === 'track' ? 'active' : ''}" onclick="cabSetItemSort('track')">По трек-кодам</button>
         <button class="cab-filter-btn ${cabItemSort === 'wh' ? 'active' : ''}" onclick="cabSetItemSort('wh')">По складам</button>
       </div>
     </div>
-    <table class="cab-table">
-      <thead><tr><th></th><th>Трек</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
+    <table class="cab-table cab-items-t">
+      <colgroup><col style="width:56px"><col style="width:30%"><col><col style="width:24%"><col style="width:96px"></colgroup>
+      <thead><tr><th></th><th>Трек</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
     </table>
   </div>`;
 }
@@ -878,6 +881,7 @@ async function cabEditCell(inp, col) {
   if (!TABLE[idx]) return;
   let v = inp.value.trim();
   if (col === 1) { v = resolveClientName(v); inp.value = v; }
+  if (col === 6) { v = v.slice(0, 40); inp.value = v; }
   TABLE[idx][col] = v;
   try {
     const ref = shipmentsRef().doc(cabShipId);
@@ -886,7 +890,11 @@ async function cabEditCell(inp, col) {
       if (!doc.exists) return;
       const data = doc.data().data;
       if (!data || !data[idx]) return;
-      if (Array.isArray(data[idx])) data[idx][col] = String(v);
+      if (col === 6) {   // название товара — поле n (строку-массив старого формата переводим в объект, как в мобильной)
+        if (Array.isArray(data[idx])) { const a = data[idx]; data[idx] = { t: a[0], w: a[1] || '', img: a[2] || '', p: a[3] || '', pc: a[4] || '', q: a[5] || '1' }; }
+        if (v) data[idx].n = String(v); else delete data[idx].n;
+      }
+      else if (Array.isArray(data[idx])) data[idx][col] = String(v);
       else data[idx][col === 1 ? 'w' : col === 3 ? 'p' : 'pc'] = String(v);
       t.update(ref, { data });
     });
@@ -2453,7 +2461,102 @@ function cabTierFor(n) { return PIKSTA_TARIFFS.tiers.find(t => t.tracks === null
 const cabRub = v => cabFmt(v) + ' ₽';
 function cabSetTariffPeriod(m) { cabTariffPeriod = m; renderCabTariffs(document.getElementById('cabMain')); }
 
+// Тариф в Кабинете (03.11.2026): те же цены, тарифы, оплата и история, что в мобильной «Тариф и оплата» (js/mtariff.js).
+// Срок — только месяц или год. Оплата открывается окном поверх Кабинета (шаги из mtariff.js: срок и способ → реквизиты и скрин).
+const CAB_TF_FEATS = [
+  ['Мобильная версия: сканер, закупки, клиенты, оплаты', ['start', 'main', 'pro']],
+  ['Импорт заказов из Pinduoduo', ['start', 'main', 'pro']],
+  ['Кабинет на компьютере', ['main', 'pro']],
+  ['Аналитика бизнеса', ['pro']],
+  ['Telegram-бот и общение с клиентами', ['pro']]
+];
+const cabInCabinet = () => { const c = document.getElementById('cabinetScreen'); return !!(c && c.classList.contains('show')); };
+function cabTfPick(k) { pkTfSel = k; document.querySelectorAll('.ctf-card').forEach(el => el.classList.toggle('sel', el.dataset.k === k)); }
+function cabTfPer(p) { pkTPer = p; renderCabTariffs(document.getElementById('cabMain')); }
+function cabTfPay(k) {
+  document.body.classList.add('pk-cabpay');
+  let bk = document.getElementById('cabPayBk');
+  if (!bk) { bk = document.createElement('div'); bk.id = 'cabPayBk'; bk.className = 'cab-paybk'; bk.onclick = () => cabTfPayClose(); document.body.appendChild(bk); }
+  pkPayStart(k);
+}
+function cabTfPayClose() {
+  if (typeof pkScrClose === 'function') pkScrClose();
+  document.body.classList.remove('pk-cabpay');
+  if (cabInCabinet() && cabCurrentSection === 'tariffs') renderCabTariffs(document.getElementById('cabMain'));
+}
 function renderCabTariffs(container) {
+  if (!container) return;
+  if (typeof pkTP !== 'function') { container.innerHTML = '<div class="cab-main-title">Тариф</div><p>Загрузка…</p>'; return; }
+  if (!cabTfLoaded) { cabTfLoaded = true; Promise.all([pkLoadGeo(), pkLoadRates()]).then(() => { if (cabCurrentSection === 'tariffs' && !cabShipId) renderCabTariffs(document.getElementById('cabMain')); }); }
+  const { A, sub, plan } = pkPlanNow();
+  const T = pkTracks(), vol = Math.max(T.cur, T.prev), cur = pkGeoCur(), P = pkTP(cur), y = pkTPer === 'y';
+  const rec = plan && PK_PLANS[plan].lim >= vol ? plan : pkFitPlan(vol), sel = pkTfSel || rec;
+  const d = x => x ? x.toLocaleDateString('ru-RU') : '';
+  // шапка: что сейчас
+  let ic = 'ti-hourglass', tone = 'acc', title = '', text = '', bar = '';
+  if (A.kind === 'admin') { ic = 'ti-shield-check'; title = 'Администратор'; text = 'Тарифы не действуют. Проверять оплату — с тестового аккаунта.'; }
+  else if (A.kind === 'trial') {
+    const tot = (userProfile && userProfile.founder) ? 90 : 30, pct = Math.max(4, Math.min(100, A.left / tot * 100));
+    title = `Пробный период · осталось ${A.left} ${cabDaysWord(A.left)}`; text = `До ${d(A.end)}. Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}`;
+    bar = `<div class="ctf-bar"><span style="width:${pct}%"></span></div>`;
+  } else if (A.kind === 'sub') {
+    const U = pkUsage(), lim = U.lim, pct = lim === Infinity ? 0 : Math.min(100, U.n / lim * 100);
+    ic = 'ti-circle-check'; tone = 'ok'; title = `${PK_PLANS[plan].n} · до ${d(A.end)}`;
+    text = `Треков с ${d(U.P.start)} по ${d(U.P.last)}: ${pkN(U.n)}${lim === Infinity ? ' · без лимита' : ' из ' + pkN(lim)} · осталось ${A.left} ${cabDaysWord(A.left)}`;
+    if (lim !== Infinity) bar = `<div class="ctf-bar ${U.state === 'ok' ? '' : U.state === 'warn' ? 'warn' : 'bad'}"><span style="width:${Math.max(3, pct)}%"></span></div>`;
+  } else if (A.kind === 'grace') { ic = 'ti-alert-triangle'; tone = 'bad'; title = `${A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился'} ${d(A.end)}`; text = `Ещё ${A.left} ${cabDaysWord(A.left)} всё работает, потом — только просмотр. Данные никуда не денутся.`; }
+  else if (A.kind === 'readonly') { ic = 'ti-lock'; tone = 'mut'; title = 'Только просмотр'; text = 'Оплатите тариф — и всё снова заработает. Данные сохранены.'; }
+  else { ic = 'ti-lock'; tone = 'mut'; title = 'Доступ ограничен'; text = 'Напишите в поддержку.'; }
+  let note = '';
+  const pend = sub.pending, rej = sub.rejected;
+  if (pend) note = `<div class="ctf-note wait"><i class="ti ti-clock"></i><div><b>Оплата на проверке: «${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}» · ${pend.period === 'y' ? 'год' : 'месяц'} · ${pkN(pend.amount)} ${pkEsc(pend.cur)}</b><span>Отправлено ${d(pkToDate(pend.at))}. Пока проверяем — всё работает как раньше.</span></div></div>`;
+  else if (rej && (!sub.history || !sub.history.length || pkToDate(rej.rejectedAt) > pkToDate(sub.history[sub.history.length - 1].at)))
+    note = `<div class="ctf-note bad"><i class="ti ti-alert-circle"></i><div><b>Оплата от ${d(pkToDate(rej.at))} не подтверждена</b><span>Напишите в поддержку — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener">@piksta_support_bot</a>, разберёмся.</span></div></div>`;
+  // карточки тарифов
+  const cards = ['start', 'main', 'pro'].map(k => {
+    const [m, yr] = P[k], save = m * 12 - yr, isCur = k === plan, isRec = k === rec;
+    const big = y ? `<span class="ctf-pr"><small>≈</small>${pkN(pkMo(yr, cur))}<small> ${P.s} / мес</small></span>` : `<span class="ctf-pr">${pkN(m)}<small> ${P.s} / мес</small></span>`;
+    const line = y ? `<div class="ctf-y ok">${pkN(yr)} ${P.s} за год · выгода ${pkN(save)} ${P.s}</div>` : `<div class="ctf-y">или ≈${pkN(pkMo(yr, cur))} ${P.s} в месяц при оплате за год</div>`;
+    const feats = CAB_TF_FEATS.map(([f, on]) => on.includes(k) ? `<li><i class="ti ti-check"></i>${f}</li>` : `<li class="off"><i class="ti ti-minus"></i>${f}</li>`).join('');
+    const lim = PK_PLANS[k].lim === Infinity ? 'Без лимита по трекам' : `До ${pkN(PK_PLANS[k].lim)} треков в месяц`;
+    return `<div class="ctf-card ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="cabTfPick('${k}')">
+      ${isCur ? '<span class="ctf-tag cur">Ваш тариф</span>' : isRec ? '<span class="ctf-tag">Подходит вам</span>' : ''}
+      <div class="ctf-name">${PK_PLANS[k].n}</div>
+      <div class="ctf-lim">${lim}</div>
+      ${big}${line}
+      <ul class="ctf-feats">${feats}</ul>
+      <button type="button" class="ctf-btn" onclick="event.stopPropagation();cabTfPay('${k}')">${isCur ? 'Продлить' : 'Оплатить'} «${PK_PLANS[k].n}»</button>
+    </div>`;
+  }).join('');
+  const hist = (sub.history || []).slice().reverse().slice(0, 12);
+  const histHtml = hist.length ? `<div class="cab-table-wrap ctf-hist"><div class="cab-table-title">История оплат</div><table class="cab-table"><thead><tr><th>Дата</th><th>Тариф</th><th>Срок</th><th style="text-align:right">Сумма</th></tr></thead><tbody>${hist.map(h => `<tr><td>${d(pkToDate(h.at))}</td><td>${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}</td><td>${h.period === 'y' ? 'год' : 'месяц'}${h.end ? ' · до ' + d(pkToDate(h.end)) : ''}</td><td style="text-align:right;font-weight:600">${pkHistAmt(h)}</td></tr>`).join('')}</tbody></table></div>` : '';
+  container.innerHTML = `<div class="ctf">
+    <div class="cab-main-title">Тариф и оплата</div>
+    <div class="ctf-now ${tone}"><i class="ti ${ic}"></i><div class="ctf-now-b"><b>${title}</b><span>${text}</span>${bar}</div>
+      <div class="ctf-vol"><div><span>Треков в этом месяце</span><b>${pkN(T.cur)}</b></div><div><span>в прошлом</span><b>${pkN(T.prev)}</b></div></div></div>
+    ${note}
+    <div class="ctf-seg-row"><div class="ctf-seg"><button type="button" class="${!y ? 'on' : ''}" onclick="cabTfPer('m')">Помесячно</button><button type="button" class="${y ? 'on' : ''}" onclick="cabTfPer('y')">За год · выгоднее</button></div>
+      <span class="ctf-cur">Цены в валюте вашей страны · <button type="button" onclick="cabTfCur()">${PK_SYM[cur]} <i class="ti ti-chevron-down"></i></button></span></div>
+    <div class="ctf-cards">${cards}</div>
+    ${histHtml}
+    <p class="ctf-foot">Оплата — ЕРИП, карта, Alipay или USDT, способы зависят от страны. После оплаты прикрепите скрин — проверим и включим тариф, обычно в течение пары часов. Вопросы — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener">@piksta_support_bot</a></p>
+  </div>`;
+}
+let cabTfLoaded = false;
+function cabTfCur() {
+  const c = pkGeoCur();
+  const pick = k => { try { localStorage.setItem('pk_cur', k); } catch (e) {} renderCabTariffs(document.getElementById('cabMain')); };
+  const old = document.getElementById('ctfCurMenu'); if (old) { old.remove(); return; }
+  const btn = document.querySelector('.ctf-cur button'); if (!btn) return;
+  const m = document.createElement('div'); m.id = 'ctfCurMenu'; m.className = 'ctf-curmenu';
+  m.innerHTML = ['BYN', 'RUB', 'KZT'].map(k => `<button type="button" data-k="${k}" class="${c === k ? 'on' : ''}">${{ BYN: 'Белорусские рубли', RUB: 'Российские рубли', KZT: 'Тенге' }[k]}<small>${PK_SYM[k]}</small></button>`).join('');
+  m.onclick = e => { const b = e.target.closest('button'); if (b) pick(b.dataset.k); };
+  btn.parentElement.appendChild(m);
+  setTimeout(() => document.addEventListener('click', function f(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', f); } }), 0);
+}
+
+// Прежний вид тарифа (до 03.11.2026) — не используется, оставлен на время
+function renderCabTariffsOld(container) {
   const T = PIKSTA_TARIFFS;
   const A = cabAccessInfo();
   const d = x => x.toLocaleDateString('ru-RU');

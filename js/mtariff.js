@@ -112,6 +112,7 @@ function pkScrClose() {
 
 // ---------- «Тариф и оплата» ----------
 function pkTariffs() {
+  if (document.body.classList.contains('pk-cabpay') && typeof cabTfPayClose === 'function') return cabTfPayClose();   // оплата из Кабинета — назад в Кабинет
   pkTariffRender();
   Promise.all([pkLoadGeo(), pkLoadRates()]).then(() => { if (document.getElementById('pkTfList')) pkTariffRender(); });
   // свежий профиль: вдруг оплату уже подтвердили
@@ -146,6 +147,7 @@ function pkTfPick(k) {
   });
 }
 function pkTariffRender() {
+  if (document.body.classList.contains('pk-cabpay') && typeof cabTfPayClose === 'function') return cabTfPayClose();
   const { A, sub, plan } = pkPlanNow();
   const T = pkTracks(), vol = Math.max(T.cur, T.prev);
   const cur = pkGeoCur();
