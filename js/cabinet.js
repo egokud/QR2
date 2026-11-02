@@ -1010,7 +1010,7 @@ function cabShipCalcHtml(calc) {
     const dueCell = c.isOwner ? '—'
       : `<a href="#" onclick="cabEditDue('${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) + '. Нажмите, чтобы изменить' : 'Нажмите, чтобы изменить задолженность'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:14px;color:#f59e0b" title="Исправлено вручную"></i>' : ''}`;
     return `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
-      <td style="font-weight:500"><span class="cab-cl-nm"><span class="cab-cl-av">${String(c.name).trim().charAt(0).toUpperCase()}</span>${c.name}</span>${c.noWeight ? ' <span class="cab-nw" title="Вес не указан — доставка этому клиенту пока не посчитана">не взвешен</span>' : ''}</td>
+      <td style="font-weight:500"><span class="cab-cl-nm cab-cl-link" onclick="cabGoClient('${encodeURIComponent(c.name)}')" title="Открыть карточку клиента"><span class="cab-cl-av">${String(c.name).trim().charAt(0).toUpperCase()}</span>${c.name}</span>${c.noWeight ? ' <span class="cab-nw" title="Вес не указан — доставка этому клиенту пока не посчитана">не взвешен</span>' : ''}</td>
       <td style="white-space:nowrap">${c.count}</td>
       <td style="white-space:nowrap">${cabFmt2(c.shipWeight)}</td>
       <td style="white-space:nowrap">${cabCalcGoodsCell(c)}</td>
@@ -2351,19 +2351,45 @@ function renderCabAnalytics(container) {
 
 // ============ НАСТРОЙКИ ============
 function renderCabSettings(container) {
+  // Настройки Кабинета (03.11.2026) — всё, что есть в мобильной: имя, почта, валюта, тема, пароль, помощь, расширение, выход
   const currency = (userProfile && userProfile.currency) || 'BYN';
   const name = (userProfile && userProfile.name) || '';
   const email = currentUser ? currentUser.email : '';
-  const emailVerified = currentUser ? currentUser.emailVerified : false;
-
+  const ver = currentUser ? currentUser.emailVerified : false;
+  const dark = document.body.classList.contains('dark');
+  const created = cabToDate(userProfile && userProfile.created) || (currentUser && currentUser.metadata ? new Date(currentUser.metadata.creationTime) : null);
+  const A = typeof pkAccess === 'function' ? pkAccess(userProfile) : {};
+  const plan = A.kind === 'admin' ? 'Администратор' : A.kind === 'sub' ? (typeof PK_PLANS !== 'undefined' && PK_PLANS[(userProfile.subscription || {}).plan] ? PK_PLANS[userProfile.subscription.plan].n : 'Подписка') + (A.end ? ' · до ' + A.end.toLocaleDateString('ru-RU') : '')
+    : A.kind === 'trial' ? 'Пробный период' + (A.end ? ' · до ' + A.end.toLocaleDateString('ru-RU') : '') : A.kind === 'grace' ? 'Нужно оплатить' : A.kind === 'readonly' ? 'Только просмотр' : '—';
+  const tips = typeof pkTourMenuOn === 'function' && pkTourMenuOn();
+  const row = (l, v) => `<div class="cab-set-row"><span class="cab-set-l">${l}</span><div class="cab-set-v">${v}</div></div>`;
   container.innerHTML = `
     <div class="cab-main-title">Настройки</div>
+    <div class="cab-set">
     <div class="cab-table-wrap">
       <div class="cab-table-title"><i class="ti ti-user" style="margin-right:6px"></i>Профиль</div>
-      <div class="cab-settings-grid">
-        <div class="cab-settings-row"><span class="cab-settings-label">Имя</span><span class="cab-settings-value">${name || '—'}</span></div>
-        <div class="cab-settings-row"><span class="cab-settings-label">Email</span><span class="cab-settings-value">${email} ${emailVerified ? '<i class="ti ti-circle-check" style="color:#16a34a;font-size:15px" title="Подтверждён"></i>' : '<span style="color:#f59e0b;font-size:14px">(не подтверждён)</span>'}</span></div>
-        <div class="cab-settings-row"><span class="cab-settings-label">Валюта</span><span class="cab-settings-value">${currency}</span></div>
+      ${row('Имя', `<input id="cabSetName" value="${cabEsc(name)}" maxlength="60" class="cab-set-in"><button type="button" class="cab-set-btn" onclick="cabSaveName()">Сохранить</button><span id="cabSetNameMsg" class="cab-set-msg"></span>`)}
+      ${row('Почта', `<span>${cabEsc(email)}</span> ${ver ? '<span class="cab-set-ok"><i class="ti ti-circle-check"></i> подтверждена</span>' : `<span class="cab-set-warn">не подтверждена</span> <button type="button" class="cab-set-btn" onclick="cabSendVerify(this)">Отправить письмо</button>`}`)}
+      ${row('Валюта', `<select id="cabSetCur" class="cab-set-in" style="max-width:280px" onchange="cabSaveCurrency(this.value)">${[['BYN', 'BYN — белорусский рубль'], ['RUB', 'RUB — российский рубль'], ['KZT', 'KZT — казахстанский тенге']].map(([k, l]) => `<option value="${k}" ${currency === k ? 'selected' : ''}>${l}</option>`).join('')}</select><span id="cabSetCurMsg" class="cab-set-msg"></span>`)}
+      ${row('Тариф', `<span>${plan}</span> <a href="#" onclick="cabNav('tariffs');return false" class="cab-set-link">Тариф и оплата →</a>`)}
+      ${created ? row('В Piksta с', created.toLocaleDateString('ru-RU')) : ''}
+    </div>
+    <div class="cab-table-wrap">
+      <div class="cab-table-title"><i class="ti ti-palette" style="margin-right:6px"></i>Оформление</div>
+      ${row('Тема', `<div class="cab-set-seg"><button type="button" class="${dark ? '' : 'on'}" onclick="cabSetTheme(false)"><i class="ti ti-sun"></i> Светлая</button><button type="button" class="${dark ? 'on' : ''}" onclick="cabSetTheme(true)"><i class="ti ti-moon"></i> Тёмная</button></div>`)}
+    </div>
+    <div class="cab-table-wrap">
+      <div class="cab-table-title"><i class="ti ti-lock" style="margin-right:6px"></i>Пароль</div>
+      ${row('Новый пароль', `<input id="cabSetP1" type="password" autocomplete="new-password" placeholder="минимум 6 символов" class="cab-set-in">`)}
+      ${row('Ещё раз', `<input id="cabSetP2" type="password" autocomplete="new-password" class="cab-set-in"><button type="button" class="cab-set-btn" onclick="cabChangePass()">Сменить пароль</button><span id="cabSetPMsg" class="cab-set-msg"></span>`)}
+    </div>
+    <div class="cab-table-wrap">
+      <div class="cab-table-title"><i class="ti ti-help-circle" style="margin-right:6px"></i>Помощь и связь</div>
+      <div style="font-size:14px;color:#4a5260;line-height:1.6;margin-bottom:12px">Вопросы по работе, видеоуроки по интерфейсу, ошибки — пишите, ответим.</div>
+      <div class="cab-set-help">
+        <a class="cab-set-hb tg" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i> Telegram · @piksta_support_bot</a>
+        <a class="cab-set-hb" href="mailto:support@piksta.online"><i class="ti ti-mail"></i> support@piksta.online</a>
+        ${tips ? `<button type="button" class="cab-set-hb" onclick="pkTourStart('c')"><i class="ti ti-route"></i> Подсказки по интерфейсу</button>` : ''}
       </div>
     </div>
     <div class="cab-table-wrap" style="margin-top:16px">
@@ -2375,7 +2401,46 @@ function renderCabSettings(container) {
         <li>Откройте в Chrome адрес <span style="font-family:monospace;color:#6C4DB8">chrome://extensions</span> и включите «Режим разработчика» (справа вверху).</li>
         <li>«Загрузить распакованное» → выберите папку. Старую версию, если была, удалите — данные не пропадут.</li>
       </ol>
+    </div>
+    <button type="button" class="cab-set-out" onclick="exitCabinet()"><i class="ti ti-logout"></i> Выйти из аккаунта</button>
     </div>`;
+}
+const cabSetMsg = (id, t, ok) => { const m = document.getElementById(id); if (!m) return; m.textContent = t; m.className = 'cab-set-msg ' + (ok ? 'ok' : 'bad'); if (ok) setTimeout(() => { if (m.textContent === t) m.textContent = ''; }, 2500); };
+async function cabSaveName() {
+  const v = (document.getElementById('cabSetName').value || '').trim(); if (!v) return cabSetMsg('cabSetNameMsg', 'Впишите имя', false);
+  try {
+    await currentUser.updateProfile({ displayName: v });
+    await db.collection('users').doc(currentUser.uid).update({ name: v });
+    userProfile.name = v;
+    const u = document.getElementById('cabUserName'); if (u) u.textContent = v;
+    const b = document.getElementById('userBadgeName'); if (b) b.textContent = v;
+    cabSetMsg('cabSetNameMsg', 'Сохранено', true);
+  } catch (e) { cabSetMsg('cabSetNameMsg', 'Не сохранилось: ' + e.message, false); }
+}
+async function cabSaveCurrency(v) {
+  userProfile.currency = v;
+  const sel = document.getElementById('profileCurrency'); if (sel) sel.value = v;
+  try { await db.collection('users').doc(currentUser.uid).update({ currency: v }); cabSetMsg('cabSetCurMsg', 'Сохранено', true); }
+  catch (e) { cabSetMsg('cabSetCurMsg', 'Не сохранилось', false); }
+}
+function cabSetTheme(dark) {
+  document.body.classList.toggle('dark', !!dark);
+  const t = document.getElementById('themeToggle'); if (t) t.checked = !!dark;
+  if (userProfile) userProfile.theme = dark ? 'dark' : 'light';
+  try { db.collection('users').doc(currentUser.uid).update({ theme: dark ? 'dark' : 'light' }).catch(() => {}); } catch (e) {}
+  renderCabSettings(document.getElementById('cabMain'));
+}
+async function cabChangePass() {
+  const p1 = document.getElementById('cabSetP1').value, p2 = document.getElementById('cabSetP2').value;
+  if (p1.length < 6) return cabSetMsg('cabSetPMsg', 'Минимум 6 символов', false);
+  if (p1 !== p2) return cabSetMsg('cabSetPMsg', 'Пароли не совпадают', false);
+  try { await currentUser.updatePassword(p1); document.getElementById('cabSetP1').value = ''; document.getElementById('cabSetP2').value = ''; cabSetMsg('cabSetPMsg', 'Пароль изменён', true); }
+  catch (e) { cabSetMsg('cabSetPMsg', e.code === 'auth/requires-recent-login' ? 'Для смены пароля выйдите и войдите заново' : 'Ошибка: ' + e.message, false); }
+}
+async function cabSendVerify(btn) {
+  btn.disabled = true;
+  try { await currentUser.sendEmailVerification({ url: location.origin + '/app' }); btn.textContent = 'Письмо отправлено'; }
+  catch (e) { btn.disabled = false; btn.textContent = e.code === 'auth/too-many-requests' ? 'Попробуйте позже' : 'Ошибка'; }
 }
 
 // ============ ТАРИФ ============
@@ -3001,4 +3066,74 @@ async function renderCabAdmin(container) {
   }
   container.innerHTML = `<div class="cab-main-title">Администрирование</div><div id="cabAdminBox"><div style="text-align:center;padding:30px;color:#6b7280">Загрузка пользователей…</div></div>`;
   cabLoadAdminUsers(document.getElementById('cabAdminBox'));
+}
+
+
+// ============ НАВИГАЦИЯ «НАЗАД» И «ПОМОЩЬ» (03.11.2026) ============
+// Каждый экран Кабинета (раздел / закупка / карточка клиента) — запись в истории браузера:
+// кнопка «Назад» в браузере и «← Назад» сверху возвращают туда, откуда пришли, и не уводят из Piksta.
+// Сверху каждой страницы — полоса: слева «← Назад: <откуда>», справа «Помощь».
+const CAB_SEC_NAMES = { overview: 'Обзор', shipments: 'Закупки', clients: 'Клиенты', prices: 'Цены', calc: 'Деньги', analytics: 'Аналитика', settings: 'Настройки', tariffs: 'Тариф', admin: 'Админ' };
+let cabHistRestoring = false, cabHistT = null;
+function cabGoClient(enc) { cabNav('clients'); cabOpenClient(enc); }
+function cabViewState() {
+  const st = { s: cabCurrentSection };
+  if (cabShipId) { st.sh = cabShipId; st.t = cabShipTab; const sh = cabShipmentsCache.find(x => x.id === cabShipId); st.l = sh ? (sh.name || 'Закупка') : 'Закупка'; }
+  else if (cabCurrentSection === 'clients' && cabClientOpen) { st.cl = cabClientOpen; st.l = cabClientOpen; }
+  else st.l = CAB_SEC_NAMES[cabCurrentSection] || '';
+  return st;
+}
+const cabViewKey = st => [st.s, st.sh || '', st.cl || ''].join('|');
+function cabHistMark() {
+  if (cabHistRestoring || typeof cabInCabinet !== 'function' || !cabInCabinet()) return;
+  const st = cabViewState(), cur = history.state && history.state.cab;
+  if (!cur) { history.replaceState({ cab: st, d: 0 }, ''); return; }
+  if (cabViewKey(cur) === cabViewKey(st)) { history.replaceState({ cab: st, d: history.state.d || 0, p: history.state.p }, ''); return; }
+  history.pushState({ cab: st, d: (history.state.d || 0) + 1, p: cur.l || '' }, '');
+}
+window.addEventListener('popstate', async e => {
+  const st = e.state && e.state.cab;
+  if (!st || typeof cabInCabinet !== 'function' || !cabInCabinet()) return;
+  cabHistRestoring = true;
+  try {
+    if (st.sh) {
+      if (cabShipId !== st.sh) { cabCurrentSection = st.s; await cabOpenShip(st.sh); }
+      if (st.t && cabShipTab !== st.t && cabShipId === st.sh) cabShipTabSet(st.t);
+    } else {
+      cabNav(st.s);
+      if (st.cl) cabOpenClient(encodeURIComponent(st.cl));
+    }
+  } catch (err) {}
+  setTimeout(() => { cabHistRestoring = false; cabTopBar(); }, 60);
+});
+function cabTopBar() {
+  const main = document.getElementById('cabMain'); if (!main) return;
+  let bar = main.firstElementChild && main.firstElementChild.id === 'cabTop' ? main.firstElementChild : null;
+  if (!bar) { bar = document.createElement('div'); bar.id = 'cabTop'; bar.className = 'cab-top'; main.insertBefore(bar, main.firstChild); }
+  const h = history.state || {}, back = h.cab && h.d > 0 ? (h.p || 'назад') : '';
+  bar.innerHTML = `${back ? `<button type="button" class="cab-top-back" onclick="history.back()" title="Вернуться"><i class="ti ti-arrow-left"></i><span>Назад: <b>${cabEsc(back)}</b></span></button>` : '<span></span>'}
+    <button type="button" class="cab-top-help" onclick="cabHelp(event)"><i class="ti ti-help-circle"></i> Помощь</button>`;
+}
+(function () {
+  const main = document.getElementById('cabMain'); if (!main || !window.MutationObserver) return;
+  new MutationObserver(() => {
+    clearTimeout(cabHistT);
+    cabHistT = setTimeout(() => { cabHistMark(); cabTopBar(); }, 0);
+  }).observe(main, { childList: true });
+})();
+// «Помощь»: связь с поддержкой, подсказки, расширение
+function cabHelp(ev) {
+  if (ev) ev.stopPropagation();
+  const old = document.getElementById('cabHelpPop'); if (old) { old.remove(); return; }
+  const p = document.createElement('div'); p.id = 'cabHelpPop'; p.className = 'cab-help-pop';
+  const tips = typeof pkTourMenuOn === 'function' && pkTourMenuOn();
+  p.innerHTML = `<div class="hh">Помощь и связь</div><p>Вопросы по работе, видеоуроки, ошибки — пишите, ответим.</p>
+    <a class="hb tg" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i><span>Написать в Telegram<small>@piksta_support_bot</small></span></a>
+    <a class="hb" href="mailto:support@piksta.online"><i class="ti ti-mail"></i><span>Написать на почту<small>support@piksta.online</small></span></a>
+    ${tips ? `<button type="button" class="hb" onclick="document.getElementById('cabHelpPop').remove();pkTourStart('c')"><i class="ti ti-route"></i><span>Подсказки по интерфейсу<small>пройти обучение заново</small></span></button>` : ''}
+    <a class="hb" href="/extension" target="_blank" rel="noopener"><i class="ti ti-puzzle"></i><span>Расширение для Chrome<small>скачать и инструкция</small></span></a>`;
+  document.body.appendChild(p);
+  const b = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : { right: innerWidth - 20, bottom: 60 };
+  p.style.top = (b.bottom + 8) + 'px'; p.style.right = Math.max(12, innerWidth - b.right) + 'px';
+  setTimeout(() => document.addEventListener('click', function f(e) { if (!p.contains(e.target)) { p.remove(); document.removeEventListener('click', f); } }), 0);
 }
