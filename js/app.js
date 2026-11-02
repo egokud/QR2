@@ -8,8 +8,12 @@ auth.onAuthStateChanged(async (user) => {
     savedUid = user.uid;
     try { savedToken = await user.getIdToken(); } catch(e) {}
     await loadUserProfile();
-    showApp();
+    // Подтверждение e-mail (js/verify.js): новые — экран до подтверждения, старые — плашка
+    const vNeed = typeof pkNeedsVerify === 'function' ? pkNeedsVerify(user, userProfile) : null;
+    if (vNeed === 'gate') { document.getElementById('authScreen').classList.add('hide'); pkShowVerifyGate(showApp); }
+    else { showApp(); if (vNeed === 'bar') pkShowVerifyBar(); }
   } else {
+    if (typeof pkVStop === 'function') { pkVStop(); pkHideVerifyBar(); const vg = document.getElementById('pkVGate'); if (vg) vg.style.display = 'none'; }
     currentUser = null;
     userProfile = null;
     document.getElementById('appScreen').classList.add('hide');
@@ -68,7 +72,7 @@ async function doRegister() {
       acceptedTerms: true, acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     // Задача 3: письмо подтверждения email
-    try { await cred.user.sendEmailVerification(); } catch(ve) {}
+    try { await cred.user.sendEmailVerification({ url: location.origin + '/app' }); localStorage.setItem('pk_vsent', String(Date.now())); } catch(ve) {}
   } catch(e) {
     const msg = e.code === 'auth/email-already-in-use' ? 'Email уже зарегистрирован' :
       e.code === 'auth/weak-password' ? 'Слишком простой пароль' :
