@@ -687,7 +687,7 @@ function renderCabShipments(container) {
     <div id="cabTrackRes"></div>
     ${cabShipsHero(ships)}
     <div class="cab-table-wrap">
-      <div class="cab-cl-bar"><button type="button" class="cab-eb cab-new-big" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
+      <div class="cab-cl-bar"><button type="button" class="cab-eb cab-new-big" onclick="cabNewShipOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
       <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
         <thead><tr><th>Название</th><th>Статус</th><th>Должны</th><th>Прибыль</th><th>Оплаты</th><th>Позиций</th><th>Клиентов</th><th title="Когда закупка создана в Piksta">Создана</th></tr></thead>
@@ -3187,7 +3187,7 @@ function cabEmptyOverview() {
     <div class="cab-start-ghost"><b>Здесь появятся: деньги в обороте, где сейчас товар, кто должен</b><i style="width:70%"></i><i style="width:45%"></i><i style="width:58%"></i></div>`;
 }
 function cabEmptyShipments() {
-  return `<div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
+  return `<div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabNewShipOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
     <div class="cab-emp-head"><b>У вас пока нет ни одной закупки</b><span>Откуда ваши заказы? Выберите путь — к каждому есть короткий гайд на 1 страницу.</span></div>
     <div class="cab-choice">
       <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С Pinduoduo</b><small>треки, фото и цены подтянутся сами</small></span></div>
@@ -3325,6 +3325,12 @@ function cabManualOpen() {
   const t = setInterval(() => { const sh = document.getElementById('pkSheetBg');   // фон шторки включается сразу, без анимации
     if (typeof pkMan !== 'undefined' && pkMan) { clearInterval(t); return; }   // форма товаров открыта — затемнение снимет pkManClose
     if (!sh || !sh.classList.contains('on')) { clearInterval(t); document.body.classList.remove('pk-cabman'); } }, 300);
+}
+// «Создать закупку» — то же окно «Новая закупка», что на телефоне (pkNewShip): расширение / таблица / вручную
+function cabNewShipOpen() {
+  if (typeof pkNewShip !== 'function') { cabManualOpen(); return; }
+  cabEnsureSheet();
+  pkNewShip();
 }
 function cabUploadOpen() {
   if (typeof openUploadModal !== 'function') return;

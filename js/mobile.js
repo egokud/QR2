@@ -167,7 +167,7 @@ function pkPickSheet() {
       const xs = pkSt(x.status || 'forming');
       return `<div class="pk-li" style="grid-template-columns:minmax(0,1fr) auto" onclick="pkScanShip('${x.id}')"><div><b>${pkEsc(x.name)}</b><small style="color:${xs.text}">● ${xs.label} · ${(x.data || []).length} ${pkPl((x.data || []).length, 'позиция', 'позиции', 'позиций')}</small></div><span class="r">${x.id === activeShipmentId ? '<i class="ti ti-check" style="color:var(--pk-acc);font-size:20px"></i>' : ''}</span></div>`;
     }).join('') || '<div class="pk-empty">Активных закупок нет</div>'}</div>
-    <button type="button" class="pk-btn ghost" style="width:100%;margin-top:12px" onclick="pkSheetClose();pkNewManual()"><i class="ti ti-plus"></i> Новая закупка</button>`);
+    <button type="button" class="pk-btn ghost" style="width:100%;margin-top:12px" onclick="pkSheetClose();pkNewShip()"><i class="ti ti-plus"></i> Новая закупка</button>`);
 }
 async function pkSetStatus(id, key) {
   await setStatus(id, key);
@@ -278,7 +278,7 @@ function pkRenderShips() {
       if ((s.status || 'forming') === 'forming') extra = `<button class="pk-btn ghost sm" onclick="event.stopPropagation();pkSetStatus('${s.id}','transit')">Закупка отправлена → «В дороге»</button>`;
       if (typeof cabShipPayState === 'function') { cabShipmentsCache = allShipments || []; const ps = cabShipPayState(s); if (ps.text) line += ` · <b style="color:${ps.kind === 'ok' ? 'var(--pk-ok)' : ps.kind === 'due' ? 'var(--pk-due)' : 'var(--pk-acc)'}">${ps.text}</b>`; }
       return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur && (s.status || 'forming') !== 'forming' ? ' · сканирую' : ''}</span><div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
-    }).join('') || '<div class="pk-card pk-empty">Закупок пока нет.<br>Создайте первую: вручную — прямо здесь, или импортом с Pinduoduo через расширение на компьютере.<button type="button" class="pk-btn" style="width:100%;margin-top:12px" onclick="pkNewManual()"><i class="ti ti-plus"></i> Создать закупку</button></div>'}`;
+    }).join('') || '<div class="pk-card pk-empty">Закупок пока нет.<br>Создайте первую: вручную — прямо здесь, или импортом с Pinduoduo через расширение на компьютере.<button type="button" class="pk-btn" style="width:100%;margin-top:12px" onclick="pkNewShip()"><i class="ti ti-plus"></i> Создать закупку</button></div>'}`;
   pkShipSearch();
   if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
 }
@@ -286,6 +286,7 @@ function pkRenderShips() {
 function pkIsPhone() { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''); }
 function pkNewShip() {
   const phone = pkIsPhone();
+  const cab = typeof cabInCabinet === 'function' && cabInCabinet();   // из Кабинета — его версии загрузки и ручной закупки (обновят Кабинет после)
   const opt = (ic, t, sub, fn) => `<button onclick="${fn}"><i class="ti ${ic}" aria-hidden="true"></i><span><b style="display:block;font-weight:600">${t}</b><small class="pk-muted" style="display:block;font-size:13px;font-weight:400;line-height:1.35;margin-top:2px">${sub}</small></span></button>`;
   pkSheet(`<h3>Новая закупка</h3>
     <p class="pk-muted" style="font-size:14px;line-height:1.5;margin:10px 0 14px">Обычно закупка появляется сама — после импорта заказов в расширении Piksta на компьютере: треки, фото и цены приходят одной кнопкой.</p>
@@ -293,8 +294,8 @@ function pkNewShip() {
       ${phone
         ? opt('ti-file-type-pdf', 'Через расширение Piksta в Chrome', 'Ставится только на компьютер. Откроется инструкция PDF и ссылка для компьютера', "pkSheetClose();location.href='/extension'")
         : opt('ti-puzzle', 'Через расширение Piksta в Chrome', 'Откроется страница с инструкцией и последней версией расширения', "pkSheetClose();window.open('/extension','_blank')")}
-      ${opt('ti-upload', 'Загрузить таблицу с треками', 'Файл Excel или CSV от карго', 'pkSheetClose();openUploadModal()')}
-      ${opt('ti-pencil-plus', 'Создать вручную', 'Название закупки, треки добавите сами', 'pkSheetClose();pkNewManual()')}
+      ${opt('ti-upload', 'Загрузить таблицу с треками', 'Файл Excel или CSV от карго', cab ? 'pkSheetClose();cabUploadOpen()' : 'pkSheetClose();openUploadModal()')}
+      ${opt('ti-pencil-plus', 'Создать вручную', 'Название закупки, треки добавите сами', cab ? 'pkSheetClose();cabManualOpen()' : 'pkSheetClose();pkNewManual()')}
     </div>`);
 }
 const PK_ST_HINT = { forming: 'собираете заказы, сканер выключен', transit: 'карго везёт посылки', delayed: 'посылки задерживаются в пути', warehouse: 'приехало — сканируете и раскладываете', sorted: 'всё разложено по клиентам, ждём оплаты', done: 'закрыта: выдано и оплачено' };
