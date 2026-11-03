@@ -682,11 +682,12 @@ function renderCabShipments(container) {
   }).join('');
 
   container.innerHTML = `
-    <div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Новая закупка</button></div>
+    <div class="cab-main-title">Закупки</div>
     ${CAB_TS_CSS}<label class="cab-ts"><i class="ti ti-search" aria-hidden="true"></i><input id="cabTrackQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку: трек-код целиком, его часть или последние цифры" value="${String(cabTrackQ).replace(/"/g, '&quot;')}" oninput="cabTrackSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';cabTrackSearch('')}"></label>
     <div id="cabTrackRes"></div>
     ${cabShipsHero(ships)}
     <div class="cab-table-wrap">
+      <div class="cab-cl-bar"><button type="button" class="cab-eb cab-new-big" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
       <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
         <thead><tr><th>Название</th><th>Статус</th><th>Должны</th><th>Прибыль</th><th>Оплаты</th><th>Позиций</th><th>Клиентов</th><th title="Когда закупка создана в Piksta">Создана</th></tr></thead>
@@ -1592,7 +1593,8 @@ function renderCabClients(container) {
     const st = CAB_CLIENT_STATUS[c.status];
     const ownerBadge = c.isOwner ? ' <span style="font-size:12px;background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:4px;font-weight:600">свой</span>' : '';
     const enc = encodeURIComponent(c.name);
-    return `<tr>
+    const qI = cabClientInfo(c.name), q = [c.name, cabFullName(c.name), qI.ph, qI.tg].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '');
+    return `<tr data-q="${cabEsc(q)}">
       <td class="cab-sel-td"><input type="checkbox" data-sel="${enc}" ${cabSel.has(c.name) ? 'checked' : ''} onchange="cabSelToggle('${enc}',this.checked)"></td>
       <td style="font-weight:500"><a href="#" onclick="cabOpenClient('${encodeURIComponent(c.name)}');return false" style="color:#6C4DB8;text-decoration:none">${cabEsc(cabFullName(c.name))}</a>${ownerBadge}${(() => { const I = cabClientInfo(c.name); return (I.tg ? ' <i class="ti ti-brand-telegram" title="@' + cabEsc(cabTgUser(I.tg)) + '" style="color:#2AABEE"></i>' : '') + (I.ph ? ' <i class="ti ti-phone" title="' + cabEsc(I.ph) + '" style="color:#16a34a"></i>' : '') + (I.note ? ' <i class="ti ti-note" title="' + cabEsc(I.note) + '" style="color:#b45309"></i>' : ''); })()}</td>
       <td><span style="font-size:13px;background:${st.bg};color:${st.color};padding:3px 8px;border-radius:5px;font-weight:600">${st.label}</span></td>
@@ -1622,7 +1624,7 @@ function renderCabClients(container) {
   const fbtn = (k, l) => `<button onclick="cabSetClientFilter('${k}')" style="border:none;background:${cabClientFilter === k ? '#f0ecf9' : 'none'};color:${cabClientFilter === k ? '#6C4DB8' : '#6b7280'};font-weight:${cabClientFilter === k ? 600 : 500};font-size:14px;padding:5px 10px;border-radius:6px;cursor:pointer">${l}</button>`;
 
   container.innerHTML = `
-    <div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Клиенты<button type="button" class="cab-add-cl" onclick="cabClAddOpen()"><i class="ti ti-user-plus"></i> Добавить клиента</button></div>
+    <div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Клиенты</div>
     ${cabPreClientsHtml(S)}
     ${(() => {
       const cl = all.filter(c => !c.isOwner), tot = cl.length || 1;
@@ -1671,6 +1673,11 @@ function renderCabClients(container) {
       </div>`;
     })()}
     <div class="cab-table-wrap">
+      ${CAB_TS_CSS}<div class="cab-cl-bar">
+        <label class="cab-ts"><i class="ti ti-search" aria-hidden="true"></i><input id="cabClQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти клиента: имя, телефон или Telegram" value="${cabEsc(cabClQ)}" oninput="cabClSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';cabClSearch('')}"></label>
+        <button type="button" class="cab-eb" onclick="cabClAddOpen()"><i class="ti ti-user-plus"></i>Добавить клиента</button>
+      </div>
+      <div id="cabClQNone" class="cab-cl-qnone" style="display:none"></div>
       <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:10px">
         ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}${fbtn('champ', 'Чемпионы')}
       </div>
@@ -1682,6 +1689,19 @@ function renderCabClients(container) {
       </table>
     </div>`;
   cabSelBar();
+  if (cabClQ) cabClSearch(cabClQ);
+}
+
+// Поиск клиента в списке «Клиенты» — фильтрует строки на месте, без перерисовки
+let cabClQ = '';
+function cabClSearch(v) {
+  cabClQ = String(v || '');
+  const q = cabClQ.trim().toLowerCase(), t = document.getElementById('cabClientsTable'); if (!t) return;
+  let shown = 0;
+  t.querySelectorAll('tbody tr[data-q]').forEach(tr => { const on = !q || tr.dataset.q.includes(q); tr.style.display = on ? '' : 'none'; if (on) shown++; });
+  t.querySelectorAll('tbody tr.cab-grp').forEach(g => { let n = g.nextElementSibling, any = false; while (n && !n.classList.contains('cab-grp')) { if (n.style.display !== 'none') any = true; n = n.nextElementSibling; } g.style.display = any ? '' : 'none'; });
+  const none = document.getElementById('cabClQNone');
+  if (none) { none.style.display = q && !shown ? '' : 'none'; none.innerHTML = q && !shown ? `Клиента «${cabEsc(cabClQ.trim())}» нет в этом списке${cabClientFilter !== 'all' || cabFolderFilter ? ' — <a href="#" onclick="cabFolderFilter=\'\';cabSetClientFilter(\'all\');return false">показать всех</a>' : ''}. <a href="#" onclick="cabClAddOpen();return false">Добавить нового клиента</a>` : ''; }
 }
 
 function cabOpenClient(encName) {
@@ -3167,7 +3187,7 @@ function cabEmptyOverview() {
     <div class="cab-start-ghost"><b>Здесь появятся: деньги в обороте, где сейчас товар, кто должен</b><i style="width:70%"></i><i style="width:45%"></i><i style="width:58%"></i></div>`;
 }
 function cabEmptyShipments() {
-  return `<div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Новая закупка</button></div>
+  return `<div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
     <div class="cab-emp-head"><b>У вас пока нет ни одной закупки</b><span>Откуда ваши заказы? Выберите путь — к каждому есть короткий гайд на 1 страницу.</span></div>
     <div class="cab-choice">
       <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С Pinduoduo</b><small>треки, фото и цены подтянутся сами</small></span></div>
