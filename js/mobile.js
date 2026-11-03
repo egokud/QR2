@@ -118,7 +118,7 @@ function pkRenderScan() {
   const pick = document.getElementById('pkPick');
   pick.innerHTML = s
     ? `<span><small>Сканирую закупку</small><b>${pkEsc(s.name)}</b> <span style="color:${st.text};font-weight:600">· ${st.label}</span></span><i class="ti ti-chevron-down" aria-hidden="true" style="font-size:20px;color:var(--pk-muted)"></i>`
-    : `<span><small>Закупок пока нет</small><b>Импортируйте заказы с компьютера</b></span>`;
+    : `<span><small>Закупок пока нет</small><b>Создайте первую закупку</b></span>`;
   // лента (скин «Лента»)
   document.getElementById('pkStrip').innerHTML = (allShipments || []).filter(x => x.status !== 'done').map(x => {
     const xs = pkSt(x.status || 'forming');
@@ -166,7 +166,8 @@ function pkPickSheet() {
     <div class="pk-list" style="margin-top:12px">${list.map(x => {
       const xs = pkSt(x.status || 'forming');
       return `<div class="pk-li" style="grid-template-columns:minmax(0,1fr) auto" onclick="pkScanShip('${x.id}')"><div><b>${pkEsc(x.name)}</b><small style="color:${xs.text}">● ${xs.label} · ${(x.data || []).length} ${pkPl((x.data || []).length, 'позиция', 'позиции', 'позиций')}</small></div><span class="r">${x.id === activeShipmentId ? '<i class="ti ti-check" style="color:var(--pk-acc);font-size:20px"></i>' : ''}</span></div>`;
-    }).join('') || '<div class="pk-empty">Закупок нет</div>'}</div>`);
+    }).join('') || '<div class="pk-empty">Активных закупок нет</div>'}</div>
+    <button type="button" class="pk-btn ghost" style="width:100%;margin-top:12px" onclick="pkSheetClose();pkNewManual()"><i class="ti ti-plus"></i> Новая закупка</button>`);
 }
 async function pkSetStatus(id, key) {
   await setStatus(id, key);
@@ -277,7 +278,7 @@ function pkRenderShips() {
       if ((s.status || 'forming') === 'forming') extra = `<button class="pk-btn ghost sm" onclick="event.stopPropagation();pkSetStatus('${s.id}','transit')">Закупка отправлена → «В дороге»</button>`;
       if (typeof cabShipPayState === 'function') { cabShipmentsCache = allShipments || []; const ps = cabShipPayState(s); if (ps.text) line += ` · <b style="color:${ps.kind === 'ok' ? 'var(--pk-ok)' : ps.kind === 'due' ? 'var(--pk-due)' : 'var(--pk-acc)'}">${ps.text}</b>`; }
       return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur && (s.status || 'forming') !== 'forming' ? ' · сканирую' : ''}</span><div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
-    }).join('') || '<div class="pk-card pk-empty">Закупок пока нет. Новые закупки появляются после импорта заказов в расширении на компьютере.</div>'}`;
+    }).join('') || '<div class="pk-card pk-empty">Закупок пока нет.<br>Создайте первую: вручную — прямо здесь, или импортом с Pinduoduo через расширение на компьютере.<button type="button" class="pk-btn" style="width:100%;margin-top:12px" onclick="pkNewManual()"><i class="ti ti-plus"></i> Создать закупку</button></div>'}`;
   pkShipSearch();
   if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
 }

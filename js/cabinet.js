@@ -682,7 +682,7 @@ function renderCabShipments(container) {
   }).join('');
 
   container.innerHTML = `
-    <div class="cab-main-title">Закупки</div>
+    <div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Новая закупка</button></div>
     ${CAB_TS_CSS}<label class="cab-ts"><i class="ti ti-search" aria-hidden="true"></i><input id="cabTrackQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку: трек-код целиком, его часть или последние цифры" value="${String(cabTrackQ).replace(/"/g, '&quot;')}" oninput="cabTrackSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';cabTrackSearch('')}"></label>
     <div id="cabTrackRes"></div>
     ${cabShipsHero(ships)}
@@ -3167,7 +3167,7 @@ function cabEmptyOverview() {
     <div class="cab-start-ghost"><b>Здесь появятся: деньги в обороте, где сейчас товар, кто должен</b><i style="width:70%"></i><i style="width:45%"></i><i style="width:58%"></i></div>`;
 }
 function cabEmptyShipments() {
-  return `<div class="cab-main-title">Закупки</div>
+  return `<div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Новая закупка</button></div>
     <div class="cab-emp-head"><b>У вас пока нет ни одной закупки</b><span>Откуда ваши заказы? Выберите путь — к каждому есть короткий гайд на 1 страницу.</span></div>
     <div class="cab-choice">
       <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С Pinduoduo</b><small>треки, фото и цены подтянутся сами</small></span></div>
