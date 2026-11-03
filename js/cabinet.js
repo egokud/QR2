@@ -1674,8 +1674,8 @@ function renderCabClients(container) {
     })()}
     <div class="cab-table-wrap">
       ${CAB_TS_CSS}<div class="cab-cl-bar">
+        <button type="button" class="cab-eb cab-new-big" onclick="cabClAddOpen()"><i class="ti ti-user-plus"></i>Добавить клиента</button>
         <label class="cab-ts"><i class="ti ti-search" aria-hidden="true"></i><input id="cabClQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти клиента: имя, телефон или Telegram" value="${cabEsc(cabClQ)}" oninput="cabClSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';cabClSearch('')}"></label>
-        <button type="button" class="cab-eb" onclick="cabClAddOpen()"><i class="ti ti-user-plus"></i>Добавить клиента</button>
       </div>
       <div id="cabClQNone" class="cab-cl-qnone" style="display:none"></div>
       <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:10px">
