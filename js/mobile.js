@@ -108,6 +108,7 @@ function pkRender() {
     else if (pkTab === 'money') pkRenderMoney();
     else if (pkTab === 'more') pkRenderMore();
   } catch (e) { console.warn('pkRender', e); }
+  try { if (pkCC) pkCCRender(); } catch (e) { console.warn('pkCCRender', e); }
 }
 
 // ---------- Сканер ----------
@@ -316,7 +317,7 @@ function pkShipSheet(id) {
     <button type="button" class="pk-main-act" onclick="${act('openPriceEditor()')}"><span class="ic"><i class="ti ti-list-details" aria-hidden="true"></i></span><span><b>Позиции закупки</b><small>треки, названия, клиенты, цены</small></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
     <div class="pk-tiles2">
       <button onclick="${act('openWeighing()')}"><i class="ti ti-scale" aria-hidden="true"></i>Взвешивание</button>
-      <button onclick="${act('openCalc()')}"><i class="ti ti-calculator" aria-hidden="true"></i>Расчёт по клиентам</button>
+      <button onclick="pkSheetClose();pkCCOpen('${id}')"><i class="ti ti-cash" aria-hidden="true"></i><span>Расчёт с клиентами${pkCCTileSub(s)}</span></button>
     </div>
     <div class="pk-menu">
       <button onclick="pkSheetClose();openCargoCompare('${id}')"><i class="ti ti-arrows-diff" aria-hidden="true"></i><span>Сверка с карго</span></button>
@@ -458,7 +459,7 @@ function pkRenderClientCard(pane, name) {
 // Оплата клиента по закупке (01.11.2026): вносится сумма «сейчас», копится в ship.payments[имя].paid (как в Кабинете).
 // Меньше долга — остаётся долг (можно «простить остаток» = закрыть расчёт); больше — переплата в прибыль (как в Кабинете).
 let pkPay = null;
-function pkPayOpen(shipId, enc) {
+function pkPayOpen(shipId, enc, ext) {
   const ship = (allShipments || []).find(s => s.id === shipId); if (!ship) return;
   cabShipmentsCache = allShipments || [];
   const key = cabClientKey(ship, decodeURIComponent(enc));
@@ -468,15 +469,18 @@ function pkPayOpen(shipId, enc) {
   const paid = Math.round((pi.paid || 0) * 100) / 100, rest = Math.max(0, Math.round((due - paid) * 100) / 100);
   pkPay = { shipId, key, due, paid, rest };
   const cur = pkCur(), r2 = v => Math.round(v * 100) / 100;
-  pkSheet(`<h3>Оплата · ${pkEsc(key)}</h3><div class="pk-muted" style="font-size:14px;margin-top:2px">${pkEsc(ship.name)}</div>
-    <div class="pk-pay3"><div><small>К оплате</small><b>${pkFmt(due)}</b></div><div><small>Уже оплачено</small><b style="color:var(--pk-ok)">${pkFmt(paid)}</b></div><div><small>Долг</small><b style="color:var(--pk-due)">${pkFmt(rest)}</b></div></div>
+  c.due0 = due;
+  const head = ext ? `<h3>${pkEsc(key)}</h3><div class="pk-muted" style="font-size:14px;margin-top:2px">${pkEsc(ship.name)} · ${c.items} ${pkPl(c.items, 'позиция', 'позиции', 'позиций')}</div>${pkCCBreak(ship, c)}`
+    : `<h3>Оплата · ${pkEsc(key)}</h3><div class="pk-muted" style="font-size:14px;margin-top:2px">${pkEsc(ship.name)}</div>`;
+  pkSheet(`${head}
+    <div class="pk-pay3"><div><small>К оплате</small><b>${pkF2(due)}</b></div><div><small>Уже оплачено</small><b style="color:var(--pk-ok)">${pkF2(paid)}</b></div><div><small>Долг</small><b style="color:var(--pk-due)">${pkF2(rest)}</b></div></div>
     <label class="pk-lbl" for="pkPayAmt" style="display:block;margin-top:14px">Сколько заплатила сейчас</label>
     <div class="pk-pay-amt"><input id="pkPayAmt" type="text" inputmode="decimal" autocomplete="off" value="${rest > 0 ? r2(rest) : ''}" oninput="pkPayHint()"><span>${cur}</span></div>
-    ${rest > 0 ? `<div class="pk-man-chips" style="margin-top:8px"><button type="button" onclick="pkPaySet(${r2(rest)})">Весь долг · ${pkFmt(rest)}</button>${rest >= 2 ? `<button type="button" onclick="pkPaySet(${r2(rest / 2)})">Половина · ${pkFmt(rest / 2)}</button>` : ''}</div>` : ''}
+    ${rest > 0 ? `<div class="pk-man-chips" style="margin-top:8px"><button type="button" onclick="pkPaySet(${r2(rest)})">Весь долг · ${pkF2(rest)}</button>${rest >= 2 ? `<button type="button" onclick="pkPaySet(${r2(rest / 2)})">Половина · ${pkF2(rest / 2)}</button>` : ''}</div>` : ''}
     <div id="pkPayHint"></div>
-    <button type="button" class="pk-btn ok" id="pkPayBtn" style="width:100%;margin-top:12px" onclick="pkPaySave()"></button>`);
+    <button type="button" class="pk-btn ok" id="pkPayBtn" style="width:100%;margin-top:12px" onclick="pkPaySave()"></button>${ext ? pkCCExtra(ship, c, paid) : ''}`);
   pkPayHint();
-  setTimeout(() => { const i = document.getElementById('pkPayAmt'); if (i) { i.focus(); i.select(); } }, 300);
+  if (!ext) setTimeout(() => { const i = document.getElementById('pkPayAmt'); if (i) { i.focus(); i.select(); } }, 300);
 }
 function pkPaySet(v) { const i = document.getElementById('pkPayAmt'); i.value = v; pkPayHint(); }
 function pkPayVal() { const v = parseFloat(String((document.getElementById('pkPayAmt') || {}).value || '').replace(',', '.').replace(/\s/g, '')); return isNaN(v) ? 0 : Math.round(v * 100) / 100; }
@@ -487,13 +491,13 @@ function pkPayHint() {
   const keepFg = document.getElementById('pkPayForgive') && document.getElementById('pkPayForgive').checked;
   let h = '';
   if (a <= 0) h = '';
-  else if (left > 0.004) h = `<div class="pk-pay-hint w"><i class="ti ti-clock" aria-hidden="true"></i><span>Останется долг <b>${pkFmt(left)} ${cur}</b> — он будет виден в «Деньгах»</span></div>
-      <label class="pk-pay-fg"><input type="checkbox" id="pkPayForgive" ${keepFg ? 'checked' : ''}><span>Простить остаток ${pkFmt(left)} ${cur}<small>закрыть расчёт, прибыль станет меньше</small></span></label>`;
-  else if (left < -0.004) h = `<div class="pk-pay-hint p"><i class="ti ti-trending-up" aria-hidden="true"></i><span>Долг закрыт. Переплата <b>${pkFmt(-left)} ${cur}</b> — засчитаем в прибыль по этой закупке</span></div>`;
+  else if (left > 0.004) h = `<div class="pk-pay-hint w"><i class="ti ti-clock" aria-hidden="true"></i><span>Останется долг <b>${pkF2(left)} ${cur}</b> — он будет виден в «Деньгах»</span></div>
+      <label class="pk-pay-fg"><input type="checkbox" id="pkPayForgive" ${keepFg ? 'checked' : ''}><span>Простить остаток ${pkF2(left)} ${cur}<small>закрыть расчёт, прибыль станет меньше</small></span></label>`;
+  else if (left < -0.004) h = `<div class="pk-pay-hint p"><i class="ti ti-trending-up" aria-hidden="true"></i><span>Долг закрыт. Переплата <b>${pkF2(-left)} ${cur}</b> — засчитаем в прибыль по этой закупке</span></div>`;
   else h = `<div class="pk-pay-hint ok"><i class="ti ti-circle-check" aria-hidden="true"></i><span>Долг будет закрыт полностью</span></div>`;
   box.innerHTML = h;
   b.disabled = !(a > 0);
-  b.innerHTML = `<i class="ti ti-check" aria-hidden="true"></i> Записать оплату${a > 0 ? ' ' + pkFmt(a) + ' ' + cur : ''}`;
+  b.innerHTML = `<i class="ti ti-check" aria-hidden="true"></i> Записать оплату${a > 0 ? ' ' + pkF2(a) + ' ' + cur : ''}`;
 }
 async function pkPaySave() {
   if (!pkPay) return;
@@ -507,7 +511,7 @@ async function pkPaySave() {
   } catch (e) { b.disabled = false; pkPayHint(); showToast('Не сохранилось: ' + (e.message || e)); return; }
   const left = Math.round((pkPay.due - total) * 100) / 100;
   pkPay = null; pkSheetClose();
-  showToast(left > 0.004 && !fg ? `Оплата записана · осталось ${pkFmt(left)} ${pkCur()}` : 'Оплата записана · долг закрыт');
+  showToast(left > 0.004 && !fg ? `Оплата записана · осталось ${pkF2(left)} ${pkCur()}` : 'Оплата записана · долг закрыт');
   pkRender();
 }
 function pkRemind(enc, sum, encShip) {
@@ -516,6 +520,192 @@ function pkRemind(enc, sum, encShip) {
   const done = () => { if (typeof showToast === 'function') showToast('Сообщение скопировано'); };
   try { navigator.clipboard.writeText(txt).then(done, () => prompt('Скопируйте сообщение:', txt)); } catch (e) { prompt('Скопируйте сообщение:', txt); }
 }
+
+// ---------- Закупка → «Расчёт с клиентами» (03.11.2026) ----------
+// Рабочий экран как в Кабинете: собрано / осталось, поиск, фильтры, кружок «Оплачено» одним касанием (с «Отменить»),
+// касание строки — шторка оплаты (из чего сумма, частичная оплата, переплата, условия клиента). Те же данные ship.payments.
+let pkCC = null;   // { id, q, f, order: [имена в порядке на момент открытия] }
+const pkF2 = v => { v = Math.round((v || 0) * 100) / 100; return Math.abs(v - Math.round(v)) < 0.005 ? cabFmt(v) : cabFmt2(v); };
+function pkCCData(ship) {
+  cabShipmentsCache = allShipments || [];
+  const { clients } = cabGetClientsFromShipment(ship);
+  const inclW = ship.priceInclWeight || {};
+  const anyW = clients.some(c => c.weight > 0);
+  for (const c of clients) {
+    c.due0 = Math.round((c.settle ? c.dueBeforeSettle : c.due) * 100) / 100;
+    c.over = !c.isOwner && (c.payPaid || 0) > c.due0 + 0.004 ? Math.round(((c.payPaid || 0) - c.due0) * 100) / 100 : 0;
+    c.noW = anyW && !c.isOwner && !(c.weight > 0) && !inclW[c.name];
+  }
+  let due = 0, paid = 0, rest = 0, nPay = 0, nFull = 0;
+  for (const c of clients) { if (c.isOwner) continue; nPay++; due += c.due; paid += c.payPaid || 0; rest += c.payRest || 0; if (c.payStatus === 'full') nFull++; }
+  return { clients, due, paid, rest, nPay, nFull };
+}
+function pkCCTileSub(ship) {
+  try {
+    if (!cabIsBilled(ship)) return '';
+    const D = pkCCData(ship); if (!D.nPay) return '';
+    return D.rest > 0.5 ? `<small style="display:block;font-size:12px;font-weight:500;color:var(--pk-due);margin-top:1px">осталось ${pkFmt(D.rest)}</small>`
+      : `<small style="display:block;font-size:12px;font-weight:600;color:var(--pk-ok);margin-top:1px">все оплатили</small>`;
+  } catch (e) { return ''; }
+}
+function pkCCOpen(id) {
+  const ship = (allShipments || []).find(s => s.id === id); if (!ship) return;
+  if (!(ship.data || []).length) { showToast('В закупке пока нет позиций'); return; }
+  pkCC = { id, q: '', f: 'all', order: null };
+  pkScr('Расчёт с клиентами', '<div id="pkCCBody" style="display:flex;flex-direction:column;gap:10px"></div>', () => { pkCC = null; pkScrClose(); });
+  const top = document.querySelector('#pkScr .pk-man-top');
+  if (top) {
+    const tt = top.querySelector('.tt'); if (tt) tt.insertAdjacentHTML('beforeend', `<span id="pkCCName">${pkEsc(ship.name || '')}</span>`);
+    top.insertAdjacentHTML('beforeend', `<button type="button" class="pk-cc-pdf" onclick="pkCCPdf()" aria-label="Скачать расчёт в PDF"><i class="ti ti-download" aria-hidden="true"></i>PDF</button>`);
+  }
+  pkCCRender(true);
+}
+function pkCCPdf() { if (!pkCC) return; const id = pkCC.id; loadForAction(id).then(() => exportCalcPDF()).catch(e => showToast('Не получилось: ' + (e.message || e))); }
+function pkCCSt(c) { return c.isOwner ? 'own' : c.payStatus === 'full' ? 'full' : c.payStatus === 'part' ? 'part' : 'none'; }
+function pkCCRender(full) {
+  const body = document.getElementById('pkCCBody');
+  if (!pkCC || !body) { pkCC = null; return; }
+  const ship = (allShipments || []).find(s => s.id === pkCC.id); if (!ship) { pkCC = null; pkScrClose(); return; }
+  const D = pkCCData(ship), cur = pkCur();
+  // порядок строк замораживаем при открытии (кто должен — сверху), чтобы строка не «убегала» после галочки
+  const rank = { none: 0, part: 0, full: 1, own: 2 };
+  if (!pkCC.order) pkCC.order = D.clients.slice().sort((a, b) => rank[pkCCSt(a)] - rank[pkCCSt(b)] || a.name.localeCompare(b.name, 'ru')).map(c => c.name);
+  const pos = n => { const i = pkCC.order.indexOf(n); return i < 0 ? 1e6 : i; };
+  const list = D.clients.slice().sort((a, b) => pos(a.name) - pos(b.name) || a.name.localeCompare(b.name, 'ru'));
+  const cnt = { all: D.clients.length, none: 0, part: 0, full: 0 };
+  for (const c of D.clients) { const st = pkCCSt(c); if (cnt[st] !== undefined) cnt[st]++; }
+  const q = pkCC.q.trim().toLowerCase();
+  const shown = list.filter(c => (pkCC.f === 'all' || pkCCSt(c) === pkCC.f) && (!q || c.name.toLowerCase().includes(q) || pkFullName(c.name).toLowerCase().includes(q)));
+  const pct = D.due > 0 ? Math.min(100, Math.round(D.paid / D.due * 100)) : 0;
+  const sum = `<div class="pk-cc-sum"><div class="l">Собрано с клиентов</div><div class="v">${pkF2(D.paid)} <small>из ${pkF2(D.due)} ${cur}</small></div><div class="pk-bar"><span style="width:${pct}%"></span></div>
+    <div class="s"><span>${D.rest > 0.004 ? `Осталось собрать <b>${pkF2(D.rest)} ${cur}</b>` : '<em style="font-style:normal;color:var(--pk-ok);font-weight:700"><i class="ti ti-check"></i> Все оплатили</em>'}</span><span>${D.nFull} из ${D.nPay} оплатили</span></div>
+    ${cabIsBilled(ship) ? '' : '<div class="pk-cc-warn"><i class="ti ti-info-circle" aria-hidden="true"></i>Закупка ещё не рассортирована — суммы могут измениться после взвешивания</div>'}</div>`;
+  const chip = (k, l, dot) => `<button type="button" class="${pkCC.f === k ? 'on' : ''}" onclick="pkCC.f='${k}';pkCCRender()">${dot ? `<i class="d" style="background:${dot}"></i>` : ''}${l} ${cnt[k]}</button>`;
+  const rows = shown.map(c => {
+    const st = pkCCSt(c), enc = encodeURIComponent(c.name);
+    let sm, ck;
+    if (st === 'own') { sm = `<span class="sm own"><b>не платит</b></span>`; ck = `<span class="ck no" aria-hidden="true"></span>`; }
+    else {
+      if (st === 'full') {
+        const at = (((ship.payments || {})[c.name] || {}).at || '').slice(0, 10);
+        sm = c.over > 0.004 ? `<span class="sm ok"><b>+${pkF2(c.over)}</b><small>переплата</small></span>`
+          : c.settle === 'off' ? `<span class="sm ok"><b>закрыто</b><small>списано ${pkF2(-c.settleDiff)}</small></span>`
+          : `<span class="sm ok"><b>оплачено</b><small>${at ? at.slice(8, 10) + '.' + at.slice(5, 7) : ''}</small></span>`;
+      } else if (st === 'part') sm = `<span class="sm part"><b>${pkF2(c.payRest)}</b><small>оплачено ${pkF2(c.payPaid)}</small></span>`;
+      else sm = `<span class="sm due"><b>${pkF2(c.payRest)}</b><small>не оплачено</small></span>`;
+      ck = `<button type="button" class="ck ${st === 'full' ? 'on' : st === 'part' ? 'part' : ''}" onclick="event.stopPropagation();pkCCTick('${enc}')" aria-label="${st === 'full' ? 'Снять отметку «Оплачено»' : 'Отметить «Оплачено»'}: ${pkEsc(c.name)}"><i class="ti ${st === 'part' ? 'ti-clock' : 'ti-check'}" aria-hidden="true"></i></button>`;
+    }
+    const sub = `${c.items} ${pkPl(c.items, 'поз.', 'поз.', 'поз.')}${st === 'full' || st === 'own' ? ' · ' + pkF2(st === 'own' ? c.goodsCost + c.shipCo : c.due0) : ''}${c.noW ? ' · <span class="pk-nw">не взвешена</span>' : ''}${c.dueEdited ? ' · <i class="ti ti-pencil" style="color:var(--pk-warn)" title="Сумма исправлена вручную"></i>' : ''}`;
+    return `<div class="pk-cc ${pkCC.flash === c.name ? 'flash' : ''}" role="button" tabindex="0" onclick="pkCCSheet('${enc}')"><span class="nm"><b>${pkEsc(pkFullName(c.name))}</b><small>${sub}</small></span>${sm}${ck}</div>`;
+  }).join('');
+  const listHtml = `<div class="pk-cc-list" id="pkCCList">${rows || `<div class="pk-empty" style="padding:18px">${q ? 'Никого не нашли' : 'Здесь пусто'}</div>`}</div>`;
+  if (full || !document.getElementById('pkCCList')) {
+    body.innerHTML = `<div id="pkCCSum">${sum}</div>
+      <label class="pk-search"><i class="ti ti-search" aria-hidden="true"></i><input id="pkCCQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти клиента" value="${pkEsc(pkCC.q)}" oninput="pkCC.q=this.value;pkCCRender()"></label>
+      <div class="pk-chips" id="pkCCChips"></div><div id="pkCCWrap"></div>
+      ${D.nPay - D.nFull > 1 ? `<button type="button" class="pk-btn ghost" id="pkCCAll" onclick="pkCCAllPaid()"><i class="ti ti-checks" aria-hidden="true"></i> Отметить всех оплатившими</button>` : ''}`;
+  } else {
+    document.getElementById('pkCCSum').innerHTML = sum;
+    const all = document.getElementById('pkCCAll'); if (all) all.style.display = D.nPay - D.nFull > 1 ? '' : 'none';
+  }
+  document.getElementById('pkCCChips').innerHTML = chip('all', 'Все') + chip('none', 'Должны', 'var(--pk-due)') + chip('part', 'Частично', '#f59e0b') + chip('full', 'Оплачено', 'var(--pk-ok)');
+  document.getElementById('pkCCWrap').innerHTML = listHtml;
+}
+// кружок справа: пусто → оплачено полностью; частично → спросить и закрыть со списанием; оплачено → снять. Везде «Отменить».
+async function pkCCTick(enc) {
+  if (!pkCC) return;
+  const id = pkCC.id, ship = (allShipments || []).find(s => s.id === id); if (!ship) return;
+  const c = pkCCData(ship).clients.find(x => x.name === decodeURIComponent(enc)); if (!c || c.isOwner) return;
+  const key = c.name, prev = (ship.payments || {})[key] ? { ...(ship.payments || {})[key] } : null;
+  const paid = c.payPaid || 0, st = pkCCSt(c), now = new Date().toISOString();
+  let val, msg;
+  if (st === 'none') { val = { paid: c.due0, at: now }; msg = `${pkFullName(key)} — оплачено ${pkF2(c.due0)}`; }
+  else if (st === 'part') {
+    if (!confirm(`«${pkFullName(key)}» заплатил(а) ${pkF2(paid)} из ${pkF2(c.due0)} ${pkCur()}.\n\nЗакрыть расчёт и списать остаток ${pkF2(c.due0 - paid)}? Прибыль станет меньше на эту сумму.\n\nЕсли клиент ещё доплатит — нажмите «Отмена» и внесите оплату, нажав на строку.`)) return;
+    val = { paid: Math.round(paid * 100) / 100, at: now, closed: true }; msg = `${pkFullName(key)} — расчёт закрыт`;
+  } else {
+    val = prev && prev.closed ? { paid: paid, at: now } : { paid: 0, at: now };
+    msg = `${pkFullName(key)} — отметка снята`;
+  }
+  try { await cabTxMapField(id, 'payments', key, val); } catch (e) { showToast('Не сохранилось: ' + (e.message || e)); return; }
+  pkCC.flash = st === 'none' ? key : null; pkCCRender();
+  setTimeout(() => { if (pkCC && pkCC.flash === key) { pkCC.flash = null; pkCCRender(); } }, 1600);
+  pkUndoToast(msg, async () => { try { await cabTxMapField(id, 'payments', key, prev); pkRender(); } catch (e) { showToast('Не получилось отменить: ' + (e.message || e)); } });
+}
+async function pkCCAllPaid() {
+  if (!pkCC) return;
+  const id = pkCC.id, ship = (allShipments || []).find(s => s.id === id); if (!ship) return;
+  const left = pkCCData(ship).clients.filter(c => !c.isOwner && c.payStatus !== 'full');
+  if (!left.length) return;
+  const sum = left.reduce((n, c) => n + (c.payRest || 0), 0);
+  if (!confirm(`Отметить оплатившими полностью ${left.length} ${pkPl(left.length, 'клиента', 'клиентов', 'клиентов')}?\nОстаток к оплате: ${pkF2(sum)} ${pkCur()}.${cabIsBilled(ship) ? '' : '\n\nЗакупка ещё не рассортирована — суммы могут измениться после взвешивания.'}`)) return;
+  const prev = left.map(c => [c.name, (ship.payments || {})[c.name] ? { ...(ship.payments || {})[c.name] } : null]);
+  try { for (const c of left) await cabSavePayment(id, c.name, c.due0); } catch (e) { showToast('Не сохранилось: ' + (e.message || e)); }
+  pkRender();
+  pkUndoToast(`Отмечено: ${left.length} ${pkPl(left.length, 'клиент', 'клиента', 'клиентов')}`, async () => { try { for (const [k, v] of prev) await cabTxMapField(id, 'payments', k, v); pkRender(); } catch (e) { showToast('Не получилось отменить: ' + (e.message || e)); } });
+}
+function pkUndoToast(msg, undo) {
+  let t = document.getElementById('pkUndo');
+  if (!t) { t = document.createElement('div'); t.id = 'pkUndo'; t.className = 'pk-undo'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.innerHTML = `<i class="ti ti-circle-check" aria-hidden="true"></i><span>${pkEsc(msg)}</span><button type="button">Отменить</button>`;
+  t.querySelector('button').onclick = () => { t.classList.remove('on'); clearTimeout(window.__pkUndoT); undo(); };
+  t.classList.add('on'); clearTimeout(window.__pkUndoT); window.__pkUndoT = setTimeout(() => t.classList.remove('on'), 5000);
+}
+// касание строки: шторка оплаты (для «это я» — только условия)
+function pkCCSheet(enc) {
+  if (!pkCC) return;
+  const id = pkCC.id, ship = (allShipments || []).find(s => s.id === id); if (!ship) return;
+  const c = pkCCData(ship).clients.find(x => x.name === decodeURIComponent(enc)); if (!c) return;
+  if (!c.isOwner) { pkPayOpen(id, enc, true); return; }
+  pkSheet(`<h3>${pkEsc(pkFullName(c.name))}</h3><div class="pk-muted" style="font-size:14px;margin-top:2px">${pkEsc(ship.name)} · ${c.items} ${pkPl(c.items, 'позиция', 'позиции', 'позиций')}</div>
+    <div class="pk-cc-br"><div><span>Товар по себестоимости</span><b>${pkF2(c.goodsCost)}</b></div><div><span>Доставка · ${cabFmt2(c.shipWeight)} кг с тарой</span><b>${pkF2(c.shipCo)}</b></div><div class="t"><span>Мои затраты</span><b>${pkF2(c.goodsCost + c.shipCo)} ${pkCur()}</b></div></div>
+    <div class="pk-pay-hint p"><i class="ti ti-user" aria-hidden="true"></i><span>Это вы: покупка для себя — в долги и доход не входит</span></div>${pkCCExtra(ship, c, 0)}`);
+}
+function pkCCBreak(ship, c) {
+  const inclW = (ship.priceInclWeight || {})[c.name] && !c.costShipOn;
+  const goods = c.costGoodsOn ? c.goodsCost : c.goodsClient, shipS = c.costShipOn ? c.shipCo : c.shipCli;
+  const enc = encodeURIComponent(c.name);
+  return `<div class="pk-cc-br"><div><span>Товар (¥ ${cabFmt2(c.clientYuan)})${c.costGoodsOn ? ' · по себест.' : ''}</span><b>${pkF2(goods)}</b></div>
+    <div><span>Доставка · ${c.weight > 0 ? cabFmt2(c.shipWeight) + ' кг с тарой' : 'вес не указан'}${c.costShipOn ? ' · по себест.' : ''}</span><b>${inclW ? 'в цене' : pkF2(shipS)}</b></div>
+    ${c.dueEdited ? `<div><span>Исправлено вручную (по расчёту ${pkF2(c.dueCalc)})</span><b></b></div>` : ''}
+    <div class="t"><span>Итого к оплате</span><a href="#" onclick="pkCCEditDue('${enc}');return false" title="Исправить сумму">${pkF2(c.due0)} ${pkCur()} <i class="ti ti-pencil" aria-hidden="true"></i></a></div></div>`;
+}
+function pkCCExtra(ship, c, paid) {
+  const enc = encodeURIComponent(c.name);
+  const cb = (kind, on, l) => `<label><input type="checkbox" ${on ? 'checked' : ''} onchange="pkCCCond('${enc}','${kind}',this.checked)">${l}</label>`;
+  return `<div class="pk-cc-cond">${cb('owners', c.isOwner, 'Это я')}${c.isOwner ? '' : cb('costGoods', c.costGoodsOn, 'Товар по себестоимости') + cb('costShip', c.costShipOn, 'Доставка по себест.')}</div>
+    <div class="pk-cc-links"><a href="#" onclick="pkCCClient('${enc}');return false"><i class="ti ti-user" aria-hidden="true"></i> Карточка клиента</a>${paid > 0.004 ? `<a href="#" class="r" onclick="pkCCReset('${enc}');return false"><i class="ti ti-rotate" aria-hidden="true"></i> Сбросить оплату</a>` : ''}</div>`;
+}
+async function pkCCCond(enc, field, on) {
+  if (!pkCC) return;
+  const id = pkCC.id, name = decodeURIComponent(enc);
+  try { await cabTxMapField(id, field, name, !!on); } catch (e) { showToast('Не сохранилось: ' + (e.message || e)); return; }
+  // если эта закупка сейчас загружена в редактор — держим её карты в актуальном виде
+  if (id === (editingShipmentId || activeShipmentId)) { const m = field === 'owners' ? currentOwners : field === 'costGoods' ? currentCostGoods : currentCostShip; m[name] = !!on; }
+  pkRender(); pkCCSheet(enc);
+}
+async function pkCCEditDue(enc) {
+  if (!pkCC) return;
+  const id = pkCC.id, ship = (allShipments || []).find(s => s.id === id); if (!ship) return;
+  const c = pkCCData(ship).clients.find(x => x.name === decodeURIComponent(enc)); if (!c) return;
+  const v = prompt(`Сколько должен(на) «${pkFullName(c.name)}», ${pkCur()}?\nПо расчёту: ${cabFmt2(c.dueCalc)}. Оставьте пустым, чтобы вернуть расчётную сумму.`, c.dueEdited ? c.due.toFixed(2) : '');
+  if (v === null) return;
+  const t = String(v).trim().replace(',', '.').replace(/\s/g, '');
+  let val = null;
+  if (t !== '') { val = parseFloat(t); if (isNaN(val) || val < 0) { showToast('Введите сумму числом'); return; } val = Math.round(val * 100) / 100; }
+  try { await cabTxMapField(id, 'dueOverride', c.name, val); } catch (e) { showToast('Не сохранилось: ' + (e.message || e)); return; }
+  pkRender(); pkCCSheet(enc);
+}
+async function pkCCReset(enc) {
+  if (!pkCC) return;
+  const id = pkCC.id, ship = (allShipments || []).find(s => s.id === id); if (!ship) return;
+  const name = decodeURIComponent(enc), prev = (ship.payments || {})[name] ? { ...(ship.payments || {})[name] } : null;
+  if (!confirm(`Сбросить оплату «${pkFullName(name)}»? Отметка «оплачено» и внесённые суммы по этой закупке обнулятся.`)) return;
+  try { await cabSavePayment(id, name, 0); } catch (e) { showToast('Не сохранилось: ' + (e.message || e)); return; }
+  pkSheetClose(); pkRender();
+  pkUndoToast(`${pkFullName(name)} — оплата сброшена`, async () => { try { await cabTxMapField(id, 'payments', name, prev); pkRender(); } catch (e) {} });
+}
+function pkCCClient(enc) { pkSheetClose(); pkCC = null; pkScrClose(); pkGo('clients'); pkOpenClient(enc); }
 
 // ---------- Деньги ----------
 // Сверху — долг клиентов сейчас; «Товар в пути» — закупки до раскладки (деньги в товаре);

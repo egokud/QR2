@@ -1069,7 +1069,7 @@ function openShipMenu(id, ev) {
     <button onclick="renameShipment('${id}');closeShipMenu()"><i class="ti ti-pencil" aria-hidden="true"></i> Переименовать</button>
     <button onclick="loadForAction('${id}').then(()=>openPriceEditor());closeShipMenu()"><i class="ti ti-list-details" aria-hidden="true"></i> Позиции закупки</button>
     <button onclick="loadForAction('${id}').then(()=>openWeighing());closeShipMenu()"><i class="ti ti-scale" aria-hidden="true"></i> Взвешивание</button>
-    <button onclick="loadForAction('${id}').then(()=>openCalc());closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт по клиентам</button>
+    <button onclick="loadForAction('${id}').then(()=>openCalc());closeShipMenu()"><i class="ti ti-calculator" aria-hidden="true"></i> Расчёт с клиентами</button>
     <button onclick="loadForAction('${id}').then(()=>openRatesModal('${id}'));closeShipMenu()"><i class="ti ti-adjustments" aria-hidden="true"></i> Курсы закупки</button>
     ${pkOfflineMenuBtn(id)}
     <button onclick="loadForAction('${id}').then(()=>resetAll()).then(restoreActiveEditing);closeShipMenu()"><i class="ti ti-refresh" aria-hidden="true"></i> Сбросить отметки</button>
