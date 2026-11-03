@@ -822,3 +822,4 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-fifo-chips button{border:1px solid #e5e7eb;background:#fff;color:#6C4DB8;border-radius:16px;padding:6px 11px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
 .cab-fifo-dist{display:flex;flex-direction:column;gap:6px;margin-top:12px;background:#f7f8fa;border-radius:12px;padding:10px 12px;font-size:14px}.cab-fifo-dist:empty{display:none}
 .cab-eb.ok{background:#15803d;border-color:#15803d}.cab-eb.ok:hover{background:#166534}
+.cab-main-title .cab-new-ship{margin-left:auto;font-size:15px;letter-spacing:0;white-space:nowrap}
