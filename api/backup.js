@@ -3,7 +3,8 @@
 // раскладывает по файлам: users/<uid>.json (профиль + закупки + сканы + история), adminLog.json, support.json, meta.json
 // и делает один коммит. История коммитов = копии по дням. Если ничего не изменилось — коммит не создаётся.
 // Секреты (Vercel → Settings → Environment Variables): BOT_PASSWORD (уже есть), GH_BACKUP_TOKEN (токен только на этот репозиторий).
-// Запуск: Vercel Cron раз в сутки (vercel.json → crons) или вручную GET /api/backup?run=1.
+// Запуск: только Vercel Cron раз в сутки (vercel.json → crons). Ручной запуск ?run=1 закрыт 04.11.2026.
+// Если в Vercel задан CRON_SECRET — запрос принимается только с ним (Vercel Cron присылает его сам).
 
 const BOT_EMAIL = 'bot@piksta.online';
 const FB_KEY = 'AIzaSyASHE3yqM0wOC3QHVbL4UVSHVq2rEzA5ss';   // публичный ключ веб-приложения (тот же, что в init.js)
@@ -104,8 +105,10 @@ async function backup() {
 }
 
 module.exports = async (req, res) => {
-  const cron = /vercel-cron/i.test(req.headers['user-agent'] || '');
-  if (!cron && !(req.query && req.query.run)) return res.status(200).send('ok');
+  const sec = (process.env.CRON_SECRET || '').trim();
+  const cron = sec ? (req.headers.authorization || '') === 'Bearer ' + sec
+                   : /vercel-cron/i.test(req.headers['user-agent'] || '');
+  if (!cron) return res.status(200).send('ok');
   try {
     if (!process.env.GH_BACKUP_TOKEN) throw new Error('нет GH_BACKUP_TOKEN');
     const r = await backup();
