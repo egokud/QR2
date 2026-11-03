@@ -84,6 +84,8 @@ mark{background:#fff1a8;border-radius:3px;padding:0 1px}
   .top-m{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.top-m::-webkit-scrollbar{display:none}
   .top-m a{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600;color:#3b3650;text-decoration:none}
   .top-m a.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  html{scroll-padding-top:150px}
+  table.t td:first-child{white-space:normal;width:40%}
   main{padding:20px 16px 60px}
   .hero h1{font-size:27px}.ch>h2{font-size:23px}.sub-s h3{font-size:18px}
   .two{grid-template-columns:1fr}
@@ -472,7 +474,7 @@ mark{background:#fff1a8;border-radius:3px;padding:0 1px}
     if (c === cur && cs === curSub) return; cur = c; curSub = cs;
     document.querySelectorAll('.toc .grp').forEach(g => { const on = g.dataset.ch === c; g.classList.toggle('open', on); g.querySelector('[data-chl]').classList.toggle('on', on); });
     document.querySelectorAll('.toc [data-sub]').forEach(a => a.classList.toggle('on', a.dataset.sub === cs));
-    document.querySelectorAll('.top-m a').forEach(a => { const on = a.dataset.chm === c; a.classList.toggle('on', on); if (on) a.scrollIntoView({ inline: 'nearest', block: 'nearest' }); });
+    document.querySelectorAll('.top-m a').forEach(a => { const on = a.dataset.chm === c; a.classList.toggle('on', on); if (on && topM.offsetParent) topM.scrollTo({ left: a.offsetLeft - 12 }); });
   };
   addEventListener('scroll', () => requestAnimationFrame(mark), { passive: true }); mark();
   // поиск
@@ -499,7 +501,8 @@ mark{background:#fff1a8;border-radius:3px;padding:0 1px}
     nodes.forEach(n => { const span = document.createElement('span'); span.innerHTML = n.nodeValue.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(re, m => `<mark>${m}</mark>`); n.replaceWith(span); });
   }
   // открыли с #глава — подсказка в оглавлении сразу на месте
-  if (location.hash) setTimeout(mark, 300);
+  const goHash = () => { const el = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1))); if (el) el.scrollIntoView(); mark(); };
+  if (location.hash) { setTimeout(goHash, 100); addEventListener('load', () => setTimeout(goHash, 50)); }
 })();
 </script>
 </body>
