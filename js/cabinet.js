@@ -3300,9 +3300,9 @@ function cabManualOpen() {
   }
   pkNewManual();
   // закрыли окно названия «Отменой» — снять затемнение Кабинета
-  const t = setInterval(() => { const sh = document.getElementById('pkSheet'), man = document.getElementById('pkMan');
-    if (man && man.classList.contains('on')) { clearInterval(t); return; }
-    if (!sh || !sh.classList.contains('on')) { clearInterval(t); if (!(man && man.classList.contains('on'))) document.body.classList.remove('pk-cabman'); } }, 300);
+  const t = setInterval(() => { const sh = document.getElementById('pkSheet');
+    if (typeof pkMan !== 'undefined' && pkMan) { clearInterval(t); return; }   // форма товаров открыта — затемнение снимет pkManClose
+    if (!sh || !sh.classList.contains('on')) { clearInterval(t); document.body.classList.remove('pk-cabman'); } }, 300);
 }
 function cabUploadOpen() {
   if (typeof openUploadModal !== 'function') return;
