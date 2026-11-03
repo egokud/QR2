@@ -3300,7 +3300,7 @@ function cabManualOpen() {
   }
   pkNewManual();
   // закрыли окно названия «Отменой» — снять затемнение Кабинета
-  const t = setInterval(() => { const sh = document.getElementById('pkSheet');
+  const t = setInterval(() => { const sh = document.getElementById('pkSheetBg');   // фон шторки включается сразу, без анимации
     if (typeof pkMan !== 'undefined' && pkMan) { clearInterval(t); return; }   // форма товаров открыта — затемнение снимет pkManClose
     if (!sh || !sh.classList.contains('on')) { clearInterval(t); document.body.classList.remove('pk-cabman'); } }, 300);
 }
