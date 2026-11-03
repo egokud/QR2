@@ -3187,7 +3187,7 @@ function cabEmptyOverview() {
     <div class="cab-start-ghost"><b>Здесь появятся: деньги в обороте, где сейчас товар, кто должен</b><i style="width:70%"></i><i style="width:45%"></i><i style="width:58%"></i></div>`;
 }
 function cabEmptyShipments() {
-  return `<div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Закупки<button type="button" class="cab-eb cab-new-ship" onclick="cabNewShipOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
+  return `<div class="cab-main-title">Закупки</div>
     <div class="cab-emp-head"><b>У вас пока нет ни одной закупки</b><span>Откуда ваши заказы? Выберите путь — к каждому есть короткий гайд на 1 страницу.</span></div>
     <div class="cab-choice">
       <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С Pinduoduo</b><small>треки, фото и цены подтянутся сами</small></span></div>
@@ -3197,7 +3197,8 @@ function cabEmptyShipments() {
         <ol><li>«Создать вручную» → название (дата подставится сама).</li><li>Трек — вписать или снять камерой; название, цена, фото — по желанию.</li><li>Клиент — имя, Piksta подсказывает уже знакомые.</li><li>«Сохранить закупку».</li></ol>
         <div class="bt"><button type="button" class="cab-eb" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Создать вручную</button><a class="cab-eb gh" href="${CAB_GUIDE_MAN}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Гайд</a></div></div>
     </div>
-    <div class="cab-emp-foot"><i class="ti ti-file-spreadsheet"></i>Есть таблица треков от карго? <a href="#" onclick="cabUploadOpen();return false">Загрузить таблицу</a> — треки встанут сами.</div>`;
+    <div class="cab-emp-foot"><i class="ti ti-file-spreadsheet"></i>Есть таблица треков от карго? <a href="#" onclick="cabUploadOpen();return false">Загрузить таблицу</a> — треки встанут сами.</div>
+    <div class="cab-cl-bar" style="margin-top:18px"><button type="button" class="cab-eb cab-new-big" onclick="cabNewShipOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>`;
 }
 function cabEmptyClients() {
   return `<div class="cab-main-title">Клиенты</div>
