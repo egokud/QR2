@@ -16,6 +16,10 @@
       "destination": "/extension.html"
     },
     {
+      "source": "/help",
+      "destination": "/help.html"
+    },
+    {
       "source": "/about",
       "destination": "/about.html"
     },

@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Инструкция Piksta — как пользоваться</title>
+<meta name="description" content="Полная инструкция Piksta: закупки, расширение для Pinduoduo, сканирование на складе, взвешивание, расчёт с клиентами и оплаты.">
+<link rel="icon" type="image/x-icon" href="/favicon.ico?v=5">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--ink:#17142a;--mut:#5f5a74;--line:#ece9f3;--acc:#6C4DB8;--soft:#f0ecf9;--bg:#fbfaf7;--ok:#15803d;--okS:#f0fdf4;--warn:#b45309;--warnS:#fffbeb}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;font-family:Inter,"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.6;font-size:16px}
+a{color:var(--acc)}
+.wrap{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:100vh}
+/* боковая колонка */
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--bg);border-right:1px solid var(--line);padding:18px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.lg{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--acc);font-size:17px;text-decoration:none}.lg img{width:30px;height:30px;border-radius:8px}.lg small{color:var(--mut);font-weight:500;font-size:13.5px}
+.sr{display:flex;align-items:center;gap:8px;border:1.5px solid #e5e1ef;background:#fff;border-radius:11px;padding:0 10px}
+.sr i{color:#9a95ad;font-size:18px}.sr input{flex:1;border:0;outline:none;font:inherit;font-size:14.5px;height:40px;background:none;color:var(--ink)}
+.sr:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px var(--soft)}
+.toc{display:flex;flex-direction:column;gap:1px;font-size:14.5px}
+.toc a{display:flex;gap:9px;align-items:baseline;padding:6px 9px;border-radius:9px;color:#3b3650;text-decoration:none}
+.toc a b{width:20px;flex:none;color:#9a95ad;font-weight:600;font-size:13px}
+.toc a:hover{background:#f3f0fa}
+.toc a.on{background:var(--soft);color:var(--acc);font-weight:600}.toc a.on b{color:var(--acc)}
+.toc a.soon{color:#a9a4bb}.toc a.soon em{margin-left:auto;font-style:normal;font-size:11px;background:#f1f0f5;border-radius:6px;padding:0 6px;color:#9a95ad}
+.toc .sub{display:none;flex-direction:column;gap:3px;padding:2px 0 8px 38px;font-size:13.5px}
+.toc .sub a{padding:2px 0;color:var(--mut);border-radius:0}.toc .sub a:hover{background:none;color:var(--acc)}.toc .sub a.on{background:none;color:var(--acc);font-weight:600}
+.toc .grp.open .sub{display:flex}
+.side .foot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--mut)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--acc);color:#fff;border:0;border-radius:11px;padding:10px 14px;font:inherit;font-weight:600;font-size:14.5px;text-decoration:none;cursor:pointer}
+.btn.gh{background:#fff;color:var(--acc);border:1.5px solid #ddd5f3}
+/* основная колонка */
+main{padding:34px 48px 80px;max-width:1080px}
+.hero h1{font-size:34px;line-height:1.15;margin:0 0 8px;letter-spacing:-.02em}
+.hero p{margin:0;color:var(--mut);font-size:17px;max-width:760px}
+.hero .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.hero .chips a{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:14px;font-weight:600;text-decoration:none;color:#3b3650;background:#fff}
+.hero .chips a i{color:var(--acc);font-size:17px}
+section.ch{border-top:1px solid var(--line);margin-top:42px;padding-top:30px}
+.ch>h2{font-size:28px;margin:0 0 6px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:12px}
+.ch>h2 span{color:var(--acc);font-size:22px}
+.ch>p.lead{margin:0 0 6px;color:var(--mut);font-size:16.5px;max-width:780px}
+.sub-s{margin-top:28px}
+.sub-s h3{font-size:20px;margin:0 0 10px;display:flex;align-items:center;gap:9px}
+.sub-s h3 i{font-style:normal;font-size:12.5px;font-weight:700;color:var(--acc);background:var(--soft);border-radius:7px;padding:2px 8px}
+.sub-s p{margin:0 0 10px;max-width:780px}
+.sub-s ul,.sub-s ol{margin:0 0 12px;padding-left:22px;max-width:780px}.sub-s li{margin:4px 0}
+.steps{counter-reset:s;list-style:none;padding:0!important}
+.steps li{counter-increment:s;position:relative;padding-left:36px;margin:8px 0!important}
+.steps li:before{content:counter(s);position:absolute;left:0;top:1px;width:24px;height:24px;border-radius:12px;background:var(--acc);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.kb{display:inline-block;background:var(--soft);color:#5b3fb0;border-radius:6px;padding:0 7px;font-weight:600;font-size:.94em;white-space:nowrap}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;background:#f3f1f8;border-radius:5px;padding:1px 6px}
+.tip,.warn,.info{border-radius:0 12px 12px 0;padding:11px 14px;margin:12px 0;max-width:780px;font-size:15px}
+.tip{border-left:4px solid #16a34a;background:var(--okS)}.tip b:first-child{color:var(--ok)}
+.warn{border-left:4px solid #f59e0b;background:var(--warnS)}.warn b:first-child{color:var(--warn)}
+.info{border-left:4px solid var(--acc);background:#f7f5fd}.info b:first-child{color:var(--acc)}
+.shot{margin:14px 0 18px;border:1px solid var(--line);border-radius:14px;background:#f7f8fa;padding:8px;max-width:900px}
+.shot img{display:block;width:100%;height:auto;border-radius:9px}
+.shot figcaption{font-size:13px;color:var(--mut);text-align:center;margin-top:7px}
+.shot.ph{max-width:300px}
+.shots{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}.shots .shot{flex:0 1 280px;margin:14px 0 6px}
+.two{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:22px;align-items:start;max-width:900px}
+.two .shot{margin-top:0}
+table.t{border-collapse:collapse;margin:8px 0 14px;font-size:15px;max-width:780px;width:100%}
+table.t td,table.t th{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+table.t th{font-size:13px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+table.t td:first-child{font-weight:600;white-space:nowrap}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:600}.st i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.soonbox{border:1.5px dashed #d9d1f1;border-radius:14px;padding:16px 18px;color:var(--mut);max-width:780px;background:#fcfbff}
+.nav{display:flex;justify-content:space-between;gap:12px;margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-weight:600}
+.nav a{text-decoration:none}
+mark{background:#fff1a8;border-radius:3px;padding:0 1px}
+.hide{display:none!important}
+#nores{display:none;color:var(--mut);margin-top:30px}
+.top-m{display:none}
+/* телефон */
+@media (max-width:860px){
+  .wrap{display:block}
+  .side{position:sticky;top:0;z-index:20;height:auto;padding:10px 12px;gap:8px;border-right:0;border-bottom:1px solid var(--line);flex-direction:column}
+  .side .toc,.side .foot{display:none}
+  .top-m{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.top-m::-webkit-scrollbar{display:none}
+  .top-m a{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600;color:#3b3650;text-decoration:none}
+  .top-m a.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  main{padding:20px 16px 60px}
+  .hero h1{font-size:27px}.ch>h2{font-size:23px}.sub-s h3{font-size:18px}
+  .two{grid-template-columns:1fr}
+  .shot.ph,.shots .shot{max-width:290px;margin-left:auto;margin-right:auto}
+  .shots{justify-content:center}
+}
+@media print{.side{display:none}.wrap{display:block}main{padding:0;max-width:none}section.ch{break-before:page}.shot{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside class="side">
+  <a class="lg" href="/app"><img src="/icons/icon-72x72.png" alt="">Piksta <small>· инструкция</small></a>
+  <label class="sr"><i class="ti ti-search"></i><input id="q" type="search" placeholder="Поиск: «переплата», «вес», «расширение»" autocomplete="off"></label>
+  <nav class="top-m" id="topM"></nav>
+  <nav class="toc" id="toc"></nav>
+  <div class="foot">
+    <a class="btn gh" href="/app"><i class="ti ti-arrow-left"></i>Вернуться в Piksta</a>
+    <span>Вопросы — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener">@piksta_support_bot</a> · <a href="mailto:support@piksta.online">support@piksta.online</a></span>
+    <span>Обновлено 03.11.2026</span>
+  </div>
+</aside>
+
+<main id="main">
+<div class="hero">
+  <h1>Как пользоваться Piksta</h1>
+  <p>От регистрации до последней оплаты клиента: закупки, расширение для Pinduoduo, сканирование на складе, взвешивание, расчёт и оплаты. Ищите по слову в строке поиска или выбирайте главу в оглавлении.</p>
+  <div class="chips">
+    <a href="#s1-4"><i class="ti ti-flag"></i>С чего начать</a>
+    <a href="#s2-3"><i class="ti ti-pencil-plus"></i>Закупка вручную</a>
+    <a href="#s3-1"><i class="ti ti-puzzle"></i>Поставить расширение</a>
+    <a href="#s4-2"><i class="ti ti-scan"></i>Сканировать</a>
+    <a href="#s6-4"><i class="ti ti-cash"></i>Оплата за несколько закупок</a>
+  </div>
+</div>
+
+<!-- ============ 1 ============ -->
+<section class="ch" id="ch1" data-t="Первые шаги">
+<h2><span>1</span>Первые шаги</h2>
+<p class="lead">Регистрация, подтверждение почты, где Кабинет и где телефон, и с чего начать в первый день.</p>
+
+<div class="sub-s" id="s1-1" data-t="Регистрация и бесплатный период">
+<h3><i>1.1</i>Регистрация и бесплатный период</h3>
+<ol class="steps"><li>Откройте <b>piksta.online</b> и нажмите <span class="kb">Попробовать</span>.</li><li>Впишите имя, почту и пароль.</li><li>Подтвердите почту (следующий раздел) — и можно работать.</li></ol>
+<p>Первые <b>30 дней бесплатно</b>, открыто всё. Перед концом срока Piksta напомнит о тарифе. Если не продлить — данные сохранятся, а Piksta перейдёт в режим «только просмотр»: всё видно, но менять нельзя.</p>
+</div>
+
+<div class="sub-s" id="s1-2" data-t="Подтвердите e-mail письмо не пришло спам">
+<h3><i>1.2</i>Подтвердите e-mail</h3>
+<figure class="shot" style="max-width:640px"><img src="/help/img/c1_verify.webp" width="1400" height="875" alt="Экран «Подтвердите e-mail»" loading="lazy"><figcaption>Экран после регистрации</figcaption></figure>
+<div>
+<p>После регистрации придёт письмо от <b>noreply@piksta.online</b>. Нажмите в нём ссылку — экран Piksta пропустит дальше сам, за пару секунд, даже если ссылку открыли на другом устройстве.</p>
+<ul><li><b>Нет письма?</b> Проверьте папки «Спам» и «Промоакции», потом нажмите <span class="kb">Отправить ещё раз</span> (не чаще раза в минуту).</li><li><b>Ошиблись в адресе?</b> Нажмите <span class="kb">Изменить</span>, впишите верный — письмо уйдёт на него.</li></ul>
+<div class="info"><b>Зачем это:</b> на почту приходят восстановление пароля и важные сообщения о тарифе. Без подтверждения закупки и клиентов сохранять нельзя.</div>
+</div>
+</div>
+
+<div class="sub-s" id="s1-3" data-t="Кабинет и телефон мобильная версия переключиться">
+<h3><i>1.3</i>Кабинет и телефон</h3>
+<p>У Piksta две части, данные в них общие — что внесли на телефоне, сразу видно на компьютере, и наоборот.</p>
+<table class="t"><tr><th>Где</th><th>Что там</th></tr>
+<tr><td>Кабинет (компьютер)</td><td>Закупки, цены и курсы, взвешивание, расчёт с клиентами, оплаты, клиенты, деньги и аналитика. Всё в таблицах, удобно на большом экране.</td></tr>
+<tr><td>Телефон</td><td>Сканер на складе, закупки, клиенты, оплаты и деньги — коротко и одной рукой.</td></tr></table>
+<ul><li>С телефона в Кабинет — кнопка <span class="kb">Кабинет</span> вверху экрана.</li><li>Из Кабинета на телефонный вид — <span class="kb">Мобильная версия</span> внизу меню слева.</li><li>Piksta запоминает, где вы работали в последний раз, и открывает там же.</li></ul>
+</div>
+
+<div class="sub-s" id="s1-4" data-t="С чего начать первый день подсказки">
+<h3><i>1.4</i>С чего начать</h3>
+<figure class="shot"><img src="/help/img/c1_start.webp" width="1400" height="875" alt="Обзор: С чего начать" loading="lazy"><figcaption>Обзор, пока закупок ещё нет</figcaption></figure>
+<p>Пока закупок нет, в каждом разделе Кабинета написано, что там появится и что сделать сейчас. Главное — <b>создать первую закупку</b>: <span class="kb">Перейти в «Закупки»</span> и выберите способ — импорт с Pinduoduo или вручную (глава <a href="#ch2">2</a>).</p>
+<p>При первом входе Piksta покажет короткие <b>подсказки</b> по разделам. Пройти их заново — пункт <span class="kb">Подсказки</span> в меню Кабинета или «Ещё» → «Подсказки по интерфейсу» на телефоне (первые два месяца).</p>
+</div>
+
+<div class="sub-s" id="s1-5" data-t="Помощь поддержка связаться telegram">
+<h3><i>1.5</i>Помощь и связь</h3>
+<p>Кнопка <span class="kb">Помощь</span> есть справа вверху на каждой странице Кабинета, на телефоне — «Ещё» → «Помощь и связь». Там:</p>
+<ul><li>эта инструкция;</li><li>Telegram-бот поддержки <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener">@piksta_support_bot</a> — отвечаем людьми, не роботом;</li><li>почта <a href="mailto:support@piksta.online">support@piksta.online</a>;</li><li>расширение для Chrome.</li></ul>
+<div class="tip"><b>Совет:</b> пишете в поддержку — пришлите снимок экрана, так разберёмся быстрее.</div>
+</div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="ch" id="ch2" data-t="Закупки">
+<h2><span>2</span>Закупки</h2>
+<p class="lead">Закупка — это одна отправка карго: всё, что едет одной партией. Её путь и всё, что с ней можно сделать.</p>
+
+<div class="sub-s" id="s2-1" data-t="Статусы закупки формируется в дороге на складе рассортирована архив">
+<h3><i>2.1</i>Путь закупки: статусы</h3>
+<table class="t"><tr><th>Статус</th><th>Что значит</th></tr>
+<tr><td><span class="st"><i style="background:#4a90d9"></i>Формируется</span></td><td>Собираете заказы. Сканер для неё выключен — посылки ещё у продавцов.</td></tr>
+<tr><td><span class="st"><i style="background:#d4a106"></i>В дороге</span></td><td>Карго забрало посылки. Сканер включён. Бывает «Задерживается».</td></tr>
+<tr><td><span class="st"><i style="background:#3cb371"></i>На складе</span></td><td>Приехало — сканируете и раскладываете по пакетам.</td></tr>
+<tr><td><span class="st"><i style="background:#8b7fd4"></i>Рассортирована</span></td><td>Всё разложено. С этого момента клиентам выставлен долг: видно, кто сколько должен.</td></tr>
+<tr><td><span class="st"><i style="background:#9aa0ab"></i>Архив</span></td><td>Выдано и оплачено. Закупка уходит из активных, цифры остаются в статистике.</td></tr></table>
+<p>Статус меняется в выпадающем списке на странице закупки (Кабинет) или в шторке закупки (телефон).</p>
+</div>
+
+<div class="sub-s" id="s2-2" data-t="Создать закупку способы новая">
+<h3><i>2.2</i>Три способа создать закупку</h3>
+<figure class="shot"><img src="/help/img/c2_empty.webp" width="1400" height="875" alt="Закупки: выбор способа" loading="lazy"><figcaption>Кабинет: пока закупок нет — выбор пути и гайды</figcaption></figure>
+<ul><li><b>С Pinduoduo через расширение</b> — треки, фото и цены приходят сами. Подробно — глава <a href="#ch3">3</a>.</li><li><b>Вручную</b> — для Taobao, 1688, Poizon и любых площадок (<a href="#s2-3">2.3</a>).</li><li><b>Таблицей от карго</b> — Excel или CSV с треками (<a href="#s2-4">2.4</a>).</li></ul>
+<p>На телефоне — кнопка <span class="kb">+ Новая</span> в разделе «Закупки». Короткие гайды на одну страницу: <a href="/guides/piksta-start-pinduoduo.pdf" target="_blank" rel="noopener">с Pinduoduo</a> и <a href="/guides/piksta-start-vse-ploshchadki.pdf" target="_blank" rel="noopener">любые площадки</a>.</p>
+</div>
+
+<div class="sub-s" id="s2-3" data-t="Закупка вручную трек камера клиент добавить позицию черновик">
+<h3><i>2.3</i>Закупка вручную</h3>
+<div class="two">
+<figure class="shot"><img src="/help/img/m2_manual.webp" width="585" height="1266" alt="Форма ручной закупки" loading="lazy"><figcaption>Форма товаров — и на телефоне, и в Кабинете</figcaption></figure>
+<div>
+<ol class="steps"><li>Кабинет: <span class="kb">Создать вручную</span>. Телефон: <span class="kb">+ Новая</span> → «Создать вручную».</li><li>Название — можно оставить как есть, дата подставится сама.</li><li><b>Трек</b> — вписать или снять камерой (значок справа в поле). Это главное: по нему найдётся посылка.</li><li>По желанию: название (1–3 слова), выкуп в ¥, фото.</li><li><b>Клиент</b> — имя. Piksta подсказывает уже знакомые имена.</li><li><span class="kb">Добавить позицию</span> — форма очистится для следующей.</li><li>Всё внесли — <span class="kb">Сохранить закупку</span>.</li></ol>
+<div class="tip"><b>Посылка на двоих:</b> пишите через «и» — «Анна и Света». При скане Piksta напомнит разложить по двум пакетам. Свои покупки — клиент «Я».</div>
+<div class="info"><b>Черновик:</b> закрыли форму, не сохранив, — Piksta предложит выйти с черновиком, и он вернётся при следующем открытии.</div>
+</div></div>
+</div>
+
+<div class="sub-s" id="s2-4" data-t="Загрузить таблицу excel csv карго">
+<h3><i>2.4</i>Закупка из таблицы карго</h3>
+<p>Есть таблица треков от карго — <span class="kb">Загрузить таблицу</span> (на пустом экране «Закупки» в Кабинете или «+ Новая» на телефоне). Файл Excel или CSV: <b>первая колонка — трек, вторая — клиент</b>. Название закупки впишите сами.</p>
+</div>
+
+<div class="sub-s" id="s2-5" data-t="Список закупок найти посылку поиск по треку">
+<h3><i>2.5</i>Список закупок и поиск посылки</h3>
+<figure class="shot"><img src="/help/img/c2_list.webp" width="1400" height="875" alt="Кабинет: раздел Закупки" loading="lazy"><figcaption>Кабинет → «Закупки»</figcaption></figure>
+<ul><li><b>Поиск посылки</b> — строка вверху. Трек целиком, его часть или последние цифры. Ошиблись в 1–2 цифрах — покажет похожие. Ищет во всех закупках, кроме архива.</li><li><b>Сейчас в работе</b> — сколько закупок на каждом этапе, дольше всех в пути, средний вес товара.</li><li><b>Таблица</b> — у каждой закупки: должны, прибыль, <b>оплаты</b> («3 не оплатили», «Все оплатили»), позиции, клиенты. Фильтры: Все, Активные, Архив.</li></ul>
+<div class="shots"><figure class="shot ph"><img src="/help/img/m2_ships.webp" width="585" height="1266" alt="Телефон: закупки" loading="lazy"><figcaption>Телефон → «Закупки»</figcaption></figure></div>
+</div>
+
+<div class="sub-s" id="s2-6" data-t="Страница закупки шторка вкладки">
+<h3><i>2.6</i>Страница закупки</h3>
+<figure class="shot"><img src="/help/img/c2_ship.webp" width="1400" height="875" alt="Кабинет: страница закупки" loading="lazy"><figcaption>Кабинет: нажмите на название закупки</figcaption></figure>
+<ul><li>Сверху — путь закупки и главные цифры: позиции, клиенты, вес, сколько должны, прибыль.</li><li>Вкладки: <b>Расчёт</b> (кто сколько должен и оплаты, глава <a href="#ch5">5</a>), <b>Взвешивание</b>, <b>Товары и цены</b> (треки, названия, клиенты, выкуп, цена клиента), <b>Курсы</b>.</li><li>Справа — статус и кнопка <span class="kb">⋯</span>: в архив, скачать расчёт в Excel, удалить.</li></ul>
+<div class="two">
+<figure class="shot"><img src="/help/img/m2_sheet.webp" width="585" height="1266" alt="Телефон: шторка закупки" loading="lazy"><figcaption>Телефон: нажмите на закупку</figcaption></figure>
+<div><p>На телефоне всё в шторке закупки:</p><ul><li>статус и <span class="kb">Сканировать эту закупку</span>;</li><li><b>Позиции закупки</b> — треки, названия, клиенты, цены;</li><li><b>Взвешивание</b> и <b>Расчёт с клиентами</b> (под кнопкой — сколько осталось собрать);</li><li>сверка с карго, фото для работы без интернета, выгрузка для описи, курсы, сброс отметок сканирования, удаление.</li></ul></div></div>
+</div>
+
+<div class="sub-s" id="s2-7" data-t="Курсы закупки курс клиента выкупа доставка базовые">
+<h3><i>2.7</i>Курсы закупки</h3>
+<figure class="shot"><img src="/help/img/c2_rates.webp" width="1400" height="875" alt="Вкладка Курсы" loading="lazy"><figcaption>Закупка → «Курсы»</figcaption></figure>
+<table class="t"><tr><th>Поле</th><th>Что это</th></tr>
+<tr><td>Курс клиента</td><td>Сколько BYN за 1 ¥ платит клиент за товар.</td></tr>
+<tr><td>Курс выкупа</td><td>Сколько BYN за 1 ¥ стоил выкуп вам. Разница с курсом клиента — ваша наценка на товар.</td></tr>
+<tr><td>Доставка клиенту</td><td>BYN за 1 кг — сколько платит клиент.</td></tr>
+<tr><td>Доставка карго</td><td>BYN за 1 кг — сколько платите вы карго.</td></tr></table>
+<p>У каждой закупки свои курсы. Новые закупки берут <b>базовые курсы</b>: в разделе «Деньги» у строки закупки — <span class="kb">⋯</span> → «Сделать курсы базовыми». Курсы архивной закупки не меняются, чтобы не сдвинулась статистика.</p>
+</div>
+
+<div class="sub-s" id="s2-8" data-t="Архив удалить закупку удаление">
+<h3><i>2.8</i>Архив и удаление</h3>
+<div class="shots">
+<figure class="shot" style="flex-basis:430px"><img src="/help/img/c2_more.webp" width="1400" height="875" alt="Меню закупки" loading="lazy"><figcaption><span class="kb">⋯</span> справа от статуса</figcaption></figure>
+<figure class="shot" style="flex-basis:430px"><img src="/help/img/c2_del.webp" width="1400" height="875" alt="Удалить закупку" loading="lazy"><figcaption>Подтверждение удаления</figcaption></figure></div>
+<ul><li><b>В архив</b> — закупка закончилась: выдано и оплачено. Уходит из активных, статистика сохраняется. Вернуть — там же, «Вернуть из архива».</li><li><b>Удалить</b> — закупка создана по ошибке. Удаляется вместе с позициями, весами, оплатами и отметками сканирования. <b>Вернуть нельзя</b>, поэтому Piksta переспросит.</li></ul>
+<div class="warn"><b>Лимит тарифа:</b> пока закупка «Формируется», после удаления место в лимите треков вернётся. Отправленную закупку удалить можно, но её треки останутся в счётчике до конца периода.</div>
+</div>
+<div class="nav"><a href="#ch1">← 1. Первые шаги</a><a href="#ch3">3. Расширение для Chrome →</a></div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="ch" id="ch3" data-t="Расширение для Chrome Pinduoduo импорт">
+<h2><span>3</span>Расширение для Chrome</h2>
+<p class="lead">Расширение забирает ваши заказы с Pinduoduo — треки, фото и цены — и складывает в закупку. Ставится один раз, на компьютере.</p>
+
+<div class="sub-s" id="s3-1" data-t="Установка расширения chrome extensions режим разработчика">
+<h3><i>3.1</i>Установка — 2 минуты</h3>
+<ol class="steps"><li>На компьютере в Chrome откройте <a href="/extension" target="_blank" rel="noopener">piksta.online/extension</a> (или Кабинет → «Настройки» → «Скачать расширение») и скачайте архив.</li><li>Распакуйте — получится папка <b>piksta-extension</b>.</li><li>В Chrome откройте адрес <code>chrome://extensions</code>.</li><li>Справа вверху включите <b>«Режим разработчика»</b>.</li><li>Нажмите <span class="kb">Загрузить распакованное</span> и выберите эту папку.</li><li>Закрепите значок Piksta на панели: значок пазла → булавка.</li></ol>
+</div>
+
+<div class="sub-s" id="s3-2" data-t="Перед импортом вкладки yangkeduo вошли">
+<h3><i>3.2</i>Перед каждым импортом</h3>
+<p>В Chrome должны быть открыты две вкладки, и в обеих вы вошли:</p>
+<ul><li><b>piksta.online</b> — отсюда расширение берёт доступ к вашей базе;</li><li><b>mobile.yangkeduo.com</b> (Pinduoduo) — отсюда читает ваши заказы.</li></ul>
+</div>
+
+<div class="sub-s" id="s3-3" data-t="Даты импорта загрузить">
+<h3><i>3.3</i>Даты и загрузка</h3>
+<figure class="shot"><img src="/help/img/c3_start.webp" width="1120" height="504" alt="Страница импорта" loading="lazy"></figure>
+<p>Нажмите значок Piksta — откроется страница импорта. <b>С</b> и <b>По</b> — даты <b>заказов</b> на Pinduoduo, которые едут в этой отправке. Обычно «С» — день после прошлой закупки.</p>
+<div class="tip"><b>Не бойтесь ошибиться с датой:</b> расширение само смотрит ещё на 3 недели раньше и забирает заказы, которые продавец отправил поздно. Дублей не будет — треки, которые уже есть в Piksta, не добавятся.</div>
+</div>
+
+<div class="sub-s" id="s3-4" data-t="Что загрузилось новых уже в piksta поздно отправлен">
+<h3><i>3.4</i>Что загрузилось</h3>
+<figure class="shot" style="max-width:640px"><img src="/help/img/c3_loaded.webp" width="1120" height="2060" alt="Результат загрузки" loading="lazy"></figure>
+<ul><li><b>всего в PDD</b> — заказы с треками за выбранные даты;</li><li><b>новых</b> — их ещё нет ни в одной закупке, они и пойдут в импорт;</li><li><b>уже в Piksta</b> — уже лежат в какой-то закупке, второй раз не добавятся.</li><li><b>Подхвачен заказ, который продавец отправил поздно</b> — у него появился трек.</li><li><b>Заказ ещё не отправлен продавцом</b> — трека пока нет. Расширение запомнит его и заберёт при следующем импорте.</li></ul>
+</div>
+
+<div class="sub-s" id="s3-5" data-t="Сверка с файлом карго xlsx без картинки пропущено">
+<h3><i>3.5</i>Сверка с файлом карго</h3>
+<div class="shots"><figure class="shot" style="flex-basis:430px"><img src="/help/img/c3_cargo.webp" width="1008" height="698" alt="Сверка с карго" loading="lazy"></figure><figure class="shot" style="flex-basis:430px"><img src="/help/img/c3_cargo_deep.webp" width="1008" height="630" alt="Поиск за 3 месяца" loading="lazy"></figure></div>
+<p>Чтобы в закупку попало ровно то, что отправило карго: <span class="kb">Выбрать .xlsx</span> → таблица от карго → <span class="kb">Сравнить</span>.</p>
+<ul><li><b>с картинкой</b> — нашлись в ваших заказах, будут с фото и ценой;</li><li><b>без картинки</b> — есть у карго, но нет в заказах за эти даты. Нажмите <span class="kb">Поискать за 3 месяца</span>. Не нашлось и там — скорее всего, заказано с другого аккаунта или площадки: трек добавится без фото, цену впишете сами;</li><li><b>пропущено</b> — заказ есть, а карго его ещё не получило. Попадёт в следующую закупку.</li></ul>
+</div>
+
+<div class="sub-s" id="s3-6" data-t="Раскладка по клиентам проставить склады сохранить в piksta">
+<h3><i>3.6</i>Раскладка по клиентам и сохранение</h3>
+<figure class="shot" style="max-width:640px"><img src="/help/img/c3_assign.webp" width="1400" height="1711" alt="Раскладка по клиентам" loading="lazy"></figure>
+<ol class="steps"><li><span class="kb">Проставить склады</span> → <b>новая закупка</b> или добавить в существующую.</li><li>У каждого товара впишите клиента. Piksta подсказывает имена, которые уже были.</li><li>Несколько товаров одному клиенту — отметьте галочки слева и впишите имя один раз.</li><li><span class="kb">Сохранить в Piksta</span> — закупка появится в Кабинете и на телефоне.</li></ol>
+<ul><li><b>Цена клиента</b> — если продаёте дороже закупки. Пусто — считается по цене выкупа и вашему курсу для клиента.</li><li>Закрыли вкладку — черновик сохранится и вернётся.</li></ul>
+</div>
+
+<div class="sub-s" id="s3-7" data-t="Обновить расширение версия">
+<h3><i>3.7</i>Обновление расширения</h3>
+<p>Скачайте новую версию там же, загрузите новую папку через «Загрузить распакованное», старое расширение удалите. Данные не пропадут — они в базе Piksta, а не в расширении. Номер версии — внизу страницы импорта.</p>
+</div>
+<div class="nav"><a href="#ch2">← 2. Закупки</a><a href="#ch4">4. Склад и сканирование →</a></div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="ch" id="ch4" data-t="Склад и сканирование">
+<h2><span>4</span>Склад и сканирование</h2>
+<p class="lead">Открыли коробку от карго — сканируете посылку, Piksta показывает фото и в чей пакет её класть. С телефона.</p>
+
+<div class="sub-s" id="s4-1" data-t="Выбрать закупку сканер выключен замок">
+<h3><i>4.1</i>Какую закупку сканируете</h3>
+<div class="two">
+<figure class="shot"><img src="/help/img/m4_lock.webp" width="585" height="1266" alt="Сканер выключен" loading="lazy"><figcaption>Закупка ещё формируется</figcaption></figure>
+<div><p>Вверху экрана «Сканер» — <b>«Сканирую закупку»</b>. Нажмите, чтобы выбрать другую.</p><p>Пока закупка <b>«Формируется»</b>, сканер для неё выключен — посылки ещё у продавцов. Карго забрало посылки — нажмите <span class="kb">Закупка отправлена → «В дороге»</span>, и сканер включится. Нужно разобрать другую закупку — кнопка «Сканировать …» переключит на неё.</p></div></div>
+</div>
+
+<div class="sub-s" id="s4-2" data-t="Сканировать пистолет камера вручную счётчик">
+<h3><i>4.2</i>Сканирование</h3>
+<div class="two">
+<figure class="shot"><img src="/help/img/m4_scan.webp" width="585" height="1266" alt="Сканер готов" loading="lazy"><figcaption>Экран «Сканер»</figcaption></figure>
+<div><ul><li><b>31 / 84</b> — сколько посылок отмечено и сколько всего. Нажмите на счётчик — откроется список оставшихся.</li><li><b>Пистолет-сканер</b> (Bluetooth или USB) — просто сканируйте, поле всегда готово.</li><li><b>Камера</b> — кнопка с фотоаппаратом рядом с полем.</li><li><b>Вручную</b> — последние 4–6 цифр трека и <span class="kb">Найти</span>. Если подходят несколько, Piksta предложит выбрать.</li><li><b>Последние отметки</b> — что вы только что отсканировали.</li></ul></div></div>
+</div>
+
+<div class="sub-s" id="s4-3" data-t="После скана имя клиента следующая посылка отменить отметку">
+<h3><i>4.3</i>После скана</h3>
+<div class="shots">
+<figure class="shot ph"><img src="/help/img/m4_result.webp" width="585" height="1266" alt="Результат скана" loading="lazy"><figcaption>Чья посылка</figcaption></figure>
+<figure class="shot ph"><img src="/help/img/m4_already.webp" width="585" height="1266" alt="Уже отмечено" loading="lazy"><figcaption>Повторный скан</figcaption></figure></div>
+<ul><li>Крупно — <b>имя клиента</b> и фото товара. Кладите посылку в его пакет.</li><li><b>×2</b> — под треком несколько вещей, проверьте, что положили все. Посылка на двоих — Piksta напомнит разложить.</li><li><span class="kb">Следующая посылка</span> — или просто сканируйте следующую, экран сменится сам.</li><li><span class="kb">Отменить отметку</span> — если отсканировали не ту.</li><li><b>«Уже отмечено»</b> — эту посылку уже сканировали, ничего не изменилось.</li><li><b>«Нет в этой закупке»</b> — найдите трек поиском в «Закупках»: возможно, он в другой закупке.</li></ul>
+</div>
+
+<div class="sub-s" id="s4-4" data-t="Без интернета скачать фото офлайн">
+<h3><i>4.4</i>Склад без интернета</h3>
+<p>Заранее, на Wi-Fi: шторка закупки → <span class="kb">Скачать фото для работы без интернета</span>. На складе фото будут видны без связи, а отметки отправятся, когда связь появится.</p>
+</div>
+
+<div class="sub-s" id="s4-5" data-t="Опись таможня выгрузить сверка с карго телефон">
+<h3><i>4.5</i>Опись и сверка с карго</h3>
+<ul><li><span class="kb">Выгрузить для описи</span> — фото и таблица товаров закупки для таможенной описи.</li><li><span class="kb">Сверка с карго</span> — сравнить закупку с таблицей карго прямо с телефона.</li></ul>
+</div>
+
+<div class="sub-s" id="s4-6" data-t="Вид сканера компактный снизу лента тёмная тема">
+<h3><i>4.6</i>Вид сканера под себя</h3>
+<p>«Ещё» → <b>«Вид сканера»</b>: <b>Компактный</b>; <b>Сканер снизу</b> — поле у большого пальца, удобно одной рукой; <b>Лента</b> — закупки карточками вверху. Там же тёмная тема.</p>
+</div>
+<div class="nav"><a href="#ch3">← 3. Расширение</a><a href="#ch5">5. Взвешивание и расчёт →</a></div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="ch" id="ch5" data-t="Взвешивание и расчёт">
+<h2><span>5</span>Взвешивание и расчёт с клиентами</h2>
+<p class="lead">Приехало — взвешиваете пакеты клиентов, и Piksta считает, кто сколько должен за товар и доставку.</p>
+
+<div class="sub-s" id="s5-1" data-t="Взвешивание вес клиента тара вес от карго вес в цене">
+<h3><i>5.1</i>Взвешивание</h3>
+<figure class="shot"><img src="/help/img/c5_weigh.webp" width="1400" height="875" alt="Вкладка Взвешивание" loading="lazy"><figcaption>Кабинет: закупка → «Взвешивание»</figcaption></figure>
+<ol class="steps"><li><b>Вес от карго</b> — сколько весит вся партия по накладной карго, в граммах.</li><li><b>Вес каждого клиента</b> — взвесьте пакет и впишите граммы в строку клиента.</li><li><b>Тара</b> — коробки и упаковка карго. Впишите вес тары или поставьте «Тара 8%». Не вписали — Piksta сама посчитает тару как «вес от карго минус вес клиентов» и разделит между клиентами по весу.</li></ol>
+<ul><li><b>Вес в цене</b> — доставка уже включена в цену товара для этого клиента: отдельно её не начисляем.</li><li>Справа: сколько клиентов взвешено, вес клиентов, тара, вес от карго. «Все взвешены — расчёт готов».</li><li>На телефоне — шторка закупки → <span class="kb">Взвешивание</span>.</li></ul>
+</div>
+
+<div class="sub-s" id="s5-2" data-t="Как считается долг формула товар доставка прибыль">
+<h3><i>5.2</i>Как считается, сколько должен клиент</h3>
+<table class="t"><tr><th>Часть</th><th>Как считаем</th></tr>
+<tr><td>Товар</td><td>Сумма в ¥ (цена клиента, а если её нет — выкуп) × курс клиента.</td></tr>
+<tr><td>Доставка</td><td>(Вес клиента + его доля тары, вверх до 50 г) × доставка клиенту за кг.</td></tr>
+<tr><td>Должен</td><td>Товар + доставка.</td></tr>
+<tr><td>Прибыль</td><td>Должен минус себестоимость: выкуп по вашему курсу и доставка по цене карго.</td></tr></table>
+<div class="info"><b>До взвешивания</b> Piksta показывает примерные суммы со знаком «≈» — только товар. Точный долг появляется, когда клиент взвешен.</div>
+</div>
+
+<div class="sub-s" id="s5-3" data-t="Вкладка расчёт собрано с клиентов все оплатили pdf">
+<h3><i>5.3</i>Расчёт в Кабинете</h3>
+<figure class="shot"><img src="/help/img/c5_calc.webp" width="1400" height="875" alt="Вкладка Расчёт" loading="lazy"><figcaption>Кабинет: закупка → «Расчёт»</figcaption></figure>
+<ul><li>Сверху: <b>собрано с клиентов</b> из общей суммы, сколько осталось собрать, прибыль, тара.</li><li>По каждому клиенту: позиции, вес с долей тары, товар, доставка, <b>должен</b>, прибыль, остаток, оплата, условия.</li><li><span class="kb">Все оплатили</span> — отметить всех разом (Piksta переспросит). <span class="kb">PDF</span> — расчёт файлом, например чтобы отправить в чат.</li></ul>
+</div>
+
+<div class="sub-s" id="s5-4" data-t="Условия это я по себестоимости правило клиента">
+<h3><i>5.4</i>Условия клиента</h3>
+<table class="t"><tr><th>Галочка</th><th>Что делает</th></tr>
+<tr><td>Это я</td><td>Ваши личные покупки: не долг и не доход. Себестоимость уходит в расходы.</td></tr>
+<tr><td>Товар</td><td>Товар по себестоимости — без наценки на курсе. Для родных и своих.</td></tr>
+<tr><td>Доставка</td><td>Доставка по цене карго, без вашей наценки.</td></tr></table>
+<p>Галочки в колонке «Условия» действуют на эту закупку. Постоянное правило для человека — в его карточке (раздел «Клиенты»): оно применяется к формирующимся и новым закупкам.</p>
+</div>
+
+<div class="sub-s" id="s5-5" data-t="Исправить сумму должен вручную">
+<h3><i>5.5</i>Исправить сумму вручную</h3>
+<p>Договорились о другой сумме — нажмите на сумму в колонке <b>«Должен»</b> (на телефоне — на «Итого к оплате» в шторке клиента), подтвердите и впишите новую. Рядом появится карандаш «исправлено вручную». Оставьте поле пустым — вернётся расчётная сумма.</p>
+</div>
+
+<div class="sub-s" id="s5-6" data-t="Расчёт с клиентами телефон поиск фильтры">
+<h3><i>5.6</i>Расчёт с клиентами на телефоне</h3>
+<div class="two">
+<figure class="shot"><img src="/help/img/m5_cc.webp" width="585" height="1266" alt="Расчёт с клиентами" loading="lazy"><figcaption>Шторка закупки → «Расчёт с клиентами»</figcaption></figure>
+<div><ul><li>Сверху — <b>собрано</b> из общей суммы, сколько осталось и сколько человек оплатили.</li><li><b>Поиск</b> по имени и фильтры: Все, Должны, Частично, Оплачено. Кто должен — сверху.</li><li>Справа у каждого — кружок «Оплачено», нажатие на строку — шторка оплаты. Подробно — глава <a href="#ch6">6</a>.</li><li><span class="kb">PDF</span> вверху — расчёт файлом.</li></ul></div></div>
+</div>
+<div class="nav"><a href="#ch4">← 4. Склад</a><a href="#ch6">6. Оплаты клиентов →</a></div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section class="ch" id="ch6" data-t="Оплаты клиентов">
+<h2><span>6</span>Оплаты клиентов</h2>
+<p class="lead">Как отметить, кто сколько заплатил: одной галочкой, частями или одной суммой сразу за несколько закупок. Данные общие — внесли на телефоне, видно в Кабинете.</p>
+
+<div class="sub-s" id="s6-1" data-t="Где вносить оплату">
+<h3><i>6.1</i>Где вносить оплату</h3>
+<table class="t"><tr><th>Откуда</th><th>Когда удобно</th></tr>
+<tr><td>Из закупки</td><td>Собираете деньги по одной закупке со всех: Кабинет — вкладка «Расчёт», телефон — «Расчёт с клиентами».</td></tr>
+<tr><td>Из клиента</td><td>Пишет конкретный человек «я перевела»: раздел «Клиенты» → его карточка. Видно долги по всем закупкам.</td></tr></table>
+<p>Долг выставляется, когда закупка <b>рассортирована</b>. До этого можно вносить предоплату — она зачтётся.</p>
+</div>
+
+<div class="sub-s" id="s6-2" data-t="Оплачено галочка кружок отменить">
+<h3><i>6.2</i>Оплачено полностью</h3>
+<div class="two">
+<figure class="shot"><img src="/help/img/m6_tick.webp" width="585" height="1266" alt="Кружок Оплачено" loading="lazy"><figcaption>Телефон: кружок справа и «Отменить»</figcaption></figure>
+<div><ul><li><b>Кабинет:</b> галочка в колонке «Оплата» — клиент заплатил ровно итог.</li><li><b>Телефон:</b> кружок справа в «Расчёте с клиентами». Внизу 5 секунд висит <span class="kb">Отменить</span> — на случай промаха.</li><li>Кружок с часами — оплачено частично. Нажатие спросит, закрыть ли расчёт со списанием остатка (<a href="#s6-5">6.5</a>).</li><li>Зелёный кружок — оплачено. Нажатие снимает отметку.</li></ul></div></div>
+</div>
+
+<div class="sub-s" id="s6-3" data-t="Частичная оплата предоплата половина весь долг">
+<h3><i>6.3</i>Частичная оплата и предоплата</h3>
+<div class="two">
+<figure class="shot"><img src="/help/img/m6_pay.webp" width="585" height="1266" alt="Шторка оплаты" loading="lazy"><figcaption>Телефон: нажмите на строку клиента</figcaption></figure>
+<div>
+<p><b>Телефон:</b> в шторке впишите, сколько клиент заплатил <b>сейчас</b>. Суммы копятся: заплатила 20, потом ещё 30 — будет 50. Кнопки <span class="kb">Весь долг</span> и <span class="kb">Половина</span>. Piksta заранее покажет, останется ли долг.</p>
+<p>В шторке видно, из чего сумма (товар, доставка, вес с тарой), и есть галочки условий, «Карточка клиента» и «Сбросить оплату».</p>
+<div class="warn"><b>Кабинет считает иначе:</b> в поле «Оплачено» вписывается <b>вся сумма, оплаченная на сегодня</b>, а не добавка. Было 20, доплатила 30 — впишите 50.</div>
+</div></div>
+</div>
+
+<div class="sub-s" id="s6-4" data-t="Одна сумма на все закупки внести оплату должна всего">
+<h3><i>6.4</i>Одна сумма на все закупки клиента</h3>
+<figure class="shot"><img src="/help/img/c6_cfifo.webp" width="1400" height="875" alt="Оплата по всем закупкам" loading="lazy"><figcaption>Клиенты → карточка → «Внести оплату»</figcaption></figure>
+<ol class="steps"><li>Откройте <span class="kb">Клиенты</span> и нажмите на человека.</li><li>Если он должен по двум и больше закупкам, сверху видно <b>«Должна всего»</b> и кнопку <span class="kb">Внести оплату</span>.</li><li>Впишите, сколько он дал сейчас. Ниже Piksta покажет, какая закупка закроется, а где останется долг.</li><li><span class="kb">Записать</span>. Ошиблись — <span class="kb">Отменить</span> внизу, 5 секунд.</li></ol>
+<div class="tip"><b>Порядок:</b> деньги гасят долги от самой старой рассортированной закупки к новой. Закупки в пути не трогаются. Нужно оплатить именно одну закупку — кнопка «Оплата» у неё в списке ниже.</div>
+</div>
+
+<div class="sub-s" id="s6-5" data-t="Переплата списание простить остаток сверху">
+<h3><i>6.5</i>Переплата и списание</h3>
+<ul><li><b>Заплатил больше</b> — впишите реальную сумму. Piksta спросит и засчитает разницу в прибыль этой закупки («+5 сверху»).</li><li><b>Заплатил меньше и больше не доплатит</b> — Кабинет: впишите сумму и поставьте «Оплачено», подтвердите списание. Телефон: галочка <b>«Простить остаток»</b> в шторке. Расчёт закроется, прибыль станет меньше на остаток («списано»).</li><li><b>Предоплата или клиент ещё доплатит</b> — просто впишите сумму, долг останется.</li></ul>
+</div>
+
+<div class="sub-s" id="s6-6" data-t="Ошиблись сбросить оплату отменить">
+<h3><i>6.6</i>Ошиблись с оплатой</h3>
+<ul><li>Сразу после записи — <span class="kb">Отменить</span> внизу экрана.</li><li>Позже: телефон — шторка клиента → <span class="kb">Сбросить оплату</span>; Кабинет — снимите галочку или очистите поле «Оплачено».</li></ul>
+</div>
+
+<div class="sub-s" id="s6-7" data-t="Напомнить клиенту сообщение">
+<h3><i>6.7</i>Напомнить клиенту</h3>
+<p>В карточке клиента — <span class="kb">Напомнить</span>. Piksta скопирует вежливое сообщение с суммой: вставьте его в переписку с клиентом.</p>
+</div>
+<div class="nav"><a href="#ch5">← 5. Взвешивание и расчёт</a><a href="#ch7">7. Клиенты →</a></div>
+</section>
+
+<!-- ============ 7–11: готовятся ============ -->
+<section class="ch" id="ch7" data-t="Клиенты" data-soon="1"><h2><span>7</span>Клиенты</h2><div class="soonbox">Глава готовится: карточка клиента, контакты и заметка, добавить клиента заранее, объединение дублей, папки, сегменты «новые / активные / забытые».</div></section>
+<section class="ch" id="ch8" data-t="Деньги и аналитика" data-soon="1"><h2><span>8</span>Деньги и аналитика</h2><div class="soonbox">Глава готовится: деньги в обороте, наценка, кто должен, прибыль по закупкам и клиентам.</div></section>
+<section class="ch" id="ch9" data-t="Тариф и оплата" data-soon="1"><h2><span>9</span>Тариф и оплата</h2><div class="soonbox">Глава готовится: тарифы Старт / Основной / Профи, лимит треков, как оплатить и продлить.</div></section>
+<section class="ch" id="ch10" data-t="Настройки" data-soon="1"><h2><span>10</span>Настройки</h2><div class="soonbox">Глава готовится: имя, валюта, тёмная тема, смена пароля, помощь и связь.</div></section>
+<section class="ch" id="ch11" data-t="Частые вопросы" data-soon="1"><h2><span>11</span>Частые вопросы</h2><div class="soonbox">Глава готовится: что делать, если что-то пошло не так.</div></section>
+<p id="nores">Ничего не нашли. Попробуйте другое слово или напишите в <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener">поддержку</a>.</p>
+</main>
+</div>
+
+<script>
+(function () {
+  const secs = [...document.querySelectorAll('section.ch')];
+  const toc = document.getElementById('toc'), topM = document.getElementById('topM');
+  // оглавление
+  toc.innerHTML = secs.map(s => {
+    const n = s.id.slice(2), soon = s.dataset.soon;
+    const subs = [...s.querySelectorAll('.sub-s')].map(x => `<a href="#${x.id}" data-sub="${x.id}">${x.querySelector('h3').textContent.replace(/^\d+\.\d+/, '').trim()}</a>`).join('');
+    return `<div class="grp" data-ch="${s.id}"><a href="#${s.id}" class="${soon ? 'soon' : ''}" data-chl="${s.id}"><b>${n}</b>${s.querySelector('h2').textContent.replace(/^\d+/, '').trim()}${soon ? '<em>скоро</em>' : ''}</a>${subs ? `<div class="sub">${subs}</div>` : ''}</div>`;
+  }).join('');
+  topM.innerHTML = secs.map(s => `<a href="#${s.id}" data-chm="${s.id}">${s.id.slice(2)} ${s.querySelector('h2').textContent.replace(/^\d+/, '').trim()}</a>`).join('');
+  // подсветка текущей главы и подраздела
+  let cur = '', curSub = '';
+  const mark = () => {
+    const y = 90; let c = secs[0].id, cs = '';
+    for (const s of secs) if (!s.classList.contains('hide') && s.getBoundingClientRect().top - y <= 0) c = s.id;
+    for (const x of document.querySelectorAll('.sub-s:not(.hide)')) if (x.getBoundingClientRect().top - y <= 0 && x.closest('section').id === c) cs = x.id;
+    if (c === cur && cs === curSub) return; cur = c; curSub = cs;
+    document.querySelectorAll('.toc .grp').forEach(g => { const on = g.dataset.ch === c; g.classList.toggle('open', on); g.querySelector('[data-chl]').classList.toggle('on', on); });
+    document.querySelectorAll('.toc [data-sub]').forEach(a => a.classList.toggle('on', a.dataset.sub === cs));
+    document.querySelectorAll('.top-m a').forEach(a => { const on = a.dataset.chm === c; a.classList.toggle('on', on); if (on) a.scrollIntoView({ inline: 'nearest', block: 'nearest' }); });
+  };
+  addEventListener('scroll', () => requestAnimationFrame(mark), { passive: true }); mark();
+  // поиск
+  const q = document.getElementById('q'), nores = document.getElementById('nores');
+  const subs = [...document.querySelectorAll('.sub-s')];
+  const orig = new Map(subs.map(s => [s, s.innerHTML]));
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let tq = null;
+  q.addEventListener('input', () => { clearTimeout(tq); tq = setTimeout(run, 150); });
+  function run() {
+    const v = q.value.trim().toLowerCase();
+    subs.forEach(s => { s.innerHTML = orig.get(s); });
+    document.querySelectorAll('.hero, .nav, .soonbox, .ch>p.lead').forEach(e => e.classList.toggle('hide', !!v));
+    if (!v) { subs.forEach(s => s.classList.remove('hide')); secs.forEach(s => s.classList.remove('hide')); nores.style.display = 'none'; return; }
+    let any = 0;
+    subs.forEach(s => { const hit = (s.textContent + ' ' + (s.dataset.t || '')).toLowerCase().includes(v); s.classList.toggle('hide', !hit); if (hit) { any++; hl(s, v); } });
+    secs.forEach(s => s.classList.toggle('hide', !s.querySelector('.sub-s:not(.hide)')));
+    nores.style.display = any ? 'none' : 'block';
+    scrollTo(0, 0); cur = ''; mark();
+  }
+  function hl(root, v) {
+    const re = new RegExp(esc(v), 'gi'), walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [];
+    while (walk.nextNode()) if (re.test(walk.currentNode.nodeValue)) nodes.push(walk.currentNode);
+    nodes.forEach(n => { const span = document.createElement('span'); span.innerHTML = n.nodeValue.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(re, m => `<mark>${m}</mark>`); n.replaceWith(span); });
+  }
+  // открыли с #глава — подсказка в оглавлении сразу на месте
+  if (location.hash) setTimeout(mark, 300);
+})();
+</script>
+</body>
+</html>
