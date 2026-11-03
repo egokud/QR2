@@ -1790,6 +1790,8 @@ function cabRenderClientCard(container, name) {
       <div class="cab-stat-card"><div class="cab-stat-val" style="color:#6C4DB8">${cabFmt2(m.unpaidDue)}</div><div class="cab-stat-label">Не оплачено, BYN</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val">${cabFmt2(m.totalDue)}</div><div class="cab-stat-label">Всего за всё время, BYN</div></div>
     </div>
+    ${(() => { const D = cabClientDebts(m); if (D.length < 2) return ''; const tot = D.reduce((n, d) => n + d.rest, 0);
+      return `<div class="cab-fifo-bar"><div><small>Должна всего</small><b>${cabFmt2(tot)} BYN</b><span>по ${D.length} ${cabPl(D.length, 'закупке', 'закупкам', 'закупкам')} · самая старая — ${cabEsc(D[0].ship.name || 'Закупка')}</span></div><button type="button" class="cab-eb ok" onclick="cabFifoOpen('${enc}')"><i class="ti ti-cash"></i>Внести оплату</button></div>`; })()}
     <div class="cab-table-title">Закупки клиента</div>
     <div style="overflow-x:auto;padding-bottom:2px">
       <div class="cab-cships">
@@ -3369,4 +3371,93 @@ async function cabShipDelGo(id) {
   await loadCabinetData();
   if (wasOpen || cabCurrentSection === 'shipments') cabNav('shipments'); else cabRerender();
   if (typeof showToast === 'function') showToast(`Закупка «${(ship && ship.name) || ''}» удалена`);
+}
+
+// ============ ОПЛАТА КЛИЕНТА ПО ВСЕМ ЗАКУПКАМ (03.11.2026) ============
+// Одна сумма «сколько дал сейчас» гасит долги от самой старой рассортированной закупки к новой.
+// Дал больше общего долга — излишек ложится переплатой на самую новую (в рассортированной — в прибыль).
+function cabShipTime(s) {
+  const d = cabShipDate(s); if (d) return d.getTime();
+  const c = s && s.created; if (!c) return 0;
+  const t = c.seconds ? c.seconds * 1000 : new Date(c).getTime();
+  return isFinite(t) ? t : 0;
+}
+// долги клиента (m — строка из cabClientsSummary) по закупкам, старые сначала
+function cabClientDebts(m) {
+  return (m && m.ships || []).filter(x => !x.c.isOwner && cabIsBilled(x.ship) && x.c.payRest > 0.004)
+    .map(x => ({ ship: x.ship, key: x.c.name, due: Math.round((x.c.settle ? x.c.dueBeforeSettle : x.c.due) * 100) / 100, paid: Math.round((x.c.payPaid || 0) * 100) / 100, rest: Math.round(x.c.payRest * 100) / 100 }))
+    .sort((a, b) => cabShipTime(a.ship) - cabShipTime(b.ship));
+}
+function cabFifoPlan(debts, amount) {
+  let left = Math.round((amount || 0) * 100) / 100;
+  const rows = debts.map(d => { const add = Math.min(d.rest, left); left = Math.round((left - add) * 100) / 100; return { ...d, add, after: Math.round((d.rest - add) * 100) / 100 }; });
+  return { rows, extra: left > 0.004 ? left : 0 };
+}
+// записать: возвращает «как было» — для «Отменить»
+async function cabFifoApply(debts, amount) {
+  const P = cabFifoPlan(debts, amount), now = new Date().toISOString(), prev = [];
+  const last = P.rows[P.rows.length - 1];
+  for (const r of P.rows) {
+    const add = r.add + (r === last ? P.extra : 0);
+    if (!(add > 0.004)) continue;
+    const cur = (r.ship.payments || {})[r.key];
+    prev.push([r.ship.id, r.key, cur ? { ...cur } : null]);
+    await cabTxMapField(r.ship.id, 'payments', r.key, { paid: Math.round((r.paid + add) * 100) / 100, at: now });
+  }
+  return { prev, plan: P };
+}
+async function cabFifoUndo(prev) { for (const [id, k, v] of prev) await cabTxMapField(id, 'payments', k, v); }
+function cabFifoRowsHtml(debts, amount, fmt) {
+  const P = cabFifoPlan(debts, amount);
+  const rows = P.rows.map(r => `<div class="r"><span>${cabEsc(r.ship.name || 'Закупка')}<small>${r.add > 0.004 ? fmt(r.paid + r.add) + ' из ' + fmt(r.due) : 'не трогаем'}</small></span>${!(r.add > 0.004) ? `<span class="no">долг ${fmt(r.rest)}</span>` : r.after < 0.005 ? '<span class="ok"><i class="ti ti-circle-check"></i> закрыта</span>' : `<span class="pt">останется ${fmt(r.after)}</span>`}</div>`).join('');
+  const ex = P.extra > 0.004 ? `<div class="r"><span>Переплата ${fmt(P.extra)}<small>на «${cabEsc(P.rows[P.rows.length - 1].ship.name || 'Закупка')}» — засчитаем в прибыль</small></span><span class="ov"><i class="ti ti-trending-up"></i></span></div>` : '';
+  return `<span class="h">Куда пойдут деньги — от старой к новой</span>${rows}${ex}`;
+}
+
+// ---- Кабинет: карточка клиента → «Внести оплату» ----
+let cabFifo = null;
+function cabFifoOpen(enc) {
+  const name = decodeURIComponent(enc);
+  const m = cabClientsSummary().list.find(x => x.name.toLowerCase() === name.toLowerCase()); if (!m) return;
+  const debts = cabClientDebts(m); if (!debts.length) return;
+  const total = Math.round(debts.reduce((n, d) => n + d.rest, 0) * 100) / 100;
+  cabFifo = { name: m.name, debts, total };
+  const ov = document.createElement('div'); ov.className = 'cab-ovl'; ov.id = 'cabFifoOvl';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="cab-dlg cab-fifo">
+    <div class="cab-dlg-h">Оплата · ${cabEsc(cabFullName(m.name))}<button class="cab-dlg-x" onclick="document.getElementById('cabFifoOvl').remove()" aria-label="Закрыть"><i class="ti ti-x"></i></button></div>
+    <div class="cab-fifo-3"><div><small>Должна всего</small><b>${cabFmt2(total)}</b></div><div><small>Дала сейчас</small><b id="cabFifoA" style="color:#16a34a">${cabFmt2(total)}</b></div><div><small>Останется</small><b id="cabFifoL" style="color:#dc2626">0.00</b></div></div>
+    <label class="cab-fifo-l">Сколько дала сейчас, BYN<input id="cabFifoIn" inputmode="decimal" autocomplete="off" value="${total.toFixed(2)}" oninput="cabFifoHint()"></label>
+    <div class="cab-fifo-chips"><button type="button" onclick="cabFifoSet(${total})">Весь долг · ${cabFmt2(total)}</button><button type="button" onclick="cabFifoSet(${debts[0].rest})">Самую старую · ${cabFmt2(debts[0].rest)}</button></div>
+    <div class="cab-fifo-dist" id="cabFifoDist"></div>
+    <div class="cab-dlg-f"><span>Нужна одна закупка — впишите оплату в её строке</span><button class="cab-filter-btn" onclick="document.getElementById('cabFifoOvl').remove()">Отмена</button><button class="cab-filter-btn active" id="cabFifoGo" onclick="cabFifoSave()">Записать</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  cabFifoHint();
+  setTimeout(() => { const i = document.getElementById('cabFifoIn'); if (i) { i.focus(); i.select(); } }, 50);
+}
+const cabFifoVal = () => { const v = parseFloat(String((document.getElementById('cabFifoIn') || {}).value || '').replace(',', '.').replace(/\s/g, '')); return isNaN(v) || v < 0 ? 0 : Math.round(v * 100) / 100; };
+function cabFifoSet(v) { const i = document.getElementById('cabFifoIn'); i.value = (+v).toFixed(2); cabFifoHint(); }
+function cabFifoHint() {
+  if (!cabFifo) return;
+  const a = cabFifoVal(), left = Math.max(0, Math.round((cabFifo.total - a) * 100) / 100);
+  document.getElementById('cabFifoA').textContent = cabFmt2(a);
+  document.getElementById('cabFifoL').textContent = cabFmt2(left);
+  document.getElementById('cabFifoDist').innerHTML = a > 0 ? cabFifoRowsHtml(cabFifo.debts, a, cabFmt2) : '';
+  const b = document.getElementById('cabFifoGo'); b.disabled = !(a > 0); b.textContent = a > 0 ? 'Записать ' + cabFmt2(a) + ' BYN' : 'Записать';
+}
+async function cabFifoSave() {
+  if (!cabFifo) return;
+  const a = cabFifoVal(); if (!(a > 0)) return;
+  const extra = cabFifoPlan(cabFifo.debts, a).extra;
+  if (extra > 0.004 && !confirm(`Общий долг ${cabFmt2(cabFifo.total)} BYN, вы вносите ${cabFmt2(a)}.\n\nЗасчитать переплату ${cabFmt2(extra)} BYN в прибыль по последней закупке?`)) return;
+  const b = document.getElementById('cabFifoGo'); b.disabled = true; b.textContent = 'Сохраняю…';
+  let res;
+  try { res = await cabFifoApply(cabFifo.debts, a); } catch (e) { b.disabled = false; cabFifoHint(); alert('Не удалось сохранить: ' + (e.message || e)); return; }
+  const ov = document.getElementById('cabFifoOvl'); if (ov) ov.remove();
+  const left = Math.max(0, Math.round((cabFifo.total - a) * 100) / 100); cabFifo = null;
+  cabRerender();
+  const msg = left > 0.004 ? `Оплата записана · осталось ${cabFmt2(left)} BYN` : 'Оплата записана · долг закрыт';
+  if (typeof pkUndoToast === 'function') pkUndoToast(msg, async () => { try { await cabFifoUndo(res.prev); cabRerender(); } catch (e) { alert('Не получилось отменить: ' + (e.message || e)); } });
+  else if (typeof showToast === 'function') showToast(msg);
 }

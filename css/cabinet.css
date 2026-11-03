@@ -810,3 +810,15 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-main :is(.cab-start,.cab-start-steps,.cab-start-ghost,.cab-emp-head,.cab-choice,.cab-emp-foot,.cab-emp,.cab-pre) *{white-space:normal}
 .cab-main :is(.cab-eb,.cab-emp-path span,.cab-add-cl){white-space:nowrap}
 .cab-del *,.cab-cl-form *{white-space:normal}
+/* Оплата клиента по всем закупкам (03.11.2026) */
+.cab-fifo-bar{display:flex;align-items:center;gap:16px;background:#fbf1f4;border:1.5px solid #7a1f3d;border-radius:14px;padding:14px 18px;margin:14px 0 4px;white-space:normal}
+.cab-fifo-bar>div{flex:1;display:flex;flex-direction:column;gap:1px}.cab-fifo-bar small{color:#6b7280;font-size:13px}.cab-fifo-bar b{font-size:24px;color:#7a1f3d;line-height:1.15}.cab-fifo-bar span{font-size:13px;color:#6b7280}
+.cab-dlg.cab-fifo{width:480px}.cab-fifo *{white-space:normal}
+.cab-fifo-3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cab-fifo-3 div{background:#f7f8fa;border-radius:10px;padding:8px 10px}.cab-fifo-3 small{display:block;color:#6b7280;font-size:12px}.cab-fifo-3 b{font-size:17px}
+.cab-fifo-l{display:flex;flex-direction:column;gap:5px;margin-top:14px;font-size:13px;color:#6b7280}
+.cab-fifo-l input{border:2px solid #6C4DB8;border-radius:12px;padding:10px 14px;font:inherit;font-size:24px;font-weight:800;color:#1a1a2e;outline:none;box-shadow:0 0 0 3px #ede7fb}
+.cab-fifo-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.cab-fifo-chips button{border:1px solid #e5e7eb;background:#fff;color:#6C4DB8;border-radius:16px;padding:6px 11px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.cab-fifo-dist{display:flex;flex-direction:column;gap:6px;margin-top:12px;background:#f7f8fa;border-radius:12px;padding:10px 12px;font-size:14px}.cab-fifo-dist:empty{display:none}
+.cab-eb.ok{background:#15803d;border-color:#15803d}.cab-eb.ok:hover{background:#166534}

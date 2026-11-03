@@ -446,15 +446,63 @@ function pkRenderClientCard(pane, name) {
   pane.innerHTML = `<button class="pk-btn ghost sm" style="align-self:flex-start" onclick="pkClientOpen=null;pkRender()"><i class="ti ti-chevron-left" aria-hidden="true"></i> Клиенты</button>
     <div class="pk-me"><span class="pk-av" style="width:52px;height:52px;border-radius:26px;font-size:20px">${pkEsc(name.trim().charAt(0).toUpperCase())}</span><div><h1 class="pk-h1" style="font-size:22px">${pkEsc(pkFullName(name))}</h1><div class="pk-muted" style="font-size:14px">${pkEsc(stl)} · ${c.ships.length} ${pkPl(c.ships.length, 'закупка', 'закупки', 'закупок')}</div></div></div>
     ${pkClientContacts(name)}
-    ${debts.map(x => { const due0 = Math.round((x.c.settle ? x.c.dueBeforeSettle : x.c.due) * 100) / 100, pd = x.c.payPaid || 0, pct = due0 > 0 ? Math.min(100, Math.round(pd / due0 * 100)) : 0; const at = (((x.ship.payments || {})[x.c.name] || {}).at || '').slice(0, 10); const atS = at ? ' · ' + at.slice(8, 10) + '.' + at.slice(5, 7) : '';
-      return `<div class="pk-card pk-debt"><div class="pk-row" style="align-items:flex-end"><span style="min-width:0"><small class="pk-muted" style="display:block;font-size:13px">Долг за закупку</small><b>${pkEsc(x.ship.name)}</b></span><b style="font-size:22px;color:var(--pk-due);white-space:nowrap">${pkFmt(x.c.payRest)} ${pkCur()}</b></div>
-      ${pd > 0.004 ? `<div class="pk-pbar"><span style="width:${pct}%"></span></div><div class="pk-muted" style="font-size:13px">Оплачено <b style="color:var(--pk-ok)">${pkFmt(pd)}</b> из ${pkFmt(due0)} ${pkCur()}${atS}</div>` : ''}
+    ${debts.length >= 2 ? pkDebtsAllHtml(c, encN) : debts.map(x => { const due0 = Math.round((x.c.settle ? x.c.dueBeforeSettle : x.c.due) * 100) / 100, pd = x.c.payPaid || 0, pct = due0 > 0 ? Math.min(100, Math.round(pd / due0 * 100)) : 0; const at = (((x.ship.payments || {})[x.c.name] || {}).at || '').slice(0, 10); const atS = at ? ' · ' + at.slice(8, 10) + '.' + at.slice(5, 7) : '';
+      return `<div class="pk-card pk-debt"><div class="pk-row" style="align-items:flex-end"><span style="min-width:0"><small class="pk-muted" style="display:block;font-size:13px">Долг за закупку</small><b>${pkEsc(x.ship.name)}</b></span><b style="font-size:22px;color:var(--pk-due);white-space:nowrap">${pkF2(x.c.payRest)} ${pkCur()}</b></div>
+      ${pd > 0.004 ? `<div class="pk-pbar"><span style="width:${pct}%"></span></div><div class="pk-muted" style="font-size:13px">Оплачено <b style="color:var(--pk-ok)">${pkF2(pd)}</b> из ${pkF2(due0)} ${pkCur()}${atS}</div>` : ''}
       <div class="pk-row" style="margin-top:10px;gap:8px"><button class="pk-btn ok" style="flex:1" onclick="pkPayOpen('${x.ship.id}','${encN}')"><i class="ti ti-cash" aria-hidden="true"></i> Оплата</button><button class="pk-btn ghost" style="flex:1" onclick="pkRemind('${encN}',${Math.round(x.c.payRest * 100) / 100},'${encodeURIComponent(x.ship.name)}')"><i class="ti ti-copy" aria-hidden="true"></i> Напомнить</button></div>
       <div class="pk-muted" style="font-size:12px;margin-top:8px">«Напомнить» копирует вежливое сообщение — вставьте в переписку</div></div>`; }).join('')}
     ${!debts.length ? `<div class="pk-card pk-row"><span>Долгов нет</span><b style="color:var(--pk-ok)">оплачено</b></div>` : ''}
     <div class="pk-lbl">Что заказала сейчас</div>
     <div class="pk-list">${items.map(({ r, ship }) => `<div class="pk-li"><span class="ph" ${r[2] ? `style="background-image:url('${pkEsc(r[2])}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) + ' · ' : ''}${pkEsc(ship.name)} · ${pkSt(ship.status || 'forming').label}</small></div><span class="r">${(parseInt(r[5] || '1', 10) || 1) > 1 ? '×' + r[5] : ''}</span></div>`).join('') || '<div class="pk-empty">Сейчас ничего не заказано</div>'}</div>
     <div class="pk-2"><div class="pk-card"><small>Всего купила</small><b>${pkFmt(totalBought)} ${pkCur()}</b></div><div class="pk-card"><small>Позиций</small><b>${c.totalItems}</b></div></div>`;
+}
+// Несколько долгов: сверху общий, одна кнопка «Внести оплату» (гасит от старой закупки к новой), ниже — по закупкам (03.11.2026)
+function pkDebtsAllHtml(c, encN) {
+  const D = cabClientDebts(c), tot = D.reduce((n, d) => n + d.rest, 0);
+  return `<div class="pk-tot"><span class="l">Должна всего</span><span class="v">${pkF2(tot)} ${pkCur()}</span><span class="s">по ${D.length} ${pkPl(D.length, 'закупке', 'закупкам', 'закупкам')} · самая старая — ${pkEsc(D[0].ship.name || 'Закупка')}</span>
+      <div class="pk-row" style="gap:8px;margin-top:6px"><button class="pk-btn ok" style="flex:1" onclick="pkPayAllOpen('${encN}')"><i class="ti ti-cash" aria-hidden="true"></i> Внести оплату</button><button class="pk-btn ghost" style="flex:1" onclick="pkRemind('${encN}',${Math.round(tot * 100) / 100},'${encodeURIComponent(D.length + ' ' + pkPl(D.length, 'закупку', 'закупки', 'закупок'))}')"><i class="ti ti-copy" aria-hidden="true"></i> Напомнить</button></div></div>
+    <div class="pk-lbl">По закупкам</div>
+    ${D.map(d => `<div class="pk-dmini"><span><small>${pkEsc(d.ship.name || 'Закупка')}</small>оплачено ${pkF2(d.paid)} из ${pkF2(d.due)}</span><span style="display:flex;align-items:center"><b>${pkF2(d.rest)}</b><button type="button" onclick="pkPayOpen('${d.ship.id}','${encN}')">Оплата</button></span></div>`).join('')}`;
+}
+let pkPayAll = null;
+function pkPayAllOpen(enc) {
+  const S = pkData(); const m = S && S.list.find(x => x.name === decodeURIComponent(enc)); if (!m) return;
+  const debts = cabClientDebts(m); if (!debts.length) return;
+  const total = Math.round(debts.reduce((n, d) => n + d.rest, 0) * 100) / 100;
+  pkPayAll = { name: m.name, debts, total };
+  pkSheet(`<h3>Оплата · ${pkEsc(pkFullName(m.name))}</h3><div class="pk-muted" style="font-size:14px;margin-top:2px">Общий долг по ${debts.length} ${pkPl(debts.length, 'закупке', 'закупкам', 'закупкам')}</div>
+    <div class="pk-pay3"><div><small>Должна</small><b>${pkF2(total)}</b></div><div><small>Дала сейчас</small><b id="pkPAa" style="color:var(--pk-ok)"></b></div><div><small>Останется</small><b id="pkPAl" style="color:var(--pk-due)"></b></div></div>
+    <label class="pk-lbl" for="pkPAin" style="display:block;margin-top:14px">Сколько дала сейчас</label>
+    <div class="pk-pay-amt"><input id="pkPAin" type="text" inputmode="decimal" autocomplete="off" value="${total}" oninput="pkPayAllHint()"><span>${pkCur()}</span></div>
+    <div class="pk-man-chips" style="margin-top:8px"><button type="button" onclick="pkPayAllSet(${total})">Весь долг · ${pkF2(total)}</button><button type="button" onclick="pkPayAllSet(${debts[0].rest})">Самую старую · ${pkF2(debts[0].rest)}</button></div>
+    <div class="pk-dist" id="pkPAdist"></div>
+    <button type="button" class="pk-btn ok" id="pkPAbtn" style="width:100%;margin-top:12px" onclick="pkPayAllSave()"></button>
+    <div class="pk-muted" style="font-size:12.5px;margin-top:8px;text-align:center">Нужна одна закупка — кнопка «Оплата» у неё в списке</div>`);
+  pkPayAllHint();
+}
+const pkPayAllVal = () => { const v = parseFloat(String((document.getElementById('pkPAin') || {}).value || '').replace(',', '.').replace(/\s/g, '')); return isNaN(v) || v < 0 ? 0 : Math.round(v * 100) / 100; };
+function pkPayAllSet(v) { document.getElementById('pkPAin').value = v; pkPayAllHint(); }
+function pkPayAllHint() {
+  if (!pkPayAll) return;
+  const a = pkPayAllVal(), left = Math.max(0, Math.round((pkPayAll.total - a) * 100) / 100);
+  document.getElementById('pkPAa').textContent = pkF2(a);
+  document.getElementById('pkPAl').textContent = pkF2(left);
+  document.getElementById('pkPAdist').innerHTML = a > 0 ? cabFifoRowsHtml(pkPayAll.debts, a, pkF2) : '';
+  const b = document.getElementById('pkPAbtn'); b.disabled = !(a > 0);
+  b.innerHTML = `<i class="ti ti-check" aria-hidden="true"></i> Записать${a > 0 ? ' ' + pkF2(a) + ' ' + pkCur() : ''}`;
+}
+async function pkPayAllSave() {
+  if (!pkPayAll) return;
+  const a = pkPayAllVal(); if (!(a > 0)) return;
+  const extra = cabFifoPlan(pkPayAll.debts, a).extra;
+  if (extra > 0.004 && !confirm(`Общий долг ${pkF2(pkPayAll.total)} ${pkCur()}, вы вносите ${pkF2(a)}.\n\nЗасчитать переплату ${pkF2(extra)} в прибыль по последней закупке?`)) return;
+  const b = document.getElementById('pkPAbtn'); b.disabled = true; b.textContent = 'Сохраняю…';
+  cabShipmentsCache = allShipments || [];
+  let res;
+  try { res = await cabFifoApply(pkPayAll.debts, a); } catch (e) { b.disabled = false; pkPayAllHint(); showToast('Не сохранилось: ' + (e.message || e)); return; }
+  const left = Math.max(0, Math.round((pkPayAll.total - a) * 100) / 100);
+  pkPayAll = null; pkSheetClose(); pkRender();
+  pkUndoToast(left > 0.004 ? `Оплата записана · осталось ${pkF2(left)} ${pkCur()}` : 'Оплата записана · долг закрыт', async () => { try { await cabFifoUndo(res.prev); pkRender(); } catch (e) { showToast('Не получилось отменить: ' + (e.message || e)); } });
 }
 // Оплата клиента по закупке (01.11.2026): вносится сумма «сейчас», копится в ship.payments[имя].paid (как в Кабинете).
 // Меньше долга — остаётся долг (можно «простить остаток» = закрыть расчёт); больше — переплата в прибыль (как в Кабинете).

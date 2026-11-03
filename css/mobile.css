@@ -445,3 +445,19 @@ a.pk-btn{text-decoration:none}
 .pk-undo.on{transform:translate(-50%,0);pointer-events:auto}
 .pk-undo i{color:#5ad38a;font-size:19px;flex:none}.pk-undo span{flex:1;min-width:0}
 .pk-undo button{border:0;background:none;color:#c9b9ff;font:inherit;font-weight:700;cursor:pointer;padding:4px 2px;flex:none}
+/* Оплата клиента по всем закупкам (03.11.2026) — блок распределения общий для телефона и Кабинета */
+.pk-dist,.cab-fifo-dist{display:flex;flex-direction:column;gap:6px}
+.pk-dist{margin-top:10px;background:var(--pk-bg);border-radius:12px;padding:10px 12px;font-size:13.5px}
+:is(.pk-dist,.cab-fifo-dist) .h{font-size:12px;font-weight:700;color:#6b6780;text-transform:uppercase;letter-spacing:.05em}
+:is(.pk-dist,.cab-fifo-dist) .r{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center}
+:is(.pk-dist,.cab-fifo-dist) .r small{display:block;color:#6b6780;font-size:11.5px}
+:is(.pk-dist,.cab-fifo-dist) .ok{color:#15803d;font-weight:700;white-space:nowrap}
+:is(.pk-dist,.cab-fifo-dist) .pt{color:#b45309;font-weight:700;white-space:nowrap}
+:is(.pk-dist,.cab-fifo-dist) .no{color:#6b6780;white-space:nowrap}
+:is(.pk-dist,.cab-fifo-dist) .ov{color:#6C4DB8;font-weight:700}
+.pk-dist .ok{color:var(--pk-ok)}.pk-dist .pt{color:var(--pk-warn)}.pk-dist .no,.pk-dist .r small,.pk-dist .h{color:var(--pk-muted)}.pk-dist .ov{color:var(--pk-acc)}
+.pk-tot{background:var(--pk-due-soft);border:1.5px solid var(--pk-due);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.pk-tot .l{font-size:13px;color:var(--pk-muted)}.pk-tot .v{font-size:30px;font-weight:800;color:var(--pk-due);line-height:1.05}.pk-tot .s{font-size:13px;color:var(--pk-muted)}
+.pk-dmini{background:var(--pk-card);border:1px solid var(--pk-line);border-radius:14px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}
+.pk-dmini small{display:block;color:var(--pk-muted);font-size:12px}.pk-dmini b{color:var(--pk-due);white-space:nowrap}
+.pk-dmini button{border:0;background:none;color:var(--pk-acc);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;padding:4px 0 4px 8px}
