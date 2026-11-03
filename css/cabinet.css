@@ -823,3 +823,7 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-fifo-dist{display:flex;flex-direction:column;gap:6px;margin-top:12px;background:#f7f8fa;border-radius:12px;padding:10px 12px;font-size:14px}.cab-fifo-dist:empty{display:none}
 .cab-eb.ok{background:#15803d;border-color:#15803d}.cab-eb.ok:hover{background:#166534}
 .cab-main-title .cab-new-ship{margin-left:auto;font-size:15px;letter-spacing:0;white-space:nowrap}
+.cab-cl-bar{display:flex;gap:10px;align-items:center;margin:0 0 12px}.cab-cl-bar .cab-ts{flex:1;margin:0}.cab-cl-bar .cab-eb{padding:12px 16px;font-size:15px}
+.cab-cl-qnone{font-size:14px;color:#6b7280;margin:-2px 0 12px;white-space:normal}
+@media(max-width:640px){.cab-cl-bar{flex-wrap:wrap}.cab-cl-bar .cab-eb{width:100%;justify-content:center}}
+.cab-cl-bar .cab-new-big{padding:13px 22px;font-size:16px}
