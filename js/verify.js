@@ -11,7 +11,7 @@ const pkVPreview = (location.search.match(/[?&]vgate=(\w+)/) || [])[1] || '';   
 function pkNeedsVerify(user, prof) {
   if (!user) return null;
   if (prof && prof.role === 'admin') return pkVPreview === 'bar' ? 'bar' : pkVPreview ? 'gate' : null;
-  if (user.emailVerified) return null;
+  if (user.emailVerified) { if (prof && prof.emailVerified !== true) setTimeout(() => { try { pkVSync(); } catch (e) {} }, 2000); return null; }
   const born = Date.parse((user.metadata && user.metadata.creationTime) || '') || Date.now();
   return born >= PK_VERIFY_SINCE ? 'gate' : 'bar';
 }
@@ -161,6 +161,14 @@ function pkVSync() {
   if (currentUser.email && userProfile.email !== currentUser.email) upd.email = currentUser.email;
   Object.assign(userProfile, upd);
   db.collection('users').doc(currentUser.uid).update(upd).catch(() => {});
+  pkVWelcome();
+}
+// приветственное письмо (03.11.2026): сервер сам проверит, что почта подтверждена, аккаунт свежий и письмо ещё не уходило
+function pkVWelcome() {
+  try {
+    if (!currentUser) return;
+    currentUser.getIdToken().then(t => fetch('/api/welcome', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: t }) })).catch(() => {});
+  } catch (e) {}
 }
 function pkVStop() { clearInterval(pkVTimer); clearInterval(pkVCdTimer); document.removeEventListener('visibilitychange', pkVOnVis); window.removeEventListener('focus', pkVCheck); }
 function pkVFinish() {
