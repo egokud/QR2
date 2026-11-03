@@ -744,3 +744,69 @@ body.pk-cabpay .pk-scr{top:4vh;bottom:4vh;max-width:500px;border-radius:20px;box
 .cab-set-hb{display:inline-flex;align-items:center;gap:8px;border:1px solid #ddd5f3;background:#fff;color:#6C4DB8;border-radius:10px;padding:10px 16px;font:inherit;font-size:14px;font-weight:500;text-decoration:none;cursor:pointer}
 .cab-set-hb i{font-size:18px}.cab-set-hb.tg{background:#6C4DB8;color:#fff;border-color:#6C4DB8}
 .cab-set-out{border:1px solid #fecaca;background:#fff;color:#dc2626;font:inherit;font-size:14px;font-weight:600;border-radius:10px;padding:10px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:24px}
+/* ---------- Первый вход: пустые разделы, добавить клиента, удалить закупку (03.11.2026) ---------- */
+.cab-eb{display:inline-flex;align-items:center;gap:6px;background:#6C4DB8;color:#fff;border:1px solid #6C4DB8;border-radius:10px;padding:9px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap}
+.cab-eb:hover{background:#5b3fb0}
+.cab-eb.gh{background:#fff;color:#6C4DB8;border-color:#d9d1f1}.cab-eb.gh:hover{background:#f5f3fc}
+.cab-eb.red{background:#dc2626;border-color:#dc2626}.cab-eb.red:hover{background:#b91c1c}
+.cab-eb[disabled]{opacity:.6;cursor:default}
+.cab-start{background:linear-gradient(135deg,#6C4DB8,#8b6fe0);color:#fff;border-radius:16px;padding:20px 22px;margin-bottom:14px}
+.cab-start h2{margin:0 0 4px;font-size:22px;color:#fff}.cab-start p{margin:0;color:#e6defb;font-size:15px;white-space:normal}
+.cab-start-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.cab-start-st{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:7px;white-space:normal}
+.cab-start-st .n{width:30px;height:30px;border-radius:15px;background:#f0ecf9;color:#6C4DB8;font-weight:800;display:flex;align-items:center;justify-content:center}
+.cab-start-st.cur{border-color:#6C4DB8;box-shadow:0 0 0 3px #ede7fb}.cab-start-st.cur .n{background:#6C4DB8;color:#fff}
+.cab-start-st b{font-size:16px;color:#1a1a2e}.cab-start-st>span:not(.n){color:#6b7280;font-size:14px;line-height:1.45}
+.cab-start-st .cab-eb{align-self:flex-start;margin-top:auto}
+.cab-start-ghost{background:#fff;border:1px dashed #e5e7eb;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;opacity:.7}
+.cab-start-ghost b{color:#9aa0ab;font-weight:600;font-size:14px}.cab-start-ghost i{display:block;height:10px;border-radius:5px;background:#eceef2}
+.cab-emp-head{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;margin-bottom:12px;display:flex;flex-direction:column;gap:2px;white-space:normal}
+.cab-emp-head b{font-size:17px;color:#1a1a2e}.cab-emp-head span{color:#5f5a74}
+.cab-choice{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.cab-ch{background:#fff;border:1.5px solid #e5e7eb;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px;white-space:normal}
+.cab-ch.rec{border-color:#6C4DB8;box-shadow:0 0 0 3px #ede7fb}
+.cab-ch .hd{display:flex;align-items:center;gap:12px}.cab-ch .hd b{display:block;font-size:17px;color:#1a1a2e}.cab-ch .hd small{color:#6b7280;font-size:13px}
+.cab-ch .ic{width:44px;height:44px;border-radius:12px;background:#f0ecf9;color:#6C4DB8;display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
+.cab-ch .ic.pdd{background:#fde8e8;color:#e0453a}
+.cab-ch ol{margin:0;padding-left:20px;color:#3b3650;font-size:14.5px;line-height:1.5}.cab-ch ol li{margin:3px 0}
+.cab-ch .bt{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.cab-emp-foot{margin-top:12px;font-size:14px;color:#6b7280;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.cab-emp-foot i{font-size:18px;color:#15803d}.cab-emp-foot a{color:#6C4DB8;font-weight:600;text-decoration:none}
+.cab-emp{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;white-space:normal}
+.cab-emp .big{width:70px;height:70px;border-radius:35px;background:#f0ecf9;color:#6C4DB8;display:flex;align-items:center;justify-content:center;font-size:34px}
+.cab-emp .big.ok{background:#e7f8ee;color:#15803d}
+.cab-emp h3{margin:2px 0 0;font-size:19px;color:#1a1a2e}.cab-emp p{margin:0;color:#5f5a74;max-width:540px;line-height:1.55}.cab-emp p.sm{font-size:13.5px;color:#6b7280}.cab-emp p a{color:#6C4DB8;font-weight:600;text-decoration:none}
+.cab-emp .bt{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.cab-emp-path{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;font-size:13px;color:#9aa0ab;margin-top:4px}
+.cab-emp-path span{display:inline-flex;align-items:center;gap:4px;background:#f3f4f6;color:#6b7280;border-radius:8px;padding:5px 9px}
+.cab-emp-path span.on{background:#6C4DB8;color:#fff;font-weight:600}.cab-emp-path span.dn{background:#dcfce7;color:#15803d}
+.cab-add-cl{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border:1px solid #d9d1f1;background:#fff;color:#6C4DB8;border-radius:10px;padding:7px 12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.cab-add-cl:hover{background:#f5f3fc}
+.cab-pre{background:#fff;border:1px dashed #d9d1f1;border-radius:14px;padding:14px 16px;margin:12px 0;white-space:normal}
+.cab-pre-h{font-weight:600;color:#1a1a2e;display:flex;align-items:center;gap:6px}.cab-pre-h i{color:#6C4DB8}.cab-pre-h span{background:#f0ecf9;color:#6C4DB8;border-radius:10px;padding:0 8px;font-size:12px}
+.cab-pre-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.cab-pre-it{display:inline-flex;align-items:center;gap:8px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:10px;padding:6px 6px 6px 10px;font-size:14px}
+.cab-pre-it small{color:#6b7280;font-size:12.5px}
+.cab-pre-it button{border:none;background:none;color:#9aa0ab;cursor:pointer;padding:2px;font-size:15px;display:flex}.cab-pre-it button:hover{color:#dc2626}
+.cab-pre-note{font-size:12.5px;color:#9aa0ab;margin-top:8px}
+.cab-cl-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cab-cl-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#6b7280}.cab-cl-form label.w{grid-column:1/-1}.cab-cl-form em{color:#ea580c;font-style:normal}
+.cab-cl-form input{padding:9px 11px;border:1.5px solid #e5e7eb;border-radius:9px;font:inherit;font-size:15px;color:#1a1a2e;outline:none}
+.cab-cl-form input:focus{border-color:#6C4DB8;box-shadow:0 0 0 3px #ede7fb}
+.cab-cl-msg{font-size:13px;line-height:1.45;margin-top:10px;display:flex;gap:6px;align-items:flex-start}.cab-cl-msg:empty{display:none}
+.cab-cl-msg.sim{color:#b45309}.cab-cl-msg.same{color:#dc2626}.cab-cl-msg i{font-size:17px;flex:none}
+.cab-ship-more{border:1px solid #d5d8dd;background:#fff;color:#4a5260;border-radius:8px;width:36px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
+.cab-ship-more:hover{border-color:#6C4DB8;color:#6C4DB8}
+.cab-menu button.r,.cab-menu button.r .ti{color:#dc2626}.cab-menu button.r:hover{background:#fef2f2}
+.cab-dlg.cab-del{width:420px;display:flex;flex-direction:column;gap:10px}
+.cab-del .ic{width:50px;height:50px;border-radius:25px;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:26px}
+.cab-del h3{margin:0;font-size:19px;color:#1a1a2e}.cab-del p{margin:0;color:#4a5260;line-height:1.5}.cab-del ul{margin:0;padding-left:20px;color:#4a5260}
+.cab-del p.warn{font-size:13.5px;color:#b45309}.cab-del p.lim{font-size:13px;color:#6b7280}
+.cab-del .row{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+@media(max-width:900px){.cab-start-steps,.cab-choice{grid-template-columns:minmax(0,1fr)}}
+/* «Создать вручную» из Кабинета — форма мобильной версии окном по центру */
+.cab-manbk{display:none;position:fixed;inset:0;background:rgba(15,12,30,.5);z-index:899}
+body.pk-cabman .cab-manbk{display:block}
+body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-shadow:0 24px 70px rgba(15,12,30,.4);overflow:hidden}
+.cab-main :is(.cab-start,.cab-start-steps,.cab-start-ghost,.cab-emp-head,.cab-choice,.cab-emp-foot,.cab-emp,.cab-pre) *{white-space:normal}
+.cab-main :is(.cab-eb,.cab-emp-path span,.cab-add-cl){white-space:nowrap}
+.cab-del *,.cab-cl-form *{white-space:normal}

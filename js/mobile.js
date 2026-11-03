@@ -900,6 +900,9 @@ function pkManClients() {
   const cnt = {};
   for (const s of (allShipments || [])) for (const r of (s.data || [])) { const w = String((Array.isArray(r) ? r[1] : r.w) || '').trim(); if (w) cnt[w] = (cnt[w] || 0) + 1; }
   for (const it of (pkMan ? pkMan.items : [])) if (it.w) cnt[it.w] = (cnt[it.w] || 0) + 3;
+  // клиенты, добавленные в Кабинете заранее (ещё без закупок)
+  const ci = (userProfile && userProfile.clientInfo) || {}, low = new Set(Object.keys(cnt).map(x => x.toLowerCase()));
+  for (const k in ci) if (ci[k] && ci[k].pre && ci[k].n && !low.has(k)) cnt[ci[k].n] = 0.5;
   return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
 }
 function pkManHints() {

@@ -402,6 +402,7 @@ function cabHelp(ev, k) {
 }
 
 function renderCabOverview(container) {
+  if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyOverview(); return; }
   const ships = cabShipmentsCache;
   const money = cabMoney(ships);
   // Наценка в заказах (не «обещанная прибыль»): уже получено / точно — рассортированные, вес известен /
@@ -654,6 +655,7 @@ const CAB_TS_CSS = `<style>
 
 let cabShipFilter = 'all';
 function renderCabShipments(container) {
+  if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyShipments(); return; }
   const ships = cabShipmentsCache;
   const nAct = ships.filter(s => s.status !== 'done').length, nDone = ships.length - nAct;
   const seg = (k, l, n) => `<button class="cab-seg-b${cabShipFilter === k ? ' on' : ''}" data-f="${k}" onclick="cabFilterShipments('${k}',this)">${l} <i>${n}</i></button>`;
@@ -746,6 +748,7 @@ function cabRenderShip() {
       <div class="cab-main-title" style="margin:0">${ship.name || 'Без названия'}</div>
       <button onclick="cabRenameShip()" title="Переименовать" style="border:none;background:none;color:#6b7280;cursor:pointer;font-size:16px"><i class="ti ti-pencil"></i></button>
       <select onchange="cabSetStatus(this.value)" style="${cabInp};margin-left:auto">${opts}</select>
+      <button type="button" class="cab-ship-more" onclick="cabShipMore(event,'${cabShipId}')" title="Ещё: архив, Excel, удалить" aria-label="Ещё действия с закупкой"><i class="ti ti-dots"></i></button>
     </div>
     ${cabShipHeadHtml(ship, calc)}
     <div class="cab-filter-row" style="align-items:center">${tabs}${cabShipTab === 'calc' ? `<button onclick="cabShipAllPaid()" style="margin-left:auto;flex-shrink:0;background:#fff;color:#16a34a;border:1px solid #86efac;border-radius:8px;padding:8px 14px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-checks"></i> Все оплатили</button><button onclick="cabShipPDF()" style="margin-left:8px;flex-shrink:0;background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:500;cursor:pointer"><i class="ti ti-download"></i> PDF</button>` : ''}</div>
@@ -1275,6 +1278,8 @@ async function cabSaveClientInfo(name, info) {
     if (f === 'tg') v = cabTgUser(v);
     if (v) clean[f] = v;
   }
+  const old = all[k] || {};
+  for (const f of ['n', 'pre']) { const v = (info && f in info) ? info[f] : old[f]; if (v) clean[f] = f === 'n' ? String(v).trim().slice(0, 80) : v; }
   if (Object.keys(clean).length) all[k] = clean; else delete all[k];
   userProfile.clientInfo = all;
   await db.collection('users').doc(savedUid).update({ clientInfo: all });
@@ -1570,6 +1575,7 @@ function cabSetClientFilter(f) { cabClientFilter = f; renderCabClients(document.
 function renderCabClients(container) {
   if (cabClientOpen) { cabRenderClientCard(container, cabClientOpen); return; }
   const S = cabClientsSummary();
+  if (!S.list.length) { container.innerHTML = cabEmptyClients(); return; }
   const all = S.list.sort((a, b) => b.unpaidDue - a.unpaidDue || a.name.localeCompare(b.name, 'ru'));
   const cnt = k => all.filter(c => c.status === k).length;
   const totalUnpaid = all.reduce((n, m) => n + m.unpaidDue, 0);
@@ -1616,7 +1622,8 @@ function renderCabClients(container) {
   const fbtn = (k, l) => `<button onclick="cabSetClientFilter('${k}')" style="border:none;background:${cabClientFilter === k ? '#f0ecf9' : 'none'};color:${cabClientFilter === k ? '#6C4DB8' : '#6b7280'};font-weight:${cabClientFilter === k ? 600 : 500};font-size:14px;padding:5px 10px;border-radius:6px;cursor:pointer">${l}</button>`;
 
   container.innerHTML = `
-    <div class="cab-main-title">Клиенты</div>
+    <div class="cab-main-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Клиенты<button type="button" class="cab-add-cl" onclick="cabClAddOpen()"><i class="ti ti-user-plus"></i> Добавить клиента</button></div>
+    ${cabPreClientsHtml(S)}
     ${(() => {
       const cl = all.filter(c => !c.isOwner), tot = cl.length || 1;
       const segs = [['new', 'Новые', 'Впервые в самой свежей закупке'], ['active', 'Активные', 'Есть в двух последних закупках'], ['regular', 'Обычные', 'Заказывают время от времени, были недавно'], ['once', 'Разовые', 'Заказывали только в одной закупке'], ['forgotten', 'Забытые', 'Были в 2+ закупках, но в трёх последних их нет']]
@@ -1963,7 +1970,8 @@ function cabRowMenu(ev, id) {
     <button ${done ? 'disabled title="Архив — курсы не меняем, иначе изменится вся статистика"' : ''} onclick="cabRowMenuClose();cabRatesEdit('${id}')"><i class="ti ti-pencil"></i>Изменить курсы${done ? '<em>архив</em>' : ''}</button>
     <button onclick="cabRowMenuClose();cabRatesToBase('${id}')"><i class="ti ti-arrow-bar-to-up"></i>Сделать курсы базовыми</button>
     <button onclick="cabRowMenuClose();cabShipCSV('${id}')"><i class="ti ti-file-spreadsheet"></i>Скачать расчёт (Excel / CSV)</button>
-    ${done ? '' : `<button onclick="cabRowMenuClose();cabOpenShip('${id}')"><i class="ti ti-external-link"></i>Открыть закупку</button>`}`;
+    ${done ? '' : `<button onclick="cabRowMenuClose();cabOpenShip('${id}')"><i class="ti ti-external-link"></i>Открыть закупку</button>`}
+    <button class="r" onclick="cabRowMenuClose();cabShipDel('${id}')"><i class="ti ti-trash"></i>Удалить закупку</button>`;
   document.body.appendChild(m);
   const r = ev.currentTarget.getBoundingClientRect();
   const mw = 270;
@@ -2144,6 +2152,7 @@ function cabCalcAll(open) {
 let cabCalcFilter = 'all';   // all / wait (ждут оплаты) / work (до сортировки) / done (архив)
 function cabCalcSetFilter(f) { cabCalcFilter = f; renderCabCalc(document.getElementById('cabMain')); }
 function renderCabCalc(container) {
+  if (!cabShipmentsCache.some(cabIsBilled)) { container.innerHTML = cabEmptyMoney('calc'); return; }
   const rows = [];
   let sumBilled = 0, sumPaid = 0, nWait = 0, nWork = 0, nDone = 0;
   for (const ship of cabShipmentsCache) {
@@ -2267,6 +2276,7 @@ function cabShipEcon(ship) {
   return e;
 }
 function renderCabAnalytics(container) {
+  if (!cabShipmentsCache.some(cabIsBilled)) { container.innerHTML = cabEmptyMoney('analytics'); return; }
   const per = CAB_PERIODS.find(p => p[0] === cabAnPeriod) || CAB_PERIODS[4];
   const inRange = (s, a, b) => { const d = cabShipDate(s); return !!d && d >= a && d < b; };
   let from = null, prevFrom = null; const now = new Date();
@@ -3097,7 +3107,8 @@ window.addEventListener('popstate', async e => {
   if (!st || typeof cabInCabinet !== 'function' || !cabInCabinet()) return;
   cabHistRestoring = true;
   try {
-    if (st.sh) {
+    if (st.sh && !cabShipmentsCache.some(x => x.id === st.sh)) cabNav('shipments');   // закупку уже удалили
+    else if (st.sh) {
       if (cabShipId !== st.sh) { cabCurrentSection = st.s; await cabOpenShip(st.sh); }
       if (st.t && cabShipTab !== st.t && cabShipId === st.sh) cabShipTabSet(st.t);
     } else {
@@ -3137,4 +3148,225 @@ function cabHelp(ev) {
   const b = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : { right: innerWidth - 20, bottom: 60 };
   p.style.top = (b.bottom + 8) + 'px'; p.style.right = Math.max(12, innerWidth - b.right) + 'px';
   setTimeout(() => document.addEventListener('click', function f(e) { if (!p.contains(e.target)) { p.remove(); document.removeEventListener('click', f); } }), 0);
+}
+
+// ============ ПЕРВЫЙ ВХОД: ПУСТЫЕ РАЗДЕЛЫ (03.11.2026) ============
+// Пока в разделе нечего показать — объясняем, что здесь будет и что сделать сейчас. Появились данные — обычный экран.
+const CAB_GUIDE_PDD = '/guides/piksta-start-pinduoduo.pdf', CAB_GUIDE_MAN = '/guides/piksta-start-vse-ploshchadki.pdf';
+function cabEmptyOverview() {
+  const first = userProfile && userProfile.name ? String(userProfile.name).split(' ')[0] : '';
+  return `<div class="cab-main-title">${first ? 'Добро пожаловать, ' + cabEsc(first) + '!' : 'Добро пожаловать в Piksta!'}</div>
+    <div class="cab-start"><h2>С чего начать</h2><p>Три шага — и первая закупка разобрана по клиентам. Начните с закупки: всё остальное Piksta посчитает сама.</p></div>
+    <div class="cab-start-steps">
+      <div class="cab-start-st cur"><span class="n">1</span><b>Создайте закупку</b><span>Импорт с Pinduoduo через расширение — или вручную, с любой площадки.</span><button type="button" class="cab-eb" onclick="cabNav('shipments')">Перейти в «Закупки» <i class="ti ti-arrow-right"></i></button></div>
+      <div class="cab-start-st"><span class="n">2</span><b>Отправили — «В дороге»</b><span>Карго забрало посылки — отметьте отправку в закупке. Включится сканер.</span></div>
+      <div class="cab-start-st"><span class="n">3</span><b>Приехало — сканируйте</b><span>С телефона: посылка → чья. Взвесьте, и Piksta посчитает, кто сколько должен.</span></div>
+    </div>
+    <div class="cab-start-ghost"><b>Здесь появятся: деньги в обороте, где сейчас товар, кто должен</b><i style="width:70%"></i><i style="width:45%"></i><i style="width:58%"></i></div>`;
+}
+function cabEmptyShipments() {
+  return `<div class="cab-main-title">Закупки</div>
+    <div class="cab-emp-head"><b>У вас пока нет ни одной закупки</b><span>Откуда ваши заказы? Выберите путь — к каждому есть короткий гайд на 1 страницу.</span></div>
+    <div class="cab-choice">
+      <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С Pinduoduo</b><small>треки, фото и цены подтянутся сами</small></span></div>
+        <ol><li>Скачайте расширение и поставьте в Chrome (2 минуты).</li><li>В Chrome войдите в Piksta и в Pinduoduo.</li><li>Значок Piksta → даты заказов → «Проставить склады» → <b>новая закупка</b>.</li><li>Впишите клиентов → «Сохранить в Piksta» — закупка появится здесь.</li></ol>
+        <div class="bt"><a class="cab-eb" href="/extension" target="_blank" rel="noopener"><i class="ti ti-download"></i>Скачать расширение</a><a class="cab-eb gh" href="${CAB_GUIDE_PDD}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Гайд</a></div></div>
+      <div class="cab-ch"><div class="hd"><span class="ic"><i class="ti ti-pencil-plus"></i></span><span><b>Вручную · любые площадки</b><small>Taobao, 1688, Poizon и другие</small></span></div>
+        <ol><li>«Создать вручную» → название (дата подставится сама).</li><li>Трек — вписать или снять камерой; название, цена, фото — по желанию.</li><li>Клиент — имя, Piksta подсказывает уже знакомые.</li><li>«Сохранить закупку».</li></ol>
+        <div class="bt"><button type="button" class="cab-eb" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Создать вручную</button><a class="cab-eb gh" href="${CAB_GUIDE_MAN}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Гайд</a></div></div>
+    </div>
+    <div class="cab-emp-foot"><i class="ti ti-file-spreadsheet"></i>Есть таблица треков от карго? <a href="#" onclick="cabUploadOpen();return false">Загрузить таблицу</a> — треки встанут сами.</div>`;
+}
+function cabEmptyClients() {
+  return `<div class="cab-main-title">Клиенты</div>
+    <div class="cab-emp"><span class="big"><i class="ti ti-users"></i></span><h3>Клиентов пока нет</h3>
+      <p>Клиенты появляются сами: в закупке у товара пишете, чей он, — и человек сразу здесь, с долгами, оплатами и историей.</p>
+      <p class="sm">Хотите заранее завести постоянных — с телефоном и Telegram? Добавьте: Piksta подскажет их имена, когда будете вносить товары.</p>
+      <div class="bt"><button type="button" class="cab-eb" onclick="cabClAddOpen()"><i class="ti ti-user-plus"></i>Добавить клиента</button><button type="button" class="cab-eb gh" onclick="cabNav('shipments')"><i class="ti ti-package"></i>В «Закупки»</button></div></div>
+    ${cabPreClientsHtml({ list: [] })}`;
+}
+function cabEmptyMoney(kind) {
+  const ships = cabShipmentsCache, last = ships[0];
+  const order = ['forming', 'transit', 'warehouse', 'sorted'], lab = ['Собирается', 'В пути', 'На складе', 'Рассортирована'];
+  let path = '';
+  if (last) {
+    const cur = { forming: 0, transit: 1, delayed: 1, warehouse: 2, sorted: 3, done: 3 }[last.status || 'forming'] ?? 0;
+    path = `<div class="cab-emp-path">${order.map((k, i) => `<span class="${i < cur ? 'dn' : i === cur ? 'on' : ''}">${i < cur ? '<i class="ti ti-check"></i>' : ''}${lab[i]}</span>`).join('<i class="ti ti-chevron-right"></i>')}</div>
+      <p class="sm">Сейчас: «${cabEsc(last.name || 'Закупка')}» — ${cabEsc((SHIP_STATUSES[last.status || 'forming'] || {}).label || '').toLowerCase()}. <a href="#" onclick="cabOpenShip('${last.id}');return false">Открыть →</a></p>`;
+  }
+  const go = last ? '' : `<div class="bt"><button type="button" class="cab-eb" onclick="cabNav('shipments')"><i class="ti ti-package"></i>В «Закупки»</button></div>`;
+  return kind === 'calc'
+    ? `<div class="cab-main-title">Деньги</div><div class="cab-emp"><span class="big ok"><i class="ti ti-wallet"></i></span><h3>Оплаты появятся после первой сортировки</h3>
+      <p>Когда закупка приедет и вы разложите её по клиентам, здесь будет видно, кто сколько должен и кто уже заплатил.</p>${path}${go}</div>`
+    : `<div class="cab-main-title">Аналитика</div><div class="cab-emp"><span class="big"><i class="ti ti-chart-bar"></i></span><h3>Аналитика появится после первой сортировки</h3>
+      <p>Прибыль по закупкам, наценка, лучшие клиенты, сколько в среднем весит товар — как только первая закупка будет рассортирована.</p>${path}${go}</div>`;
+}
+
+// ---- Клиенты, добавленные заранее (ещё без закупок): userProfile.clientInfo[имя] = { n: имя, pre: 1, ph, tg, ln } ----
+function cabPreClients(S) {
+  const have = new Set(((S && S.list) || []).map(c => c.name.toLowerCase()));
+  const m = (userProfile && userProfile.clientInfo) || {};
+  return Object.keys(m).filter(k => m[k] && m[k].pre && m[k].n && !have.has(k)).map(k => ({ k, ...m[k] })).sort((a, b) => a.n.localeCompare(b.n, 'ru'));
+}
+function cabPreClientsHtml(S) {
+  const L = cabPreClients(S); if (!L.length) return '';
+  return `<div class="cab-pre"><div class="cab-pre-h"><i class="ti ti-user-check"></i> Добавлены заранее — ещё без закупок <span>${L.length}</span></div>
+    <div class="cab-pre-list">${L.map(x => `<span class="cab-pre-it"><b>${cabEsc(x.n)}${x.ln ? ' ' + cabEsc(x.ln) : ''}</b>${x.ph ? `<small>${cabEsc(x.ph)}</small>` : ''}${x.tg ? `<small>@${cabEsc(x.tg)}</small>` : ''}<button type="button" onclick="cabClPreDel('${encodeURIComponent(x.k)}')" title="Убрать" aria-label="Убрать ${cabEsc(x.n)}"><i class="ti ti-x"></i></button></span>`).join('')}</div>
+    <div class="cab-pre-note">Как только впишете имя в закупке — клиент переедет в общий список со всеми данными.</div></div>`;
+}
+function cabClAddOpen() {
+  cabClAddClose();
+  const ov = document.createElement('div');
+  ov.className = 'cab-ovl'; ov.id = 'cabClAddOvl';
+  ov.onclick = e => { if (e.target === ov) cabClAddClose(); };
+  ov.innerHTML = `<div class="cab-dlg" style="width:460px">
+    <div class="cab-dlg-h">Новый клиент<button class="cab-dlg-x" onclick="cabClAddClose()" aria-label="Закрыть"><i class="ti ti-x"></i></button></div>
+    <div class="cab-cl-form">
+      <label class="w">Имя — как будете писать в закупках <em>*</em><input id="cabClN" autocomplete="off" oninput="cabClAddCheck()" placeholder="Например: Ольга"></label>
+      <label>Фамилия<input id="cabClL" autocomplete="off"></label>
+      <label>Телефон<input id="cabClP" autocomplete="off" inputmode="tel" placeholder="+375…"></label>
+      <label class="w">Telegram<input id="cabClT" autocomplete="off" placeholder="@логин"></label>
+    </div>
+    <div id="cabClMsg" class="cab-cl-msg"></div>
+    <div class="cab-dlg-f"><span>Имя подскажется при вводе товаров</span><button class="cab-filter-btn" onclick="cabClAddClose()">Отмена</button><button class="cab-filter-btn active" id="cabClSave" onclick="cabClAddSave()">Добавить</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  setTimeout(() => { const i = document.getElementById('cabClN'); if (i) i.focus(); }, 50);
+}
+function cabClAddClose() { const o = document.getElementById('cabClAddOvl'); if (o) o.remove(); }
+function cabClKnown() {
+  const names = cabClientsSummary().list.map(c => c.name);
+  for (const x of cabPreClients({ list: [] })) names.push(x.n);
+  return names;
+}
+function cabClAddCheck() {
+  const v = (document.getElementById('cabClN').value || '').trim(), box = document.getElementById('cabClMsg'); if (!box) return null;
+  const lv = v.toLowerCase(); let res = null;
+  if (v) {
+    const known = cabClKnown();
+    const same = known.find(n => n.toLowerCase() === lv);
+    const sim = !same && known.find(n => { const ln = n.toLowerCase(); return (ln.length > 2 && lv.length > 2 && (ln.startsWith(lv) || lv.startsWith(ln))) || cabLev(ln, lv) <= (Math.min(ln.length, lv.length) > 4 ? 2 : 1); });
+    if (same) res = { kind: 'same', n: same }; else if (sim) res = { kind: 'sim', n: sim };
+  }
+  box.innerHTML = !res ? '' : res.kind === 'same' ? `<i class="ti ti-alert-circle"></i> Клиент «${cabEsc(res.n)}» уже есть.`
+    : `<i class="ti ti-info-circle"></i> Похожее имя уже есть — «${cabEsc(res.n)}». Если это один человек, впишите то же имя. Если нет — добавляйте, а ошибётесь — Piksta предложит объединить.`;
+  box.className = 'cab-cl-msg' + (res ? ' ' + res.kind : '');
+  return res;
+}
+async function cabClAddSave() {
+  const n = (document.getElementById('cabClN').value || '').trim().replace(/\s+/g, ' ');
+  if (!n) { document.getElementById('cabClN').focus(); return; }
+  const chk = cabClAddCheck(); if (chk && chk.kind === 'same') return;
+  const b = document.getElementById('cabClSave'); b.disabled = true; b.textContent = 'Сохраняю…';
+  try {
+    await cabSaveClientInfo(n, { n, pre: 1, ln: document.getElementById('cabClL').value, ph: document.getElementById('cabClP').value, tg: document.getElementById('cabClT').value });
+  } catch (e) { b.disabled = false; b.textContent = 'Добавить'; alert('Не удалось сохранить: ' + (e.message || e)); return; }
+  cabClAddClose();
+  if (typeof showToast === 'function') showToast(`Клиент «${n}» добавлен`);
+  cabRerender();
+}
+async function cabClPreDel(enc) {
+  const k = decodeURIComponent(enc), all = { ...((userProfile && userProfile.clientInfo) || {}) }, x = all[k]; if (!x) return;
+  if (!confirm(`Убрать «${x.n || k}» из добавленных заранее?`)) return;
+  delete all[k];
+  try { await db.collection('users').doc(savedUid).update({ clientInfo: all }); userProfile.clientInfo = all; } catch (e) { alert('Не удалось: ' + (e.message || e)); return; }
+  cabRerender();
+}
+
+// ---- «Создать вручную» и «Загрузить таблицу» прямо из Кабинета (формы мобильной версии — окном по центру) ----
+function cabEnsureSheet() {
+  if (document.getElementById('pkSheet')) return;
+  const bg = document.createElement('div'); bg.className = 'pk-sheet-bg'; bg.id = 'pkSheetBg'; bg.onclick = () => { if (typeof pkSheetClose === 'function') pkSheetClose(); };
+  const sh = document.createElement('div'); sh.className = 'pk-sheet'; sh.id = 'pkSheet'; sh.setAttribute('role', 'dialog');
+  document.body.appendChild(bg); document.body.appendChild(sh);
+}
+function cabManualOpen() {
+  if (typeof pkNewManual !== 'function') { alert('Обновите страницу'); return; }
+  cabEnsureSheet();
+  document.body.classList.add('pk-cabman');
+  let bk = document.getElementById('cabManBk');
+  if (!bk) { bk = document.createElement('div'); bk.id = 'cabManBk'; bk.className = 'cab-manbk'; bk.onclick = () => { if (typeof pkManBack === 'function') pkManBack(); }; document.body.appendChild(bk); }
+  if (!window.__cabManW && typeof pkManClose === 'function') {   // закрыли форму (сохранили или вышли) — обновить Кабинет
+    window.__cabManW = 1;
+    const orig = window.pkManClose;
+    window.pkManClose = function () {
+      const r = orig.apply(this, arguments);
+      if (document.body.classList.contains('pk-cabman')) {
+        document.body.classList.remove('pk-cabman');
+        if (cabInCabinet()) setTimeout(() => loadCabinetData().then(() => { if (!cabShipId) cabNav(cabCurrentSection || 'shipments'); }), 600);
+      }
+      return r;
+    };
+  }
+  pkNewManual();
+  // закрыли окно названия «Отменой» — снять затемнение Кабинета
+  const t = setInterval(() => { const sh = document.getElementById('pkSheet'), man = document.getElementById('pkMan');
+    if (man && man.classList.contains('on')) { clearInterval(t); return; }
+    if (!sh || !sh.classList.contains('on')) { clearInterval(t); if (!(man && man.classList.contains('on'))) document.body.classList.remove('pk-cabman'); } }, 300);
+}
+function cabUploadOpen() {
+  if (typeof openUploadModal !== 'function') return;
+  if (!window.__cabUpW && typeof uploadCSV === 'function') {
+    window.__cabUpW = 1;
+    const orig = window.uploadCSV;
+    window.uploadCSV = async function () { const r = await orig.apply(this, arguments); if (cabInCabinet()) { await loadCabinetData(); if (!cabShipId) cabNav(cabCurrentSection || 'shipments'); } return r; };
+  }
+  openUploadModal();
+}
+
+// ---- Закупка: «⋯» (архив, Excel, удалить) и удаление с подтверждением ----
+function cabShipMore(ev, id) {
+  ev.stopPropagation(); cabRowMenuClose();
+  const ship = cabShipmentsCache.find(s => s.id === id); if (!ship) return;
+  const done = ship.status === 'done';
+  const m = document.createElement('div'); m.className = 'cab-menu'; m.id = 'cabRowMenu';
+  m.innerHTML = `<button onclick="cabRowMenuClose();cabShipArchive('${id}',${done ? 0 : 1})"><i class="ti ${done ? 'ti-archive-off' : 'ti-archive'}"></i>${done ? 'Вернуть из архива' : 'В архив'}</button>
+    <button onclick="cabRowMenuClose();cabShipCSV('${id}')"><i class="ti ti-file-spreadsheet"></i>Скачать расчёт (Excel / CSV)</button>
+    <button class="r" onclick="cabRowMenuClose();cabShipDel('${id}')"><i class="ti ti-trash"></i>Удалить закупку</button>`;
+  document.body.appendChild(m);
+  const r = ev.currentTarget.getBoundingClientRect(), mw = 260;
+  m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.right - mw)) + 'px';
+  m.style.top = (r.bottom + 4) + 'px';
+  setTimeout(() => document.addEventListener('click', cabRowMenuClose, { once: true }), 0);
+}
+async function cabShipArchive(id, on) {
+  if (on && !confirm('Отправить закупку в архив? Она пропадёт из активных, статистика сохранится.')) return;
+  if (cabShipId !== id) return;
+  await cabSetStatus(on ? 'done' : 'sorted');
+  cabRenderShip();
+}
+function cabShipDel(id) {
+  const ship = cabShipmentsCache.find(s => s.id === id); if (!ship) return;
+  const n = (ship.data || []).length, cl = cabGetClientsFromShipment(ship).clients.length;
+  const paid = Object.values(ship.payments || {}).some(p => p && p.paid > 0);
+  const lim = typeof pkLimDelNote === 'function' ? pkLimDelNote(ship).trim() : '';
+  const ov = document.createElement('div'); ov.className = 'cab-ovl'; ov.id = 'cabDelOvl';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="cab-dlg cab-del">
+    <span class="ic"><i class="ti ti-trash"></i></span>
+    <h3>Удалить «${cabEsc(ship.name || 'Без названия')}»?</h3>
+    <p>Удалится вместе со всем, что внутри:</p>
+    <ul><li>${n} ${cabPl(n, 'позиция', 'позиции', 'позиций')}${cl ? `, ${cl} ${cabPl(cl, 'клиент', 'клиента', 'клиентов')} в ней` : ''}</li><li>веса, ${paid ? '<b>внесённые оплаты</b>' : 'оплаты'} и отметки сканирования</li></ul>
+    ${lim ? `<p class="lim">${cabEsc(lim)}</p>` : ''}
+    <p class="warn">Вернуть нельзя. Если закупка просто закончилась — лучше «В архив», статистика сохранится.</p>
+    <div class="row"><button type="button" class="cab-eb gh" onclick="document.getElementById('cabDelOvl').remove()">Отмена</button><button type="button" class="cab-eb red" id="cabDelGo" onclick="cabShipDelGo('${id}')"><i class="ti ti-trash"></i>Да, удалить</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+async function cabShipDelGo(id) {
+  const b = document.getElementById('cabDelGo'); if (b) { b.disabled = true; b.textContent = 'Удаляю…'; }
+  const ship = cabShipmentsCache.find(s => s.id === id);
+  try {
+    await shipmentsRef().doc(id).delete();
+    if (typeof pkLimDeleted === 'function') try { await pkLimDeleted(ship); } catch (e) {}
+    try { if (typeof scannedRef === 'function') await scannedRef(id).delete(); } catch (e) {}
+  } catch (e) { if (b) { b.disabled = false; b.innerHTML = '<i class="ti ti-trash"></i>Да, удалить'; } alert('Не удалось удалить: ' + (e.message || e)); return; }
+  const ov = document.getElementById('cabDelOvl'); if (ov) ov.remove();
+  if (typeof activeShipmentId !== 'undefined' && activeShipmentId === id) activeShipmentId = null;
+  if (typeof editingShipmentId !== 'undefined' && editingShipmentId === id) editingShipmentId = null;
+  const wasOpen = cabShipId === id; cabShipId = null;
+  try { if (typeof loadShipments === 'function') await loadShipments(); } catch (e) {}
+  await loadCabinetData();
+  if (wasOpen || cabCurrentSection === 'shipments') cabNav('shipments'); else cabRerender();
+  if (typeof showToast === 'function') showToast(`Закупка «${(ship && ship.name) || ''}» удалена`);
 }

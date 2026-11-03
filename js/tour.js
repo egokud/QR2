@@ -77,10 +77,20 @@ function pkTourMaybe() {
   pkTourStart(mode);
 }
 
+// У кого ещё нет ни одной закупки — первый шаг «С чего начать» ведёт в «Закупки» (03.11.2026)
+const PK_TOUR_START = { sel: '.cab-nav-item[data-section="shipments"]', pre: 'overview', t: 'Начните с «Закупок»', d: 'Создайте первую закупку: импорт с Pinduoduo через расширение или вручную — с любой площадки. Там же — короткие гайды по шагам.' };
+function pkTourSteps(mode) {
+  const L = PK_TOUR[mode];
+  if (mode !== 'c') return L;
+  const n = ((typeof allShipments !== 'undefined' && allShipments) || []).length || ((typeof cabShipmentsCache !== 'undefined' && cabShipmentsCache) || []).length;
+  if (n) return L;
+  const skip = ['.cab-nav-item[data-section="overview"]', '#cabMain .cab-help', '.cab-nav-item[data-section="shipments"]'];
+  return [PK_TOUR_START].concat(L.filter(st => !skip.includes(st.sel)));
+}
 function pkTourStart(mode) {
   mode = mode || pkTourMode(); if (!mode) return;
   if (typeof pkSheetClose === 'function') try { pkSheetClose(); } catch (e) {}
-  pkTourS = { mode, i: -1, steps: PK_TOUR[mode] };
+  pkTourS = { mode, i: -1, steps: pkTourSteps(mode) };
   let o = document.getElementById('pkTour');
   if (!o) { o = document.createElement('div'); o.id = 'pkTour'; document.body.appendChild(o); }
   o.style.display = 'block';
