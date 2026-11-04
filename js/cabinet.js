@@ -2860,6 +2860,8 @@ const CAB_ADMIN_CSS = `
 .cab-ac-mail{font-weight:600;font-size:15px;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cab-ac-sub{display:flex;align-items:center;gap:8px;margin-top:3px;min-width:0}
 .cab-ac-pill{padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.cab-ac-unv{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;font-weight:600;color:#a16207;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cab-ac-unv i{font-size:14px;flex:none}.cab-ac-unv.late{color:#b91c1c}
+.cab-ac-vbtn{color:#92400e;border-color:#f6d58a}.cab-ac-vbtn.late{background:#facc15;border-color:#eab308;color:#422006;font-weight:700;box-shadow:0 0 0 3px rgba(250,204,21,.35)}
 .cab-ac-name{font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cab-ac-m{display:flex;flex-direction:column;gap:2px;font-size:12px;color:#6b7280;white-space:nowrap;min-width:0}
 .cab-ac-m b{font-size:14px;color:#1a1a2e;font-weight:600}
@@ -2878,9 +2880,9 @@ const CAB_ADMIN_CSS = `
 .cab-ac-act{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .cab-ac-act .cab-filter-btn{padding:6px 10px;font-size:13px;display:inline-flex;align-items:center;gap:5px}
 /* Широкий экран: всё в одну строку; уже — настройки и кнопки переносятся во вторую строку */
-@container (min-width: 1400px){
+@container (min-width: 1600px){
   .cab-ac-row{display:flex;align-items:center;gap:18px}
-  .cab-ac-top{flex:1 1 auto;min-width:0}
+  .cab-ac-top{flex:1 1 auto;min-width:0;grid-template-columns:18px minmax(220px,1fr) 150px 128px 96px 86px}
   .cab-ac-bot{flex:0 0 auto;flex-wrap:nowrap;border-top:0;margin-top:0;padding-top:0;border-left:1px solid #f0edf6;padding-left:18px}
   .cab-ac-act{margin-left:6px}
 }
@@ -2972,12 +2974,20 @@ function cabAdminRenderList() {
     const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
     const endTxt = end ? `${end.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em>` : '—';
     const num = v => typeof v === 'number' ? v.toLocaleString('ru-RU') : v;
+    // почта не подтверждена: сколько часов с регистрации, чем закончилась последняя отправка письма
+    const unver = !u.emailVerified && u.email !== 'bot@piksta.online';
+    const hrs = Math.floor((now - created) / 36e5), late = unver && hrs >= 24;
+    const VM = u.verifyMail || {}, vmAt = cabToDate(VM.at);
+    const vmTxt = !VM.n ? 'данных об отправке нет' : (VM.ok ? 'письмо ушло' : 'Google отказал: ' + (VM.err || '?')) + (vmAt ? ' · ' + vmAt.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '') + (VM.n > 1 ? ' · попыток ' + VM.n : '');
+    const nudged = cabToDate(u.verifyNudge);
+    const vPill = unver ? `<div class="cab-ac-unv${late ? ' late' : ''}" title="${cabEsc(vmTxt)}"><i class="ti ti-mail-exclamation"></i>Не подтверждена · ${hrs < 48 ? hrs + ' ч' : Math.floor(hrs / 24) + ' дн.'}${VM.n && !VM.ok ? ' · ошибка отправки' : ''}</div>` : '';
+    const vBtn = unver ? `<button class="cab-filter-btn cab-ac-vbtn${late ? ' late' : ''}" onclick="cabAdminVerifyNudge('${u.id}')" title="${cabEsc('Попросить Piksta отправить новое письмо подтверждения при следующем входе и открыть письмо человеку в Gmail. ' + vmTxt + (nudged ? '. Уже просили: ' + nudged.toLocaleString('ru-RU') : ''))}"><i class="ti ti-mail-forward"></i><span class="t"> Подтверждение</span></button>` : '';
     return `<div class="cab-ac${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}"><div class="cab-ac-row">
       <div class="cab-ac-top">
         <input type="checkbox" class="cab-ac-cb" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма">
         <div class="cab-ac-who"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0">
           <div class="cab-ac-mail" title="${cabEsc(u.email || u.id)}">${cabEsc(u.email || u.id)}</div>
-          <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>
+          <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>${vPill}
         </div></div>
         <div class="cab-ac-m cab-ac-m1"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
         <div class="cab-ac-m"><span>${useLbl}</span>${useHtml}</div>
@@ -2987,7 +2997,7 @@ function cabAdminRenderList() {
       <div class="cab-ac-bot">
         ${ctry}${fnd}${ind}
         <div class="cab-ac-act">
-          <button class="cab-filter-btn" onclick="cabAdminMailOpen('${u.id}')" title="Письмо"><i class="ti ti-mail"></i><span class="t"> Письмо</span></button>
+          ${vBtn}<button class="cab-filter-btn" onclick="cabAdminMailOpen('${u.id}')" title="Письмо"><i class="ti ti-mail"></i><span class="t"> Письмо</span></button>
           <button class="cab-filter-btn" style="color:#16a34a;border-color:#86efac" onclick="cabAdminSub('${u.id}')" title="Продлить подписку"><i class="ti ti-calendar-plus"></i><span class="t"> Продлить</span></button>
           ${isBlocked
             ? `<button class="cab-filter-btn" onclick="cabAdminBlock('${u.id}',false)" title="Разблокировать"><i class="ti ti-lock-open"></i><span class="t"> Разблокировать</span></button>`
@@ -3011,6 +3021,17 @@ async function cabAdminCopyEmails() {
 }
 
 // Письмо: открывается окно Gmail (вошли как администратор), адресаты — в скрытой копии, друг друга не видят
+// «Подтверждение»: отметка в профиле (Piksta сама отправит свежее письмо, когда человек откроет приложение) + готовое письмо ему в Gmail
+async function cabAdminVerifyNudge(uid) {
+  const u = cabAdminUsers.find(x => x.id === uid); if (!u) return;
+  try { await db.collection('users').doc(uid).update({ verifyNudge: firebase.firestore.FieldValue.serverTimestamp() }); u.verifyNudge = new Date(); }
+  catch (e) { alert('Не удалось: ' + e.message); return; }
+  cabAdminMailOpen(uid);
+  const sj = document.getElementById('cabMailSubj'), bd = document.getElementById('cabMailBody');
+  if (sj) sj.value = 'Piksta: подтверждение почты';
+  if (bd) bd.value = 'Здравствуйте, {имя}!\n\nВидим, что почта в Piksta ещё не подтверждена. Откройте, пожалуйста, piksta.online/app — Piksta сразу отправит вам новое письмо со ссылкой. Письмо приходит с адреса noreply@piksta.online; если его нет во «Входящих», загляните в «Спам» и «Промоакции».\n\nЕсли не получится — просто ответьте на это письмо, поможем.\n\nКоманда Piksta';
+  cabAdminRenderList();
+}
 function cabAdminMailOpen(oneId) {
   const ids = oneId ? [oneId] : [...cabAdminSel];
   const emails = cabAdminEmails(ids);

@@ -72,7 +72,10 @@ async function doRegister() {
       acceptedTerms: true, acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     // Задача 3: письмо подтверждения email
-    try { await cred.user.sendEmailVerification({ url: location.origin + '/app' }); localStorage.setItem('pk_vsent', String(Date.now())); } catch(ve) {}
+    // ошибку отправки не глотаем: экран подтверждения покажет её и даст отправить сразу, результат пишем в профиль (видно в админке)
+    try { localStorage.removeItem('pk_vfail'); } catch (e) {}
+    try { await cred.user.sendEmailVerification({ url: location.origin + '/app' }); localStorage.setItem('pk_vsent', String(Date.now())); if (typeof pkVLog === 'function') pkVLog(true, '', cred.user.uid); }
+    catch(ve) { try { localStorage.setItem('pk_vfail', ve.code || ve.message || 'error'); } catch (e) {} if (typeof pkVLog === 'function') pkVLog(false, ve.code || ve.message, cred.user.uid); }
   } catch(e) {
     const msg = e.code === 'auth/email-already-in-use' ? 'Email уже зарегистрирован' :
       e.code === 'auth/weak-password' ? 'Слишком простой пароль' :

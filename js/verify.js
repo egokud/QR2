@@ -6,6 +6,19 @@ const PK_VERIFY_SINCE = Date.parse('2026-11-02T19:00:00Z');   // кто созд
 const PK_VERIFY_CD = 60;                                        // повтор письма — не чаще раза в минуту
 try { auth.languageCode = 'ru'; } catch (e) {}                  // письма и страница подтверждения — на русском
 const pkVerifyAcs = () => ({ url: location.origin + '/app' });
+// Журнал отправок письма подтверждения в профиле (verifyMail) — админка видит, ушло ли письмо и что ответил Google
+function pkVLog(ok, err, uid) {
+  try {
+    const id = uid || (currentUser && currentUser.uid); if (!id) return;
+    const FV = firebase.firestore.FieldValue;
+    db.collection('users').doc(id).update({ 'verifyMail.n': FV.increment(1), 'verifyMail.at': FV.serverTimestamp(), 'verifyMail.ok': !!ok, 'verifyMail.err': ok ? '' : String(err || '').slice(0, 120) }).catch(() => {});
+  } catch (e) {}
+}
+function pkVErrText(code) {
+  if (code === 'auth/too-many-requests') return 'Google временно ограничил отправку: слишком много писем подряд. Подождите 10–15 минут и нажмите «Отправить ещё раз».';
+  if (code === 'auth/network-request-failed') return 'Нет связи с интернетом — письмо не ушло. Проверьте интернет и нажмите «Отправить ещё раз».';
+  return 'Письмо не ушло (' + code + '). Нажмите «Отправить ещё раз».';
+}
 
 const pkVPreview = (location.search.match(/[?&]vgate=(\w+)/) || [])[1] || '';   // админ: предпросмотр ?vgate=1 / ok / bar
 function pkNeedsVerify(user, prof) {
@@ -60,7 +73,10 @@ function pkShowVerifyGate(onDone) {
   let g = document.getElementById('pkVGate');
   if (!g) { g = document.createElement('div'); g.id = 'pkVGate'; document.body.appendChild(g); }
   g.style.display = 'flex';
-  pkVRender();
+  let fail = ''; try { fail = localStorage.getItem('pk_vfail') || ''; } catch (e) {}
+  if (fail) { try { localStorage.removeItem('pk_vsent'); } catch (e) {} pkVMode = 'fail'; pkVRender(pkVErrText(fail)); }
+  else pkVRender();
+  pkVNudge();
   clearInterval(pkVTimer); pkVTimer = setInterval(pkVCheck, 4000);
   document.addEventListener('visibilitychange', pkVOnVis);
   window.addEventListener('focus', pkVCheck);
@@ -90,10 +106,10 @@ function pkVRender(note) {
   }
   const cd = pkVCdLeft(), again = pkVMode === 'again';
   g.innerHTML = `<div class="vc">${head}<div class="env"><i class="ti ${again ? 'ti-mail-forward' : 'ti-mail'}"></i></div>
-    <h1>${again ? 'Письмо отправлено ещё раз' : 'Подтвердите e-mail'}</h1>
-    ${again ? '' : '<div class="t">Мы отправили письмо на</div>'}
+    <h1>${again ? 'Письмо отправлено ещё раз' : pkVMode === 'fail' ? 'Письмо не ушло' : 'Подтвердите e-mail'}</h1>
+    ${again ? '' : `<div class="t">${pkVMode === 'fail' ? 'Нажмите «Отправить ещё раз» — отправим письмо на' : 'Мы отправили письмо на'}</div>`}
     <div class="ml"><i class="ti ti-at"></i>${pkVEsc(email)}</div>
-    <div class="t">${again ? 'Иногда письмо идёт 1–2 минуты.' : 'Откройте его и нажмите ссылку подтверждения. После этого Piksta откроется сама.'}</div>
+    <div class="t">${again ? 'Иногда письмо идёт 1–2 минуты.' : pkVMode === 'fail' ? 'Когда письмо придёт — нажмите в нём ссылку, Piksta откроется сама.' : 'Откройте его и нажмите ссылку подтверждения. После этого Piksta откроется сама.'}</div>
     ${note ? '<div class="er">' + pkVEsc(note) + '</div>' : ''}
     <div class="wt"><span class="sp"></span>Ждём подтверждения…</div>
     <div class="ft">
@@ -110,11 +126,23 @@ const pkVFmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 async function pkVResend() {
   if (pkVCdLeft() || !currentUser) return;
   const b = document.getElementById('pkVSend'); if (b) b.disabled = true;
-  try { await currentUser.sendEmailVerification(pkVerifyAcs()); pkVMark(); pkVMode = 'again'; pkVRender(); }
+  try { await currentUser.sendEmailVerification(pkVerifyAcs()); pkVMark(); try { localStorage.removeItem('pk_vfail'); } catch (e) {} pkVLog(true); pkVMode = 'again'; pkVRender(); }
   catch (e) {
-    if (e.code === 'auth/too-many-requests') { pkVMark(); pkVRender('Слишком много писем подряд. Подождите пару минут.'); }
-    else pkVRender('Не удалось отправить: ' + (e.message || e.code));
+    pkVLog(false, e.code || e.message);
+    if (e.code === 'auth/too-many-requests') pkVMark();
+    pkVRender(pkVErrText(e.code || e.message));
   }
+}
+// Администратор нажал «Подтверждение» в админке → при следующем открытии сами отправляем свежее письмо (один раз на каждое нажатие)
+async function pkVNudge() {
+  try {
+    const n = userProfile && userProfile.verifyNudge; if (!n || !currentUser || currentUser.emailVerified) return;
+    const at = n.toMillis ? n.toMillis() : +new Date(n); let done = 0; try { done = +localStorage.getItem('pk_vnudge') || 0; } catch (e) {}
+    if (at <= done) return;
+    try { localStorage.setItem('pk_vnudge', String(at)); } catch (e) {}
+    await currentUser.sendEmailVerification(pkVerifyAcs()); pkVMark(); pkVLog(true); pkVMode = 'again';
+    pkVRender('Поддержка Piksta отправила вам новое письмо подтверждения — проверьте почту.');
+  } catch (e) { pkVLog(false, e.code || e.message); }
 }
 
 async function pkVChange() {
@@ -198,8 +226,8 @@ function pkShowVerifyBar() {
 }
 async function pkVBarSend(btn) {
   btn.disabled = true;
-  try { await currentUser.sendEmailVerification(pkVerifyAcs()); pkVMark(); pkShowVerifyBar(); }
-  catch (e) { btn.disabled = false; btn.textContent = e.code === 'auth/too-many-requests' ? 'Позже' : 'Ошибка'; }
+  try { await currentUser.sendEmailVerification(pkVerifyAcs()); pkVMark(); pkVLog(true); pkShowVerifyBar(); }
+  catch (e) { pkVLog(false, e.code || e.message); btn.disabled = false; btn.textContent = e.code === 'auth/too-many-requests' ? 'Позже' : 'Ошибка'; }
 }
 function pkHideVerifyBar(byUser) {
   const b = document.getElementById('pkVBar'); if (b) b.style.display = 'none';
