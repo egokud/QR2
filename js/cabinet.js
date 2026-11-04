@@ -2877,6 +2877,13 @@ const CAB_ADMIN_CSS = `
 .cab-ac-bot .cab-uopt{font-size:13px;white-space:nowrap}
 .cab-ac-act{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .cab-ac-act .cab-filter-btn{padding:6px 10px;font-size:13px;display:inline-flex;align-items:center;gap:5px}
+/* Широкий экран: всё в одну строку; уже — настройки и кнопки переносятся во вторую строку */
+@container (min-width: 1400px){
+  .cab-ac-row{display:flex;align-items:center;gap:18px}
+  .cab-ac-top{flex:1 1 auto;min-width:0}
+  .cab-ac-bot{flex:0 0 auto;flex-wrap:nowrap;border-top:0;margin-top:0;padding-top:0;border-left:1px solid #f0edf6;padding-left:18px}
+  .cab-ac-act{margin-left:6px}
+}
 @container (max-width: 820px){
   .cab-ac-act .cab-filter-btn{padding:6px 9px}
   .cab-ac-act .cab-filter-btn .t{display:none}
@@ -2960,12 +2967,12 @@ function cabAdminRenderList() {
       return i === 0 ? `<b>${t}</b>` : t; }).join(' · ')}</div>` : '';
     const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" class="cab-usel">
         <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
-    const fnd = `<label class="cab-uopt" title="Участник пилота: пробный период 3 месяца вместо 30 дней и цена −${PIKSTA_TARIFFS.founderDiscountPct}%, пока подписка продлевается без перерыва"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked,true)"> Пилот: 3 мес. и −${PIKSTA_TARIFFS.founderDiscountPct}%</label>`;
+    const fnd = `<label class="cab-uopt" title="Участник пилота: пробный период 3 месяца вместо 30 дней и цена −${PIKSTA_TARIFFS.founderDiscountPct}%, пока подписка продлевается без перерыва"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked,true)"> Пилот</label>`;
     const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индив. тариф</label>`;
     const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
     const endTxt = end ? `${end.toLocaleDateString('ru-RU')} <em style="font-style:normal;font-weight:600;color:${daysLeft > 7 ? '#16a34a' : '#dc2626'}">· ${daysLeft > 0 ? daysLeft + ' дн.' : 'истёк'}</em>` : '—';
     const num = v => typeof v === 'number' ? v.toLocaleString('ru-RU') : v;
-    return `<div class="cab-ac${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}">
+    return `<div class="cab-ac${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}"><div class="cab-ac-row">
       <div class="cab-ac-top">
         <input type="checkbox" class="cab-ac-cb" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма">
         <div class="cab-ac-who"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0">
@@ -2977,7 +2984,6 @@ function cabAdminRenderList() {
         <div class="cab-ac-m cab-ac-m3"><span>Закупок · поз.</span><b>${num(u._ships)} · ${num(u._items)}</b></div>
         <div class="cab-ac-m"><span>Регистрация</span><b>${created.toLocaleDateString('ru-RU')}</b></div>
       </div>
-      ${histHtml}
       <div class="cab-ac-bot">
         ${ctry}${fnd}${ind}
         <div class="cab-ac-act">
@@ -2988,6 +2994,8 @@ function cabAdminRenderList() {
             : `<button class="cab-filter-btn" style="color:#dc2626;border-color:#fca5a5" onclick="cabAdminBlock('${u.id}',true)" title="Заблокировать"><i class="ti ti-lock"></i><span class="t"> Заблокировать</span></button>`}
         </div>
       </div>
+    </div>
+      ${histHtml}
     </div>`;
   });
   list.innerHTML = rows.join('') || '<div class="cab-stub-text" style="text-align:center;padding:20px">Никого не нашлось</div>';
