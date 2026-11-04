@@ -1192,7 +1192,7 @@ function pkCountryAsk(step) {
     : `<span class="q"><i class="ti ti-world"></i>В какой стране вы работаете?</span><span class="c">${ch("pkCountryPick('BY')", 'Беларусь')}${ch("pkCountryPick('RU')", 'Россия')}${ch("pkCountryPick('KZ')", 'Казахстан')}${ch("pkCountryAsk('other')", 'Другая')}</span>`;
   b.style.display = 'flex';
 }
-// Нажал страну/валюту → полоска 5 с показывает «Вы выбрали …» с кнопкой «Изменить» (защита от случайного нажатия),
+// Нажал страну/валюту → полоска 10 с показывает «Вы выбрали …» с кнопкой «Изменить» (защита от случайного нажатия),
 // без лишнего подтверждения: не нажал «Изменить» — сохраняем сами, полоска тихо уходит.
 const PK_CTY_NAME = { BY: 'Беларусь', RU: 'Россия', KZ: 'Казахстан', OT: 'Другая страна' };
 const PK_CTY_CUR = { BY: 'BYN', RU: 'RUB', KZ: 'KZT' };
@@ -1204,7 +1204,7 @@ function pkCountryPick(k, cur) {
   clearTimeout(pkCtyTimer);
   b.innerHTML = `<span class="q ok"><i class="ti ti-circle-check"></i><span>Вы выбрали: <b>${PK_CTY_NAME[k]}</b><small>Цены тарифов — в ${PK_CUR_TXT[c]}. Можно работать дальше.</small></span></span><span class="c"><button type="button" onclick="pkCountryUndo()">Изменить</button></span><i class="pr"></i>`;
   b.classList.add('done');
-  pkCtyTimer = setTimeout(() => pkCountrySave(k, cur), 5000);
+  pkCtyTimer = setTimeout(() => pkCountrySave(k, cur), 10000);
 }
 function pkCountryUndo() { clearTimeout(pkCtyTimer); const b = document.getElementById('pkCtyBar'); if (b) b.classList.remove('done'); pkCountryAsk(); }
 async function pkCountrySave(k, cur) {
