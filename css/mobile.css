@@ -461,3 +461,14 @@ a.pk-btn{text-decoration:none}
 .pk-dmini{background:var(--pk-card);border:1px solid var(--pk-line);border-radius:14px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px}
 .pk-dmini small{display:block;color:var(--pk-muted);font-size:12px}.pk-dmini b{color:var(--pk-due);white-space:nowrap}
 .pk-dmini button{border:0;background:none;color:var(--pk-acc);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;padding:4px 0 4px 8px}
+/* Страна (04.11.2026): полоска внизу, пока не ответят */
+#pkCtyBar{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:900;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box;display:none;align-items:center;gap:10px 14px;flex-wrap:wrap;justify-content:center;background:#fff;border:1.5px solid #d9d1f1;border-radius:16px;padding:10px 12px 10px 16px;box-shadow:0 10px 30px rgba(40,24,90,.18);font-family:inherit;font-size:14px;color:#1f2430}
+#pkCtyBar .q{display:inline-flex;align-items:center;gap:7px;font-weight:600}#pkCtyBar .q i{color:#6C4DB8;font-size:18px}
+#pkCtyBar .c{display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:center}
+#pkCtyBar button{border:1px solid #ddd5f3;background:#f7f5fd;color:#4c3a99;border-radius:10px;padding:7px 12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+#pkCtyBar button:hover{background:#ece6fb}
+body.pk-m #pkCtyBar{bottom:calc(env(safe-area-inset-bottom,0px) + 84px);width:calc(100vw - 24px)}
+body.dark #pkCtyBar{background:#211d33;border-color:#3b3360;color:#ece9f6}body.dark #pkCtyBar button{background:#2c2645;border-color:#3b3360;color:#d6ccff}
+
+body.pk-m #pkCtyBar{padding:10px}body.pk-m #pkCtyBar button{padding:6px 9px;font-size:13.5px}
+#pkCtyBar{overflow:hidden;transition:opacity .3s}#pkCtyBar.out{opacity:0}#pkCtyBar .q.ok{gap:9px;font-weight:500;text-align:left}#pkCtyBar .q.ok i{color:#1f9d55;font-size:22px}#pkCtyBar .q.ok b{font-weight:700}#pkCtyBar .q.ok small{display:block;font-size:12.5px;color:#6b6780;font-weight:400;margin-top:1px}#pkCtyBar.done{flex-wrap:nowrap}#pkCtyBar .pr{position:absolute;left:0;bottom:0;height:3px;width:100%;background:#6C4DB8;opacity:.55;transform-origin:left;animation:pkCtyPr 5s linear forwards}@keyframes pkCtyPr{from{transform:scaleX(1)}to{transform:scaleX(0)}}body.dark #pkCtyBar .q.ok small{color:#a9a3bf}
