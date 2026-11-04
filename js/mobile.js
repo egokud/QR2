@@ -79,6 +79,10 @@ function pkActivate() {
   pkBuild();
   document.body.classList.add('pk-m');
   pkSetSkin(pkSkin());
+  // «Обновить» в браузере — остаёмся на той же вкладке
+  try { const nav = performance.getEntriesByType('navigation')[0], t = sessionStorage.getItem('pk_m_tab');
+    if (!window.__pkTabUsed && nav && nav.type === 'reload' && t && document.getElementById('pkPane-' + t)) pkTab = t; } catch (e) {}
+  window.__pkTabUsed = 1;
   pkGo(pkTab);
 }
 function pkDeactivate() {
@@ -88,6 +92,7 @@ function pkDeactivate() {
 
 function pkGo(t) {
   pkTab = t;
+  try { sessionStorage.setItem('pk_m_tab', t); } catch (e) {}
   document.querySelectorAll('.pk-pane').forEach(p => p.classList.toggle('on', p.id === 'pkPane-' + t));
   document.querySelectorAll('#pkTabs button').forEach(b => { const on = b.dataset.t === t; b.classList.toggle('on', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
   document.body.classList.toggle('pk-on-scan', t === 'scan');
@@ -849,6 +854,7 @@ function pkRenderMore() {
       <button onclick="pkTheme()"><i class="ti ti-moon" aria-hidden="true"></i><span>Тёмная тема</span><small>${document.body.classList.contains('dark') ? 'вкл' : 'выкл'}</small></button>
       <button onclick="pkTariffs()"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span>${pkTariffLine()}</button>
       ${typeof pkTourMenuOn === 'function' && pkTourMenuOn() ? `<button onclick="pkTourStart('m')"><i class="ti ti-route" aria-hidden="true"></i><span>Подсказки по интерфейсу</span><small>пройти обучение заново</small></button>` : ''}
+      <button onclick="window.open('/help','_blank')"><i class="ti ti-book" aria-hidden="true"></i><span>Инструкция<br><small>все разделы по шагам, со скриншотами</small></span></button>
       <button onclick="pkHelp()"><i class="ti ti-help-circle" aria-hidden="true"></i><span>Помощь и связь</span></button>
       <button onclick="pkToCabinet()"><i class="ti ti-device-desktop" aria-hidden="true"></i><span>Полный Кабинет<br><small>цены, взвешивание, аналитика — удобнее на компьютере</small></span></button>
       ${isAdmin ? `<button onclick="pkToCabinet('admin')"><i class="ti ti-shield" aria-hidden="true"></i><span>Админ</span></button>` : ''}

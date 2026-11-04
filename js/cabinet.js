@@ -39,7 +39,7 @@ async function openCabinet() {
   const logo = document.querySelector('.cab-sidebar-logo');
   if (logo) { logo.style.cursor = 'pointer'; logo.title = 'Обзор'; logo.onclick = () => cabNav('overview'); }
   await loadCabinetData();
-  cabNav('overview');
+  await cabRestoreAt();
 }
 
 async function loadCabinetData() {
@@ -54,10 +54,26 @@ async function loadCabinetData() {
   } catch (e) { cabShipmentsCache = []; }
 }
 
+// Где пользователь в Кабинете — чтобы «Обновить» в браузере вернуло туда же (только эта вкладка браузера)
+function cabSaveAt() { try { sessionStorage.setItem('pk_cab_at', JSON.stringify({ s: cabCurrentSection, ship: cabShipId || '', tab: cabShipId ? cabShipTab : '', cl: cabClientOpen || '' })); } catch (e) {} }
+async function cabRestoreAt() {
+  let at = null;
+  try { const nav = performance.getEntriesByType('navigation')[0]; if (!window.__cabAtUsed && nav && nav.type === 'reload') at = JSON.parse(sessionStorage.getItem('pk_cab_at') || 'null'); } catch (e) {}
+  window.__cabAtUsed = 1;
+  if (!at || !at.s) { cabNav('overview'); return; }
+  if (at.ship && cabShipmentsCache.some(x => x.id === at.ship)) {
+    cabNav('shipments'); await cabOpenShip(at.ship);
+    if (at.tab && at.tab !== cabShipTab) cabShipTabSet(at.tab);
+    return;
+  }
+  if (at.cl) { cabNav('clients'); cabOpenClient(encodeURIComponent(at.cl)); return; }
+  cabNav(document.querySelector(`#cabNav .cab-nav-item[data-section="${at.s}"]`) ? at.s : 'overview');
+}
 function cabNav(section) {
   if (cabShipId) { cabShipId = null; restoreActiveEditing(); }
   cabClientOpen = null;
   cabCurrentSection = section;
+  cabSaveAt();
   document.querySelectorAll('#cabNav .cab-nav-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.section === section);
   });
@@ -383,23 +399,46 @@ const CAB_HELP = {
   departed: ['Отправка выехала с карго', 'Поставьте галочку, когда карго забрало посылки, — закупка перейдёт в статус «В дороге». Снять её можно, пока закупка в дороге: она вернётся в «Формируется».'],
   costGoods: ['Товар по себестоимости', 'Клиент платит за товар столько, сколько он стоил вам, — <b>без наценки</b> на курсе. Ваша прибыль с товара этого клиента — 0. Для своих, друзей и себя.'],
   costShip: ['Доставка по себестоимости', 'Клиент платит доставку по цене карго — <b>без вашей наценки</b> на доставке. Прибыль с доставки этого клиента — 0.'],
+  sh_work: ['Сейчас в работе', 'Сколько закупок на каждом этапе: <b>собирается</b> → <b>в пути</b> → <b>на складе</b> → <b>рассортирована</b>. Под этапами — какая закупка дольше всех в пути, самая большая и сколько в среднем весит товар.'],
+  sh_bars: ['Позиций в закупках', 'Столбик — одна закупка, высота — сколько в ней позиций, цвет — статус. Наведите на столбик — увидите вес и статус, нажмите — откроется закупка.'],
+  sh_pay: ['Оплаты', 'Как клиенты рассчитались по закупке: сколько ещё не оплатили и сколько денег ждём. До сортировки долг ещё не выставлен — поэтому «до сортировки».'],
+  cl_base: ['Клиентская база', 'Все, кому вы что-то заказывали. Цветная полоса — из кого состоит база:<br><b>Новые</b> — впервые в самой свежей закупке; <b>Активные</b> — есть в двух последних; <b>Обычные</b> — заказывают время от времени; <b>Разовые</b> — была одна закупка; <b>Забытые</b> — были в 2+ закупках, но в трёх последних их нет. <b>Чемпионы</b> — чаще всех заказывают и приносят больше всего.<br>Нажмите на группу — список ниже отфильтруется.'],
+  cl_debt: ['Должны вам', 'Сколько клиенты ещё не заплатили по <b>рассортированным</b> закупкам — там, где долг уже выставлен. Полоса — какая часть уже собрана.<br>Деньги, вложенные в товар, который ещё едет, — в Обзоре, в «Деньги в обороте».'],
+  cl_list: ['Список клиентов', 'Поиск — по имени, телефону или Telegram. Фильтры сверху — группы клиентов, папки — ваши собственные группы (например, «Родные» или «Опт»).<br>Нажмите на имя — откроется карточка: долги по всем закупкам, контакты, условия.'],
   flow: ['Где сейчас товар', 'Все закупки по этапам: <b>собирается</b> → <b>в пути</b> → <b>на складе</b> → <b>рассортирована</b>.<br>До сортировки показана примерная наценка (без доставки). После сортировки — сколько клиенты ещё должны.<br>Нажмите на закупку, чтобы открыть её. Архивные закупки — в разделе «Закупки».']
 };
-function cabHelpBtn(k) { return `<button class="cab-help" title="Что это?" onclick="cabHelp(event,'${k}')"><i class="ti ti-help-circle"></i></button>`; }
-function cabHelp(ev, k) {
-  ev.stopPropagation();
-  const old = document.getElementById('cabHelpPop'); if (old) { old.remove(); if (old.dataset.k === k) return; }
-  const [t, body] = CAB_HELP[k] || ['', ''];
-  const m = document.createElement('div');
-  m.className = 'cab-help-pop'; m.id = 'cabHelpPop'; m.dataset.k = k;
-  m.innerHTML = `<b>${t}</b><div>${body}</div>`;
+// Раздел инструкции piksta.online/help для каждой подсказки
+const CAB_HELP_LINK = { money: 'ch8', markup: 'ch8', todo: 's1-4', flow: 's2-1', an_split: 'ch8', an_src: 'ch8', incl: 's5-1', tare8: 's5-1', departed: 's2-1',
+  costGoods: 's5-4', costShip: 's5-4', sh_work: 's2-5', sh_bars: 's2-5', sh_pay: 'ch6', cl_base: 'ch7', cl_debt: 's6-4', cl_list: 'ch7' };
+// «?» — подсказка всплывает при наведении (на телефоне — по нажатию); внизу ссылка на раздел инструкции
+function cabHelpBtn(k) { return `<button type="button" class="cab-help" aria-label="Что это?" onmouseenter="cabTipHover(event,'${k}')" onmouseleave="cabTipLeave()" onclick="cabTipClick(event,'${k}')"><i class="ti ti-help-circle"></i></button>`; }
+let cabTipT = null;
+function cabTipShow(btn, k) {
+  clearTimeout(cabTipT);
+  const old = document.getElementById('cabTip'); if (old) { if (old.dataset.k === k) return; old.remove(); }
+  const [t, body] = CAB_HELP[k] || ['', ''], ln = CAB_HELP_LINK[k];
+  const m = document.createElement('div'); m.className = 'cab-tip'; m.id = 'cabTip'; m.dataset.k = k;
+  m.innerHTML = `<div class="tt"><i class="ti ti-help-circle"></i>${t}</div><div class="tb">${body}</div>${ln ? `<a class="tl" href="/help#${ln}" target="_blank" rel="noopener"><i class="ti ti-book"></i>Подробнее в инструкции<i class="ti ti-arrow-up-right"></i></a>` : ''}`;
+  m.onmouseenter = () => clearTimeout(cabTipT); m.onmouseleave = cabTipLeave;
   document.body.appendChild(m);
-  const r = ev.currentTarget.getBoundingClientRect();
-  m.style.left = Math.max(8, Math.min(window.innerWidth - 348, r.left - 12)) + 'px';
-  const h = m.offsetHeight;
-  m.style.top = (r.bottom + 6 + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
-  setTimeout(() => document.addEventListener('click', () => { const x = document.getElementById('cabHelpPop'); if (x) x.remove(); }, { once: true }), 0);
+  const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - 28)) + 'px';
+  const below = r.bottom + 10 + h <= innerHeight - 8;
+  m.style.top = (below ? r.bottom + 10 : Math.max(8, r.top - h - 10)) + 'px';
+  m.classList.add(below ? 'dn' : 'up');
+  m.style.setProperty('--ax', Math.max(14, Math.min(w - 20, r.left + r.width / 2 - parseFloat(m.style.left))) + 'px');
 }
+function cabTipHide() { clearTimeout(cabTipT); const x = document.getElementById('cabTip'); if (x) x.remove(); }
+function cabTipHover(ev, k) { if (matchMedia('(hover: hover)').matches) cabTipShow(ev.currentTarget, k); }
+function cabTipLeave() { clearTimeout(cabTipT); cabTipT = setTimeout(cabTipHide, 250); }
+function cabTipClick(ev, k) {
+  ev.stopPropagation();
+  const x = document.getElementById('cabTip');
+  if (x && x.dataset.k === k && !matchMedia('(hover: hover)').matches) { cabTipHide(); return; }
+  cabTipShow(ev.currentTarget, k);
+  setTimeout(() => document.addEventListener('click', function f(e) { const t = document.getElementById('cabTip'); if (t && t.contains(e.target)) return; cabTipHide(); document.removeEventListener('click', f); }), 0);
+}
+addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cabTipHide(); }, { passive: true, capture: true });
 
 function renderCabOverview(container) {
   if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyOverview(); return; }
@@ -468,7 +507,7 @@ function renderCabOverview(container) {
     </div>
 
     <div class="cab-ov-top">
-      <div class="cab-card cab-money" title="Деньги в обороте = вложено в товар + полученная прибыль. Вложено — себестоимость товара (выкуп + доставка карго), за который клиенты ещё не рассчитались; отсчёт с выкупа на Pinduoduo. Покупки «Это я» не входят">
+      <div class="cab-card cab-money">
         <div class="cab-card-l"><i class="ti ti-coins"></i> Деньги в обороте${cabHelpBtn('money')}</div>
         <div class="cab-money-v">${cabFmt(money.turnover)} <small>BYN</small></div>
         <div class="cab-money-bar"><span style="width:${frozenPct}%;background:#6C4DB8"></span>${realPct ? `<span style="width:${realPct}%;background:#16a34a"></span>` : ''}</div>
@@ -541,12 +580,12 @@ function cabShipsHero(ships) {
   }).join('');
   return `<div class="cab-ov-top cab-sh-top">
     <div class="cab-card">
-      <div class="cab-card-l"><i class="ti ti-route"></i> Сейчас в работе<b class="cab-base-n">${inWork.length} ${cabPl(inWork.length, 'закупка', 'закупки', 'закупок')}</b></div>
+      <div class="cab-card-l"><i class="ti ti-route"></i> Сейчас в работе${cabHelpBtn('sh_work')}<b class="cab-base-n">${inWork.length} ${cabPl(inWork.length, 'закупка', 'закупки', 'закупок')}</b></div>
       <div class="cab-steps">${steps}</div>
       <div class="cab-facts">${facts.join('')}</div>
     </div>
     <div class="cab-card">
-      <div class="cab-card-l"><i class="ti ti-chart-bar"></i> Позиций в закупках</div>
+      <div class="cab-card-l"><i class="ti ti-chart-bar"></i> Позиций в закупках${cabHelpBtn('sh_bars')}</div>
       <div class="cab-bars">${bars}</div>
       <div class="cab-bars-sum"><span><b>${ships.length}</b> ${cabPl(ships.length, 'закупка', 'закупки', 'закупок')}</span><span><b>${cabFmt(items)}</b> товаров привезено</span><span><b>${kg.toFixed(1)}</b> кг</span></div>
     </div>
@@ -690,7 +729,7 @@ function renderCabShipments(container) {
       <div class="cab-cl-bar"><button type="button" class="cab-eb cab-new-big" onclick="cabNewShipOpen()"><i class="ti ti-plus"></i>Создать закупку</button></div>
       <div class="cab-table-top">${filterHtml}</div>
       <table class="cab-table" id="cabShipmentsTable">
-        <thead><tr><th>Название</th><th>Статус</th><th>Должны</th><th>Прибыль</th><th>Оплаты</th><th>Позиций</th><th>Клиентов</th><th title="Когда закупка создана в Piksta">Создана</th></tr></thead>
+        <thead><tr><th>Название</th><th>Статус</th><th>Должны</th><th>Прибыль</th><th><span style="display:inline-flex;align-items:center;gap:2px">Оплаты${cabHelpBtn('sh_pay')}</span></th><th>Позиций</th><th>Клиентов</th><th title="Когда закупка создана в Piksta">Создана</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px">Нет закупок</td></tr>'}</tbody>
       </table>
     </div>`;
@@ -720,6 +759,7 @@ async function cabOpenShip(id) {
   document.getElementById('cabMain').innerHTML = '<div class="cab-main-title">Загрузка…</div>';
   await loadShipmentData(id, true);
   cabRenderShip();
+  cabSaveAt();
 }
 
 async function cabCloseShip() {
@@ -729,7 +769,7 @@ async function cabCloseShip() {
   cabNav('shipments');
 }
 
-function cabShipTabSet(t) { cabShipTab = t; cabRenderShip(); }
+function cabShipTabSet(t) { cabShipTab = t; cabRenderShip(); cabSaveAt(); }
 
 function cabRenderShip() {
   const ship = cabShipmentsCache.find(s => s.id === cabShipId) || {};
@@ -1635,7 +1675,7 @@ function renderCabClients(container) {
         + `<span class="cab-base-chip champ${cabClientFilter === 'champ' ? ' on' : ''}" title="Чаще всех заказывают, были недавно и приносят больше всего" onclick="cabSetClientFilter(cabClientFilter === 'champ' ? 'all' : 'champ')"><i class="ti ti-trophy"></i>Чемпионы<b>${champs.length}</b></span>`;
       return `<div class="cab-ov-top cab-cl-top">
         <div class="cab-card">
-          <div class="cab-card-l"><i class="ti ti-users"></i> Клиентская база<b class="cab-base-n">${cl.length}</b>${cabClientFilter !== 'all' ? `<a href="#" class="cab-card-link" onclick="cabSetClientFilter('all');return false">Показать всех ×</a>` : ''}</div>
+          <div class="cab-card-l"><i class="ti ti-users"></i> Клиентская база${cabHelpBtn('cl_base')}<b class="cab-base-n">${cl.length}</b>${cabClientFilter !== 'all' ? `<a href="#" class="cab-card-link" onclick="cabSetClientFilter('all');return false">Показать всех ×</a>` : ''}</div>
           <div class="cab-base-bar">${bar}</div>
           <div class="cab-base-leg">${leg}</div>
         </div>
@@ -1643,8 +1683,8 @@ function renderCabClients(container) {
           let billed = 0, paid = 0;
           for (const ship of cabShipmentsCache) { if (!cabIsBilled(ship)) continue; for (const c of cabGetClientsFromShipment(ship).clients) { if (c.isOwner) continue; billed += c.due; paid += Math.min(c.due, c.payPaid || 0); } }
           const pct = billed > 0 ? Math.round(paid / billed * 100) : 100;
-          return `<div class="cab-card cab-debt" title="Только по рассортированным и архивным закупкам. Деньги, вложенные в ещё не оплаченный товар, — в Обзоре">
-          <div class="cab-card-l"><i class="ti ti-cash"></i> Должны вам</div>
+          return `<div class="cab-card cab-debt">
+          <div class="cab-card-l"><i class="ti ti-cash"></i> Должны вам${cabHelpBtn('cl_debt')}</div>
           <div class="cab-debt-v">${cabFmt(totalUnpaid)} <small>BYN</small></div>
           <div class="cab-debt-bar"><span style="width:${Math.max(pct, paid > 0 ? 2 : 0)}%"></span></div>
           <div class="cab-debt-p"><span>Собрано <b>${cabFmt(paid)}</b> из ${cabFmt(billed)} BYN</span><b>${pct}%</b></div>
@@ -1679,7 +1719,7 @@ function renderCabClients(container) {
       </div>
       <div id="cabClQNone" class="cab-cl-qnone" style="display:none"></div>
       <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:10px">
-        ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}${fbtn('champ', 'Чемпионы')}
+        ${fbtn('all', 'Все')}${fbtn('new', 'Новые')}${fbtn('active', 'Активные')}${fbtn('regular', 'Обычные')}${fbtn('once', 'Разовые')}${fbtn('forgotten', 'Забытые')}${fbtn('champ', 'Чемпионы')}${cabHelpBtn('cl_list')}
       </div>
       ${folderRow}
       <div id="cabSelBar" class="cab-selbar" style="display:none"></div>
@@ -1708,10 +1748,12 @@ function cabOpenClient(encName) {
   cabClientOpen = decodeURIComponent(encName);
   cabClientShipOpen.clear();
   renderCabClients(document.getElementById('cabMain'));
+  cabSaveAt();
 }
 function cabCloseClient() {
   cabClientOpen = null;
   renderCabClients(document.getElementById('cabMain'));
+  cabSaveAt();
 }
 function cabToggleClientShip(id) {
   if (cabClientShipOpen.has(id)) cabClientShipOpen.delete(id); else cabClientShipOpen.add(id);
@@ -2419,6 +2461,7 @@ function renderCabSettings(container) {
       <div class="cab-table-title"><i class="ti ti-help-circle" style="margin-right:6px"></i>Помощь и связь</div>
       <div style="font-size:14px;color:#4a5260;line-height:1.6;margin-bottom:12px">Вопросы по работе, видеоуроки по интерфейсу, ошибки — пишите, ответим.</div>
       <div class="cab-set-help">
+        <a class="cab-set-hb doc" href="/help" target="_blank" rel="noopener"><i class="ti ti-book"></i> Инструкция Piksta</a>
         <a class="cab-set-hb tg" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i> Telegram · @piksta_support_bot</a>
         <a class="cab-set-hb" href="mailto:support@piksta.online"><i class="ti ti-mail"></i> support@piksta.online</a>
         ${tips ? `<button type="button" class="cab-set-hb" onclick="pkTourStart('c')"><i class="ti ti-route"></i> Подсказки по интерфейсу</button>` : ''}
@@ -3146,7 +3189,7 @@ function cabTopBar() {
   if (!bar) { bar = document.createElement('div'); bar.id = 'cabTop'; bar.className = 'cab-top'; main.insertBefore(bar, main.firstChild); }
   const h = history.state || {}, back = h.cab && h.d > 0 ? (h.p || 'назад') : '';
   bar.innerHTML = `${back ? `<button type="button" class="cab-top-back" onclick="history.back()" title="Вернуться"><i class="ti ti-arrow-left"></i><span>Назад: <b>${cabEsc(back)}</b></span></button>` : '<span></span>'}
-    <button type="button" class="cab-top-help" onclick="cabHelp(event)"><i class="ti ti-help-circle"></i> Помощь</button>`;
+    <button type="button" class="cab-top-help" onclick="cabHelpMenu(event)"><i class="ti ti-help-circle"></i> Помощь</button>`;
 }
 (function () {
   const main = document.getElementById('cabMain'); if (!main || !window.MutationObserver) return;
@@ -3155,13 +3198,15 @@ function cabTopBar() {
     cabHistT = setTimeout(() => { cabHistMark(); cabTopBar(); }, 0);
   }).observe(main, { childList: true });
 })();
-// «Помощь»: связь с поддержкой, подсказки, расширение
-function cabHelp(ev) {
+// «Помощь»: инструкция, связь с поддержкой, подсказки, расширение
+function cabHelpMenu(ev) {
   if (ev) ev.stopPropagation();
   const old = document.getElementById('cabHelpPop'); if (old) { old.remove(); return; }
   const p = document.createElement('div'); p.id = 'cabHelpPop'; p.className = 'cab-help-pop';
   const tips = typeof pkTourMenuOn === 'function' && pkTourMenuOn();
-  p.innerHTML = `<div class="hh">Помощь и связь</div><p>Вопросы по работе, видеоуроки, ошибки — пишите, ответим.</p>
+  p.innerHTML = `<div class="hh">Помощь и связь</div>
+    <a class="hb doc" href="/help" target="_blank" rel="noopener"><i class="ti ti-book"></i><span>Инструкция Piksta<small>все разделы по шагам, со скриншотами</small></span></a>
+    <p>Не нашли ответ — напишите, ответим.</p>
     <a class="hb tg" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i><span>Написать в Telegram<small>@piksta_support_bot</small></span></a>
     <a class="hb" href="mailto:support@piksta.online"><i class="ti ti-mail"></i><span>Написать на почту<small>support@piksta.online</small></span></a>
     ${tips ? `<button type="button" class="hb" onclick="document.getElementById('cabHelpPop').remove();pkTourStart('c')"><i class="ti ti-route"></i><span>Подсказки по интерфейсу<small>пройти обучение заново</small></span></button>` : ''}
