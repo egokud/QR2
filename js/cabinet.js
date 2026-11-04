@@ -2551,7 +2551,7 @@ const PIKSTA_TARIFFS = {
   tg: 'piksta_support_bot',
   email: 'support@piksta.online'
 };
-const PIKSTA_COUNTRIES = { BY: 'Беларусь', RU: 'Россия', KZ: 'Казахстан' };
+const PIKSTA_COUNTRIES = { BY: 'Беларусь', RU: 'Россия', KZ: 'Казахстан', OT: 'Другая' };
 let cabTariffPeriod = PIKSTA_TARIFFS.defaultPeriod;
 
 // Доступ пользователя: общий расчёт pkAccess (init.js) — тот же, что баннер сканера и правила Firestore
@@ -2876,6 +2876,7 @@ const CAB_ADMIN_CSS = `
 .cab-sub-seg button.on{background:#fff;color:#6C4DB8;box-shadow:0 1px 3px rgba(23,20,42,.12)}
 .cab-ac-bot{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;border-top:1px solid #f0edf6;margin-top:10px;padding-top:10px}
 .cab-ac-bot .cab-usel{font-size:13px;padding:5px 6px}
+.cab-ac-cty{display:inline-flex;flex-direction:column;gap:1px}.cab-ac-cty small{font-size:11px;color:#8a8fa0;white-space:nowrap;padding-left:2px}
 .cab-ac-bot .cab-uopt{font-size:13px;white-space:nowrap}
 .cab-ac-act{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .cab-ac-act .cab-filter-btn{padding:6px 10px;font-size:13px;display:inline-flex;align-items:center;gap:5px}
@@ -2967,8 +2968,10 @@ function cabAdminRenderList() {
     const histHtml = hist.length && typeof PK_PLANS !== 'undefined' ? `<div class="cab-ac-hist">Оплаты: ${hist.map((h, i) => {
       const t = `${(cabToDate(h.at) || now).toLocaleDateString('ru-RU')} · ${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}, ${h.period === 'y' || h.months === 12 ? 'год' : 'месяц'} · ${h.gift || h.method === 'gift' ? 'подарок' : h.amount > 0 ? h.amount.toLocaleString('ru-RU') + ' ' + cabEsc(h.cur || '') + (CAB_PAY_M[h.method] ? ' · ' + CAB_PAY_M[h.method] : '') : 'продлено'}${h.note ? ' (' + cabEsc(h.note) + ')' : ''}`;
       return i === 0 ? `<b>${t}</b>` : t; }).join(' · ')}</div>` : '';
-    const ctry = `<select onchange="cabAdminSetField('${u.id}','country',this.value||null)" class="cab-usel">
-        <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+    const cSrc = { ip: 'по IP', user: 'выбрал сам', admin: 'вручную' }[u.countrySrc] || '';
+    const cTip = [cSrc && 'Страна: ' + cSrc, u.countryIp && 'IP: ' + u.countryIp, u.countryOther && 'Страна: ' + u.countryOther, u.countryCur && 'Валюта: ' + u.countryCur].filter(Boolean).join(' · ');
+    const ctry = `<span class="cab-ac-cty"><select onchange="cabAdminSetField('${u.id}','country',this.value||null,true)" class="cab-usel" title="${cabEsc(cTip)}">
+        <option value="">Страна —</option>${Object.entries(PIKSTA_COUNTRIES).map(([k, v]) => `<option value="${k}" ${u.country === k ? 'selected' : ''}>${k === 'OT' && u.countryOther ? cabEsc(u.countryOther) : v}</option>`).join('')}</select>${cSrc ? `<small title="${cabEsc(cTip)}">${cSrc}${u.countryIp && u.countrySrc === 'user' ? ' · IP ' + cabEsc(u.countryIp) : ''}</small>` : ''}</span>`;
     const fnd = `<label class="cab-uopt" title="Участник пилота: пробный период 3 месяца вместо 30 дней и цена −${PIKSTA_TARIFFS.founderDiscountPct}%, пока подписка продлевается без перерыва"><input type="checkbox" ${u.founder ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','founder',this.checked,true)"> Пилот</label>`;
     const ind = `<label class="cab-uopt" title="Показать пользователю тариф «Крупный / карго» (индивидуальная цена)"><input type="checkbox" ${u.individual ? 'checked' : ''} onchange="cabAdminSetField('${u.id}','individual',this.checked)"> Индив. тариф</label>`;
     const ini = String(u.name || u.email || '?').trim().charAt(0).toUpperCase();
@@ -3150,9 +3153,11 @@ async function cabSubSave() {
 // Поле профиля пользователя из админки (страна, «первый клиент»). null — убрать поле
 async function cabAdminSetField(uid, field, value, rerender) {
   try {
-    await db.collection('users').doc(uid).update({ [field]: value === null ? firebase.firestore.FieldValue.delete() : value });
+    const upd = { [field]: value === null ? firebase.firestore.FieldValue.delete() : value };
+    if (field === 'country') upd.countrySrc = value === null ? firebase.firestore.FieldValue.delete() : 'admin';
+    await db.collection('users').doc(uid).update(upd);
     const u = cabAdminUsers.find(x => x.id === uid);
-    if (u) { if (value === null) delete u[field]; else u[field] = value; u._acc = pkAccess(u); }
+    if (u) { if (value === null) delete u[field]; else u[field] = value; if (field === 'country') { if (value === null) delete u.countrySrc; else u.countrySrc = 'admin'; } u._acc = pkAccess(u); }
     if (rerender) cabAdminRenderList();
   } catch (e) { alert('Ошибка: ' + e.message); cabNav(cabCurrentSection); }
 }

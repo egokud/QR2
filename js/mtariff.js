@@ -63,6 +63,9 @@ const pkN = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const pkD = d => d ? d.toLocaleDateString('ru-RU') : '';
 function pkGeoCur() {
   try { const s = localStorage.getItem('pk_cur'); if (PK_SYM[s] && s !== 'CNY' && s !== 'USDT') return s; } catch (e) {}
+  const P = typeof userProfile !== 'undefined' && userProfile ? userProfile : {};
+  if (PK_GEO_CUR[P.country]) return PK_GEO_CUR[P.country];
+  if (P.country === 'OT' && PK_SYM[P.countryCur]) return P.countryCur;
   return PK_GEO_CUR[pkGeo] || 'RUB';
 }
 function pkLoadGeo() {

@@ -1168,3 +1168,59 @@ function pkSheetClose() {
 
 // если приложение уже открыто в режиме сканера к моменту загрузки этого файла
 if (document.getElementById('appScreen') && !document.getElementById('appScreen').classList.contains('hide')) pkActivate();
+
+// ============ СТРАНА ПОЛЬЗОВАТЕЛЯ (04.11.2026) ============
+// После входа (почта подтверждена): сервер ставит страну по IP; если IP не BY/RU/KZ — один раз спрашиваем.
+let pkCtyAsked = false;
+async function pkCountryCheck() {
+  try {
+    if (pkCtyAsked || !currentUser || !currentUser.emailVerified || !userProfile || userProfile.country || userProfile.role === 'admin') return;
+    pkCtyAsked = true;
+    const t = await currentUser.getIdToken();
+    const j = await fetch('/api/country', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: t }) }).then(r => r.json());
+    if (j && j.c) { userProfile.country = j.c; return; }
+    if (j && j.ask) setTimeout(pkCountryAsk, 1200);
+  } catch (e) {}
+}
+// Ненавязчиво: полоска внизу каждой страницы, висит, пока человек не ответит (без окон и лишних шагов)
+function pkCountryAsk(step) {
+  let b = document.getElementById('pkCtyBar');
+  if (!b) { b = document.createElement('div'); b.id = 'pkCtyBar'; document.body.appendChild(b); }
+  const ch = (on, t) => `<button type="button" onclick="${on}">${t}</button>`;
+  b.innerHTML = step === 'other'
+    ? `<span class="q"><i class="ti ti-currency-dollar"></i>В какой валюте показывать цены?</span><span class="c">${ch("pkCountryPick('OT','RUB')", '₽ Рубли РФ')}${ch("pkCountryPick('OT','BYN')", 'BYN')}${ch("pkCountryPick('OT','KZT')", '₸ Тенге')}${ch('pkCountryAsk()', '<i class="ti ti-arrow-left"></i>')}</span>`
+    : `<span class="q"><i class="ti ti-world"></i>В какой стране вы работаете?</span><span class="c">${ch("pkCountryPick('BY')", 'Беларусь')}${ch("pkCountryPick('RU')", 'Россия')}${ch("pkCountryPick('KZ')", 'Казахстан')}${ch("pkCountryAsk('other')", 'Другая')}</span>`;
+  b.style.display = 'flex';
+}
+// Нажал страну/валюту → полоска 5 с показывает «Вы выбрали …» с кнопкой «Изменить» (защита от случайного нажатия),
+// без лишнего подтверждения: не нажал «Изменить» — сохраняем сами, полоска тихо уходит.
+const PK_CTY_NAME = { BY: 'Беларусь', RU: 'Россия', KZ: 'Казахстан', OT: 'Другая страна' };
+const PK_CTY_CUR = { BY: 'BYN', RU: 'RUB', KZ: 'KZT' };
+const PK_CUR_TXT = { BYN: 'бел. рублях', RUB: 'рос. рублях', KZT: 'тенге' };
+let pkCtyTimer = null;
+function pkCountryPick(k, cur) {
+  const b = document.getElementById('pkCtyBar'); if (!b) return;
+  const c = k === 'OT' ? (cur || 'RUB') : PK_CTY_CUR[k];
+  clearTimeout(pkCtyTimer);
+  b.innerHTML = `<span class="q ok"><i class="ti ti-circle-check"></i><span>Вы выбрали: <b>${PK_CTY_NAME[k]}</b><small>Цены тарифов — в ${PK_CUR_TXT[c]}. Можно работать дальше.</small></span></span><span class="c"><button type="button" onclick="pkCountryUndo()">Изменить</button></span><i class="pr"></i>`;
+  b.classList.add('done');
+  pkCtyTimer = setTimeout(() => pkCountrySave(k, cur), 5000);
+}
+function pkCountryUndo() { clearTimeout(pkCtyTimer); const b = document.getElementById('pkCtyBar'); if (b) b.classList.remove('done'); pkCountryAsk(); }
+async function pkCountrySave(k, cur) {
+  const body = { pick: k };
+  if (k === 'OT') body.cur = cur || 'RUB';
+  const bar = document.getElementById('pkCtyBar');
+  try {
+    body.idToken = await currentUser.getIdToken();
+    const j = await fetch('/api/country', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    if (j && j.c) {
+      userProfile.country = j.c;
+      if (j.cur) { userProfile.countryCur = j.cur; try { localStorage.setItem('pk_cur', j.cur); } catch (e) {} }
+      if (bar) { bar.classList.add('out'); setTimeout(() => bar.remove(), 350); }
+      return;
+    }
+  } catch (e) {}
+  if (bar) bar.classList.remove('done');
+  pkCountryAsk(); if (typeof showToast === 'function') showToast('Не сохранилось, попробуйте ещё раз');
+}
