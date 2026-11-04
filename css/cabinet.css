@@ -827,3 +827,20 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-cl-qnone{font-size:14px;color:#6b7280;margin:-2px 0 12px;white-space:normal}
 @media(max-width:640px){.cab-cl-bar{flex-wrap:wrap}.cab-cl-bar .cab-eb{width:100%;justify-content:center}}
 .cab-cl-bar .cab-new-big{padding:13px 22px;font-size:16px}
+/* Подсказки «?» (04.11.2026): светлая карточка со стрелкой, ссылка на раздел инструкции */
+.cab-help{color:#a79bd0}
+.cab-tip{position:fixed;z-index:1002;width:340px;max-width:calc(100vw - 16px);background:#fff;border:1px solid #e4def4;border-radius:14px;box-shadow:0 18px 44px rgba(40,24,90,.20);padding:14px 16px 12px;font-size:14px;line-height:1.5;color:#2b2640;animation:cabTipIn .12s ease-out}
+.cab-tip,.cab-tip *{white-space:normal}
+.cab-tip:before{content:"";position:absolute;left:var(--ax,24px);width:12px;height:12px;background:#fff;border:1px solid #e4def4;transform:rotate(45deg)}
+.cab-tip.dn:before{top:-7px;border-right:0;border-bottom:0}.cab-tip.up:before{bottom:-7px;border-left:0;border-top:0}
+.cab-tip .tt{display:flex;align-items:center;gap:7px;font-weight:700;font-size:15px;color:#17142a;margin-bottom:6px}.cab-tip .tt i{color:#6C4DB8;font-size:18px}
+.cab-tip .tb b{color:#17142a}
+.cab-tip .tl{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f0ecf9;color:#6C4DB8;font-weight:600;text-decoration:none;font-size:14px}.cab-tip .tl:hover{text-decoration:underline}.cab-tip .tl i:last-child{margin-left:auto}
+@keyframes cabTipIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.cab-help-pop .hb.doc,.cab-set-hb.doc{background:#f5f2fd;border:1.5px solid #cdbff0;color:#17142a;font-weight:600}.cab-help-pop .hb.doc i,.cab-set-hb.doc i{color:#6C4DB8}.cab-help-pop .hb.doc small{font-weight:400}
+/* Кабинет на телефоне: выбранный раздел — заливка, «Мобильная» — отдельная кнопка с чертой */
+@media(max-width:640px){
+  .cab-nav-item.active{background:#6C4DB8;color:#fff}
+  .cab-nav-item.pk-back-m{background:#fff;color:#6C4DB8;border:1.5px solid #d9d1f1;font-weight:600;margin-right:12px;position:relative;overflow:visible}
+  .cab-nav-item.pk-back-m:after{content:"";position:absolute;right:-9px;top:6px;bottom:6px;width:1px;background:#e1dcec}
+}
