@@ -147,6 +147,7 @@ async function showApp() {
     remembered = phone ? 'scanner' : 'cabinet';
   }
   enterMode(remembered);
+  setTimeout(() => { try { if (typeof pkCountryCheck === 'function') pkCountryCheck(); } catch (e) {} }, 2500);  // страна по IP (04.11)
   document.getElementById('userBadgeName').textContent = userProfile.name || currentUser.email;
   if (userProfile.role === 'admin') { const cb = document.querySelector('.contact-banner'); if (cb) cb.style.display = 'none'; }
 
