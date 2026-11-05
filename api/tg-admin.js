@@ -133,11 +133,23 @@ function card(u) {
   return [lines.join('\n'), cardKb(u)];
 }
 
+// С какой даты начинается оплаченный срок (05.11.2026, как pkPaidStart в js/init.js):
+// действующая подписка → от её окончания; идёт пробный период / пилот (подписки не было) → от его конца; иначе — сегодня.
+function paidStart(u) {
+  const now = new Date(), prev = u.subscription || null;
+  if (prev && prev.endDate instanceof Date && prev.endDate > now) return prev.endDate;
+  if (!(prev && prev.endDate instanceof Date)) {
+    const created = u.created instanceof Date ? u.created : now;
+    const trialEnd = new Date(created.getTime() + (u.founder ? PILOT_TRIAL_DAYS : TRIAL_DAYS) * DAY);
+    if (trialEnd > now) return trialEnd;
+  }
+  return now;
+}
 // ---------- Действия ----------
 async function extend(u, months, plan, gift) {
   plan = PLANS[plan] ? plan : curPlan(u); gift = !!gift;
   const prev = u.subscription || null;
-  const now = new Date(), cur = prev && prev.endDate instanceof Date && prev.endDate > now ? prev.endDate : now;
+  const now = new Date(), cur = paidStart(u);
   const end = new Date(cur); end.setMonth(end.getMonth() + months);
   const history = (prev && Array.isArray(prev.history) ? prev.history : []).concat([{ at: now, plan, period: months === 12 ? 'y' : 'm', months, amount: 0, cur: '', method: gift ? 'gift' : 'bot', gift, end, by: 'bot' }]).slice(-40);
   const next = Object.assign({}, prev || {}, { endDate: end, months, activatedAt: now, by: 'bot', plan, history });
@@ -205,7 +217,7 @@ async function payIn(req, res) {
 async function payOk(u) {
   const prev = u.subscription || {}, p = prev.pending;
   if (!p) return send(`${esc(u.email)}: оплата уже обработана.`);
-  const now = new Date(), cur = prev.endDate instanceof Date && prev.endDate > now ? prev.endDate : now;
+  const now = new Date(), cur = paidStart(u);
   const end = new Date(cur); end.setMonth(end.getMonth() + (p.months || 1));
   const history = (Array.isArray(prev.history) ? prev.history : []).concat([{ at: now, plan: p.plan, period: p.period, months: p.months, amount: p.amount, cur: p.cur, method: p.method, end }]).slice(-40);
   const next = Object.assign({}, prev, { endDate: end, months: p.months, activatedAt: now, by: 'pay', plan: p.plan, history });
