@@ -42,7 +42,8 @@ function pkBuild() {
     <div class="pk-card pk-count" id="pkCount" onclick="toggleRemainingList()"></div>
     <div id="pkScanBox"></div>
     <div class="pk-lbl pk-recent-l">Последние отметки</div>
-    <div class="pk-list" id="pkRecent"></div>`;
+    <div class="pk-list" id="pkRecent"></div>
+    <button type="button" class="pk-btn ghost pk-reset" id="pkResetBtn" style="display:none" onclick="pkResetMarks()"><i class="ti ti-eraser" aria-hidden="true"></i> Стереть все отметки</button>`;
   const trial = document.getElementById('trialBanner');
   app.insertBefore(scan, trial ? trial.nextSibling : top.nextSibling);
   // переносим живые узлы сканера (обработчики сохраняются)
@@ -158,6 +159,17 @@ function pkRenderScan() {
     const img = row && row[2] ? `style="background-image:url('${pkEsc(row[2])}')"` : '';
     return `<div class="pk-li"><span class="ph" ${img}>${img ? '' : pkEsc(String(h.wh || '?').trim().charAt(0).toUpperCase())}</span><div><b>${pkEsc(h.wh || 'Без клиента')}</b><small>${pkEsc(h.track)}</small></div><span class="r">${pkEsc(h.time || '')}</span></div>`;
   }).join('') : '<div class="pk-empty">Здесь появятся посылки, которые вы отметили</div>';
+  // «Стереть все отметки» — только для этой закупки и только когда есть что стирать
+  const rb = document.getElementById('pkResetBtn');
+  if (rb) rb.style.display = s && (Object.keys(scanned || {}).length || rec.length) ? 'flex' : 'none';
+}
+// Стереть все отметки активной закупки (05.11.2026): отметки + «Последние отметки», другие закупки не трогаем
+async function pkResetMarks() {
+  const s = pkActive(); if (!s) return;
+  if (!confirm(`Стереть все отметки в «${s.name}»?\nПосылки снова станут неотсканированными.`)) return;
+  editingShipmentId = activeShipmentId;
+  const ok = await resetAll(true);
+  if (ok && typeof showToast === 'function') showToast('Отметки стёрты');
 }
 
 async function pkScanShip(id) {

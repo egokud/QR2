@@ -1965,12 +1965,20 @@ function showUnscanned() {
 }
 
 // ============ RESET / EXPORT ============
-async function resetAll() {
-  if(!confirm('Сбросить все отметки?'))return;
+async function resetAll(skipConfirm) {
+  if(!skipConfirm && !confirm('Сбросить все отметки?'))return false;
   const shipId = editingShipmentId || activeShipmentId;  // сбрасываем отметки именно открытого прихода
   scanned={};
   await scannedRef(shipId).set({ items: {} });
+  // (05.11.2026) вместе с отметками стираем и «Последние отметки» этой же закупки — иначе список висит после сброса
+  try { await historyRef(shipId).set({ items: [] }); } catch (e) {}
+  if (shipId === activeShipmentId) {
+    scanHistory = [];
+    const hs = document.getElementById('historySection'); if (hs) hs.style.display = 'none';
+  }
   updateStats(); document.getElementById('resultBlock').innerHTML='';
+  if (shipId === activeShipmentId && typeof pkRender === 'function' && document.getElementById('pkTabs')) { try { pkRender(); } catch (e) {} }
+  return true;
 }
 function exportScanned() {
   const rows=TABLE.map((r,i)=>({t:r[0],w:r[1],d:!!scanned[i]})).filter(r=>r.d).map(r=>r.t+','+r.w).join('\n');
