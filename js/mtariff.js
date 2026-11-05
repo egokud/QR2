@@ -12,7 +12,7 @@ const PK_MARKUP = 1.1;
 const PK_SYM = { BYN: 'BYN', RUB: '₽', KZT: '₸', CNY: '¥', USDT: 'USDT' };
 let PK_RATES = { d: '2026-11-01', USD: 2.9462, CNY: 0.44286, RUB: 0.036624, KZT: 0.0064906 };   // BYN за 1 единицу
 const pkUp = (x, step) => Math.ceil((x - 1e-6) / step) * step;
-// (03.11.2026) «≈ в месяц» больше нигде не показываем — только точные суммы: за месяц и за год
+// Сколько выходит в месяц при оплате за год (05.11.2026: так показываем «За год» — крупно в месяц, ниже сумма за год)
 const pkMo = (yr, cur) => cur === 'BYN' ? Math.round(yr / 12) : Math.round(yr / 120) * 10;
 // Цены тарифов в валюте cur: { s, start: [месяц, год], main, pro }
 function pkTP(cur) {
@@ -133,8 +133,9 @@ function pkTfCards(cur, onPick, rec, curPlan) {
   const P = pkTP(cur), y = pkTPer === 'y', sel = pkTfSel || rec;
   return ['start', 'main', 'pro'].map(k => {
     const [m, yr] = P[k], save = m * 12 - yr, isRec = k === rec, isCur = k === curPlan;
-    const price = y ? `<span class="pk-tf-pr">${pkN(yr)} <small>${P.s} / год</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
-    const yl = y ? `<span class="pk-tf-y">выгода ${pkN(save)} ${P.s} против помесячной оплаты</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ${pkN(yr)} ${P.s} за год — выгода ${pkN(save)} ${P.s}</span>`;
+    // (05.11.2026, Егор) «За год»: крупно — сколько выходит в месяц при оплате за год, ниже — сумма за год и выгода
+    const price = y ? `<span class="pk-tf-pr">${pkN(pkMo(yr, cur))} <small>${P.s} / мес</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
+    const yl = y ? `<span class="pk-tf-y">при оплате за год — ${pkN(yr)}&nbsp;${P.s}<br>выгода ${pkN(save)}&nbsp;${P.s}</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ${pkN(yr)} ${P.s} за год — выгода ${pkN(save)} ${P.s}</span>`;
     // Нажатие на карточку только выделяет её (рамка + кнопка), к оплате ведёт кнопка
     return `<div class="pk-tf ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="pkTfPick('${k}')" role="button" tabindex="0" aria-pressed="${k === sel}">${isCur ? '<span class="pk-tf-tag cur">Ваш тариф</span>' : isRec ? '<span class="pk-tf-tag">Подходит вам</span>' : ''}
       <div class="pk-tf-r"><b>${PK_PLANS[k].n}</b>${price}</div>${yl}<span class="pk-tf-d">${PK_PLANS[k].d}</span>
