@@ -221,9 +221,15 @@ function pkPayStart(plan) {
   pkPayRender1();
 }
 function pkPayEnd() {
-  const { A } = pkPlanNow();
-  const base = A.kind === 'sub' && A.end > new Date() ? new Date(A.end) : new Date();
+  const base = new Date(pkPaidStart());   // оплаченное начинается после пробного периода / текущей подписки
   base.setMonth(base.getMonth() + (pkTPer === 'y' ? 12 : 1)); return base;
+}
+// Подсказка, когда начнётся оплаченный срок, если оплата раньше конца пробного периода или подписки
+function pkPayStartNote() {
+  const st = pkPaidStart(), now = new Date();
+  if (st - now < 864e5) return '';
+  const sub = userProfile && userProfile.subscription && userProfile.subscription.endDate;
+  return `<p class="pk-muted" style="font-size:12.5px;text-align:center;margin:4px 0 0">${sub ? 'Текущая подписка' : 'Пробный период'} идёт до ${pkD(st)} — оплаченный срок начнётся сразу после, ничего не сгорает.</p>`;
 }
 function pkPayRender1() {
   const S = pkPayS, cur = pkGeoCur(), P = pkTP(cur), [m, y] = P[S.plan];
@@ -231,7 +237,7 @@ function pkPayRender1() {
   const amt = x => x.cur ? pkN(pkPayAmount(x.cur, S.plan, pkTPer)) + ' ' + PK_SYM[x.cur] : '';
   pkScr(`Оплата «${PK_PLANS[S.plan].n}»`, `
     <div class="pk-seg"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkPayRender1()">Помесячно · ${pkN(m)}</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkPayRender1()">За год · ${pkN(y)}</button></div>
-    <p class="pk-muted" style="font-size:13px;text-align:center;margin:-2px 0 0">${pkTPer === 'y' ? `${pkN(y)} ${P.s} раз в год · выгода ${pkN(m * 12 - y)} ${P.s}` : `${pkN(m)} ${P.s} в месяц`} · до ${pkD(pkPayEnd())}</p>
+    <p class="pk-muted" style="font-size:13px;text-align:center;margin:-2px 0 0">${pkTPer === 'y' ? `${pkN(y)} ${P.s} раз в год · выгода ${pkN(m * 12 - y)} ${P.s}` : `${pkN(m)} ${P.s} в месяц`} · до ${pkD(pkPayEnd())}</p>${pkPayStartNote()}
     <div class="pk-lbl">Чем платите</div>
     <div class="pk-mt">${L.map(x => `<button type="button" class="${x.id === S.method ? 'on' : ''}" onclick="pkPayS.method='${x.id}';pkPayRender1()"><i class="ti ${x.ic}" aria-hidden="true"></i><span>${x.n}<small>${x.sub}${x.cur ? ' · ' + amt(x) : ''}</small></span><i class="rd" aria-hidden="true"></i></button>`).join('')}</div>
     <button type="button" class="pk-btn" onclick="pkPayRender2()">Далее</button>`, pkTariffs);

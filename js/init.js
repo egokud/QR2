@@ -60,6 +60,20 @@ function pkToDate(v) {
   if (typeof v === 'object' && 'seconds' in v) return new Date(v.seconds * 1000);
   const d = new Date(v); return isNaN(d) ? null : d;
 }
+// С какой даты начинается оплаченный срок (решение Егора 05.11.2026): сначала до конца доходит то, что уже есть,
+// потом — оплаченное. Действующая подписка → от её окончания; ещё идёт пробный период / пилот (подписки не было) →
+// от конца пробного; иначе → с сегодняшнего дня. Та же формула — в api/tg-admin.js (paidStart).
+function pkPaidStart(p) {
+  p = p || userProfile || {};
+  const now = new Date(), DAY = 864e5;
+  const subEnd = p.subscription ? pkToDate(p.subscription.endDate) : null;
+  if (subEnd && subEnd > now) return subEnd;
+  if (!subEnd && p.role !== 'admin') {
+    const trialEnd = new Date((pkToDate(p.created) || now).getTime() + (p.founder ? PK_PILOT_TRIAL_DAYS : PK_TRIAL_DAYS) * DAY);
+    if (trialEnd > now) return trialEnd;
+  }
+  return now;
+}
 function pkAccess(p) {
   p = p || userProfile || {};
   const now = new Date(), DAY = 864e5;

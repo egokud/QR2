@@ -3088,9 +3088,12 @@ function cabSubAmt(S) {
   return pkUp(base / r, S.cur === 'RUB' || S.cur === 'KZT' ? 100 : 1);
 }
 function cabSubEnd(u, m) {
+  // (05.11.2026) оплаченный срок — после текущей подписки или после пробного периода / пилота (pkPaidStart в init.js)
+  const from = typeof pkPaidStart === 'function' ? pkPaidStart(u) : new Date();
   const curEnd = u.subscription ? cabToDate(u.subscription.endDate) : null;
-  const from = curEnd && curEnd > new Date() ? curEnd : new Date();
-  const e = new Date(from); e.setMonth(e.getMonth() + m); return { e, ext: from !== null && curEnd && curEnd > new Date() };
+  const e = new Date(from); e.setMonth(e.getMonth() + m);
+  const how = curEnd && curEnd > new Date() ? 'продление от текущей даты окончания' : from - new Date() > 864e5 ? 'после пробного периода (до ' + from.toLocaleDateString('ru-RU') + ')' : 'от сегодня';
+  return { e, ext: how };
 }
 function cabAdminSub(uid) {
   const u = cabAdminUsers.find(x => x.id === uid); if (!u) return;
@@ -3130,7 +3133,7 @@ function cabSubRender() {
       <select onchange="cabSubSet('cur',this.value)" style="${inp};width:96px">${['BYN', 'RUB', 'KZT', 'CNY', 'USDT'].map(c => `<option ${S.cur === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
       <select onchange="cabSubS.method=this.value" style="${inp};width:128px">${Object.entries(CAB_PAY_M).filter(([k]) => k !== 'bot').map(([k, t]) => `<option value="${k}" ${S.method === k ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`}
     <input id="cabSubNote" value="${cabEsc(S.note)}" oninput="cabSubS.note=this.value" placeholder="Комментарий: например, «скидка пилота −30%»" style="${inp}">
-    <div style="background:#e7f8ee;color:#15803d;border-radius:10px;padding:9px 11px;font-size:13.5px">Будет: <b>${PK_PLANS[S.plan].n} до ${e.toLocaleDateString('ru-RU')}</b> — ${ext ? 'продление от текущей даты окончания' : 'от сегодня'}${S.gift ? ' · подарок' : ''}</div>
+    <div style="background:#e7f8ee;color:#15803d;border-radius:10px;padding:9px 11px;font-size:13.5px">Будет: <b>${PK_PLANS[S.plan].n} до ${e.toLocaleDateString('ru-RU')}</b> — ${ext}${S.gift ? ' · подарок' : ''}</div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="cab-filter-btn" onclick="document.getElementById('cabSubOv').remove()">Отмена</button>
       <button class="cab-filter-btn" id="cabSubGo" style="color:#fff;background:#6C4DB8;border-color:#6C4DB8" onclick="cabSubSave()"><i class="ti ti-calendar-plus"></i> Продлить</button>
