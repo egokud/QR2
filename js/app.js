@@ -1201,45 +1201,84 @@ async function deleteShipment() {
 function openUploadModal() { document.getElementById('uploadModal').classList.add('show'); document.getElementById('shipmentName').value = ''; document.getElementById('csvFile').value = ''; }
 function closeUploadModal() { document.getElementById('uploadModal').classList.remove('show'); }
 
+// Загрузка таблицы треков (05.11.2026): Excel (.xlsx/.xls) или CSV — например файл от карго.
+// Колонку с треками и колонку с клиентом находим сами; клиент необязателен — его можно проставить потом.
+const PK_TRACK_RE = /^[A-Za-z]{0,4}\d{8,}[A-Za-z]{0,2}(-\d+)*$/;
+function pkCellTrack(v) { const t = String(v == null ? '' : v).replace(/\s+/g, '').trim(); return PK_TRACK_RE.test(t) ? t : ''; }
+function pkParseTrackTable(rows) {
+  rows = (rows || []).filter(r => Array.isArray(r) && r.some(c => String(c).trim()));
+  if (!rows.length) return { data: [], withClient: 0 };
+  const width = Math.max(...rows.map(r => r.length));
+  const sample = rows.slice(0, 300);
+  // колонка треков — где больше всего значений, похожих на трек-код
+  let tc = -1, best = 0;
+  for (let c = 0; c < width; c++) { const n = sample.filter(r => pkCellTrack(r[c])).length; if (n > best) { best = n; tc = c; } }
+  if (tc < 0) return { data: [], withClient: 0 };
+  // колонка клиента — по заголовку (клиент / склад / имя / получатель / кто), иначе самая «текстовая» колонка
+  const head = rows[0].map(x => String(x).toLowerCase());
+  let wc = head.findIndex((h, i) => i !== tc && /клиент|склад|имя|получат|кто|фио|ник|client|name|customer/.test(h));
+  if (wc < 0) {
+    let bw = 0;
+    for (let c = 0; c < width; c++) {
+      if (c === tc) continue;
+      const n = sample.filter(r => { const v = String(r[c] == null ? '' : r[c]).trim(); return v && /[A-Za-zА-Яа-яЁё]/.test(v) && !pkCellTrack(v) && v.length <= 60; }).length;
+      if (n > bw) { bw = n; wc = c; }
+    }
+    if (bw < best * 0.3) wc = -1;   // текста почти нет — значит, клиента в файле нет
+  }
+  const data = [];
+  for (const r of rows) {
+    const t = pkCellTrack(r[tc]); if (!t) continue;
+    const w = wc >= 0 ? String(r[wc] == null ? '' : r[wc]).trim().slice(0, 80) : '';
+    data.push({ t, w });
+  }
+  return { data, withClient: data.filter(x => x.w).length };
+}
+function pkReadTable(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const isText = /\.(csv|txt)$/i.test(file.name);
+    reader.onload = e => {
+      try {
+        if (typeof XLSX === 'undefined') {   // без библиотеки — простой CSV: трек, клиент
+          resolve(String(e.target.result).split(/\r?\n/).map(l => l.split(/[;,\t]/)));
+          return;
+        }
+        const wb = isText ? XLSX.read(e.target.result, { type: 'string' }) : XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        resolve(XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false }));
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('не удалось прочитать файл'));
+    if (isText) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  });
+}
+
 async function uploadCSV() {
   const name = document.getElementById('shipmentName').value.trim() || 'Партия ' + new Date().toLocaleDateString('ru');
   const file = document.getElementById('csvFile').files[0];
-  if (!file) { alert('Выбери CSV файл'); return; }
-
-  const reader = new FileReader();
-  reader.onload = async function(e) {
-    try {
-      const text = e.target.result;
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      const data = [];
-      for (const line of lines) {
-        const parts = line.split(',');
-        if (parts.length >= 2) {
-          const track = parts[0].trim();
-          const wh = parts.slice(1).join(',').trim();
-          if (track && wh && !track.toLowerCase().startsWith('тр') && !track.toLowerCase().startsWith('track')) data.push({t: track, w: wh});
-        }
-      }
-      if (data.length === 0) { alert('Данные не найдены в CSV'); return; }
-      if (typeof pkLimitCheck === 'function' && !pkLimitCheck(data.length)) { closeUploadModal(); return; }
-      // Курсы нового прихода: базовые курсы из кабинета (users/{uid}.baseRates); если их нет — с ПОСЛЕДНЕГО прихода (или дефолт)
-      let newRates = { ...DEFAULT_RATES };
-      if (userProfile && userProfile.baseRates) newRates = { ...DEFAULT_RATES, ...userProfile.baseRates };
-      else try {
-        const lastSnap = await shipmentsRef().orderBy('created', 'desc').limit(1).get();
-        if (!lastSnap.empty && lastSnap.docs[0].data().rates) newRates = { ...DEFAULT_RATES, ...lastSnap.docs[0].data().rates };
-      } catch(e) {}
-      const ref = await shipmentsRef().add({ name, data, rates: newRates, status: "forming", created: firebase.firestore.FieldValue.serverTimestamp() });
-      closeUploadModal();
-      activeShipmentId = ref.id;
-      await loadShipments();
-      await updateShipmentStats();
-      alert('Загружено ' + data.length + ' треков!');
-    } catch(err) {
-      alert('Ошибка: ' + err.message);
-    }
-  };
-  reader.readAsText(file);
+  if (!file) { alert('Выберите файл Excel или CSV с треками'); return; }
+  try {
+    const rows = await pkReadTable(file);
+    const { data, withClient } = pkParseTrackTable(rows);
+    if (data.length === 0) { alert('В файле не нашли трек-кодов. Нужна колонка с треками (например YT…, JT… или длинный номер).'); return; }
+    if (typeof pkLimitCheck === 'function' && !pkLimitCheck(data.length)) { closeUploadModal(); return; }
+    // Курсы нового прихода: базовые курсы из кабинета (users/{uid}.baseRates); если их нет — с ПОСЛЕДНЕГО прихода (или дефолт)
+    let newRates = { ...DEFAULT_RATES };
+    if (userProfile && userProfile.baseRates) newRates = { ...DEFAULT_RATES, ...userProfile.baseRates };
+    else try {
+      const lastSnap = await shipmentsRef().orderBy('created', 'desc').limit(1).get();
+      if (!lastSnap.empty && lastSnap.docs[0].data().rates) newRates = { ...DEFAULT_RATES, ...lastSnap.docs[0].data().rates };
+    } catch(e) {}
+    const ref = await shipmentsRef().add({ name, data, rates: newRates, status: "forming", created: firebase.firestore.FieldValue.serverTimestamp() });
+    closeUploadModal();
+    activeShipmentId = ref.id;
+    await loadShipments();
+    await updateShipmentStats();
+    alert('Загружено треков: ' + data.length + (withClient < data.length ? '\nС клиентом: ' + withClient + ', без клиента: ' + (data.length - withClient) + ' — клиента можно проставить потом.' : '\nУ всех треков указан клиент.'));
+  } catch(err) {
+    alert('Ошибка чтения файла: ' + err.message);
+  }
 }
 
 // ============ ВЫГРУЗКА ДЛЯ ОПИСИ ============
