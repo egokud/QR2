@@ -300,7 +300,7 @@ function renderPriceEditor() {
   const q = (document.getElementById('peSearch').value || '').toLowerCase().trim();
   let items = TABLE.map((r, i) => ({
     idx: i, track: r[0], wh: r[1]||'', img: r[2]||'',
-    buy: r[3]||'', client: r[4]||'', qty: parseInt(r[5])||1, name: r[6]||''
+    buy: r[3]||'', client: r[4]||'', qty: parseInt(r[5])||1, name: r[6]||'', mv: parseInt(r[7])||0, row: r
   }));
   if (peExactWh) {
     // Точное совпадение склада (выбран из подсказки)
@@ -334,11 +334,11 @@ function renderPriceEditor() {
       }
     }
     return header + `
-    <div class="pe-item ${r.qty>1?'multi':''}">
+    <div class="pe-item ${r.qty>1?'multi':''} ${r.mv>=2?'mv2':''}">
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
         <input class="pe-name" data-idx="${r.idx}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="+ название" maxlength="40" onchange="onEditName(this)" onclick="event.stopPropagation()" autocomplete="off">
-        <div class="pe-bot"><div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>
+        <div class="pe-bot"><div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}
         ${byWh ? '' : `<div style="position:relative"><input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" oninput="showClientHints(this)" onfocus="showClientHints(this)" onblur="hideClientHints(this)" onclick="event.stopPropagation()" autocomplete="off"></div>`}
       </div></div>
       <div class="pe-prices">
@@ -1144,7 +1144,7 @@ let currentDueOverride = {};
 // Разложить данные документа прихода по глобальным переменным (используется при загрузке и при живой синхронизации)
 function applyShipDoc(d) {
   d = d || {};
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'']);  // [6] — название товара (по желанию)
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'']);  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};
   currentTare = d.tare || 0;
@@ -1479,7 +1479,9 @@ async function applyCargoCompare() {
         const curDoc = await shipmentsRef().doc(cargoCompareShipId).get();
         if (curDoc.exists && curDoc.data().rates) newRates = { ...DEFAULT_RATES, ...curDoc.data().rates };
       } catch(e) {}
-      await shipmentsRef().add({ name, data: notInCargo, rates: newRates, status: "forming", created: firebase.firestore.FieldValue.serverTimestamp() });
+      const curName = (allShipments.find(x => x.id === cargoCompareShipId) || {}).name || '';
+      const moved = notInCargo.map(it => ({ ...it, mv: (it.mv || 0) + 1, mvFrom: curName }));   // считаем, сколько раз трек «не доехал»
+      await shipmentsRef().add({ name, data: moved, rates: newRates, status: "forming", created: firebase.firestore.FieldValue.serverTimestamp() });
     }
 
     closeCargoResult();
@@ -1992,15 +1994,15 @@ function toggleRemainingList() {
   if (w.style.display === 'block') { w.style.display = 'none'; return; }
   w.style.display = 'block';
   const container = document.getElementById('fullListContainer');
-  const items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', done: !!scanned[i] }))
+  const items = TABLE.map((r, i) => ({ idx: i, track: r[0], wh: r[1], img: r[2]||'', done: !!scanned[i], mv: parseInt(r[7])||0, row: r }))
     .filter(r => !r.done);
   container.innerHTML = items.length === 0
     ? '<div style="padding:14px;text-align:center;color:#999">Всё отсканировано!</div>'
-    : items.map(r => `<div class="fulllist-item">
+    : items.map(r => `<div class="fulllist-item ${r.mv>=2?'mv2':''}">
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">⬜</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
+        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}</span>
         <span class="fulllist-wh"><input value="${r.wh}" data-idx="${r.idx}" /></span>
       </div>`).join('');
   document.querySelectorAll('.fulllist-img-wrap').forEach(wrap => {
@@ -2027,6 +2029,48 @@ function showUnscanned() {
   const rem=TABLE.map((r,i)=>({t:r[0],w:r[1],i})).filter(r=>!scanned[r.i]);
   document.getElementById('unscannedList').innerHTML=rem.length===0?'<div style="padding:14px;text-align:center;color:#999">Всё отсканировано!</div>'
     :rem.map(r=>`<div class="unscanned-item"><span class="unscanned-track">${r.t}</span><span class="unscanned-wh">${r.w}</span></div>`).join('');
+}
+
+// ============ НЕ ПРИШЛИ — ПЕРЕНОС В ДРУГУЮ ЗАКУПКУ (05.11.2026) ============
+// Сканирование окончено, а часть треков так и не отсканирована (файла карго не было — не знали, что приедет).
+// Неотсканированные треки со всеми данными (клиент, фото, цены) уходят в новую или существующую закупку.
+// Счётчик mv: сколько раз трек уже переносили. 2 и больше — подсвечиваем красным: «обратитесь в карго».
+const pkNormT = t => String(t || '').toLowerCase().trim().split('-')[0];
+async function pkMoveUnscanned(target) {   // target: { newName } или { id }
+  const fromId = activeShipmentId; if (!fromId) throw new Error('нет закупки');
+  const doc = await shipmentsRef().doc(fromId).get(); if (!doc.exists) throw new Error('закупка не найдена');
+  const d = doc.data(), fromName = d.name || '';
+  const items = (d.data || []).map(r => Array.isArray(r) ? { t: r[0], w: r[1] || '', img: r[2] || '', p: r[3] || '', pc: r[4] || '', q: r[5] || '1' } : r);
+  const keep = [], move = [], newScanned = {};
+  items.forEach((it, i) => {
+    if (scanned[i]) { newScanned[keep.length] = scanned[i]; keep.push(it); }
+    else move.push({ ...it, mv: (it.mv || 0) + 1, mvFrom: fromName });
+  });
+  if (!move.length) return { moved: 0 };
+  let toId, toName;
+  if (target.id) {
+    const td = await shipmentsRef().doc(target.id).get(); if (!td.exists) throw new Error('закупка для переноса не найдена');
+    const tdata = (td.data().data || []).map(r => Array.isArray(r) ? { t: r[0], w: r[1] || '', img: r[2] || '', p: r[3] || '', pc: r[4] || '', q: r[5] || '1' } : r);
+    const have = new Map(tdata.map((x, i) => [pkNormT(x.t), i]));
+    for (const m of move) {   // трек уже есть в той закупке (импорт успел добавить) — не дублируем, переносим только счётчик
+      const k = pkNormT(m.t);
+      if (have.has(k)) { const x = tdata[have.get(k)]; x.mv = Math.max(x.mv || 0, m.mv); x.mvFrom = fromName; if (!x.w && m.w) x.w = m.w; }
+      else { have.set(k, tdata.length); tdata.push(m); }
+    }
+    await shipmentsRef().doc(target.id).update({ data: tdata });
+    toId = target.id; toName = td.data().name || '';
+  } else {
+    toName = (target.newName || '').trim() || ('Закупка ' + new Date().toLocaleDateString('ru'));
+    const ref = await shipmentsRef().add({ name: toName, data: move, rates: { ...DEFAULT_RATES, ...(d.rates || {}) }, status: 'forming', created: firebase.firestore.FieldValue.serverTimestamp() });
+    toId = ref.id;
+  }
+  // текущая закупка: остаются только отсканированные, отметки — с новыми номерами строк
+  await shipmentsRef().doc(fromId).update({ data: keep });
+  await scannedRef(fromId).set({ items: newScanned });
+  scanned = newScanned;
+  await loadShipmentData(fromId);
+  try { await loadShipments(); } catch (e) {}
+  return { moved: move.length, again: move.filter(m => m.mv >= 2).length, toId, toName };
 }
 
 // ============ RESET / EXPORT ============

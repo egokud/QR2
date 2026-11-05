@@ -135,7 +135,8 @@ function pkRenderScan() {
   const locked = pkLocked();
   document.getElementById('pkCount').innerHTML = locked
     ? `<div class="pk-row"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}</span></div><div class="n">${t} <small>${pkPl(t, 'позиция', 'позиции', 'позиций')} в заказе</small></div><div class="pk-muted" style="font-size:14px">Заказ ещё собирается. Сканировать можно, когда посылки приедут к вам.</div>`
-    : `<div class="pk-row"><div class="n">${d} <small>/ ${t}</small></div><span class="pk-muted" style="font-size:14px">осталось <b style="color:var(--pk-ink)">${t - d}</b></span></div><div class="pk-bar"><span style="width:${t ? Math.round(d / t * 100) : 0}%"></span></div>`;
+    : `<div class="pk-row"><div class="n">${d} <small>/ ${t}</small></div><span class="pk-muted" style="font-size:14px">осталось <b style="color:var(--pk-ink)">${t - d}</b></span></div><div class="pk-bar"><span style="width:${t ? Math.round(d / t * 100) : 0}%"></span></div>`
+      + (d > 0 && t - d > 0 ? `<button type="button" class="pk-btn ghost pk-fin" onclick="event.stopPropagation();pkFinishScan()"><i class="ti ti-flag-check" aria-hidden="true"></i> Сканирование окончено</button>` : '');
   // сканер или замок
   const sc = document.getElementById('pkScan'), lock = document.getElementById('pkLock');
   const inp = document.getElementById('manualInput');
@@ -170,6 +171,46 @@ async function pkResetMarks() {
   editingShipmentId = activeShipmentId;
   const ok = await resetAll(true);
   if (ok && typeof showToast === 'function') showToast('Отметки стёрты');
+}
+
+// «Сканирование окончено» (05.11.2026): неотсканированные треки — в новую или существующую закупку
+function pkFinishScan(mode) {
+  const s = pkActive(); if (!s) return;
+  const t = TABLE.length, d = Object.keys(scanned).length, left = t - d;
+  if (left <= 0) return;
+  const again = TABLE.filter((r, i) => !scanned[i] && (parseInt(r[7]) || 0) >= 1).length;
+  const others = (allShipments || []).filter(x => x.id !== s.id && x.status !== 'done');
+  mode = mode || 'new';
+  const dt = new Date(); dt.setDate(dt.getDate() + 1);
+  pkSheet(`<h3>Сканирование окончено?</h3>
+    <p class="pk-muted" style="margin:6px 0 12px;font-size:14.5px;line-height:1.45">Не отсканировано <b style="color:var(--pk-ink)">${left} ${pkPl(left, 'трек', 'трека', 'треков')}</b> — они не приехали в этом грузе. Перенесём их вместе с клиентами, фото и ценами, а в «${pkEsc(s.name)}» останутся только приехавшие.</p>
+    ${again ? `<div class="pk-fin-warn"><i class="ti ti-alert-triangle"></i><span><b>${again} ${pkPl(again, 'трек', 'трека', 'треков')}</b> ${again === 1 ? 'не приезжает уже второй раз — после переноса он будет отмечен' : 'не приезжают уже второй раз — после переноса они будут отмечены'} красным. Стоит написать в карго.</span></div>` : ''}
+    <div class="pk-seg" style="margin:4px 0 12px"><button type="button" class="${mode === 'new' ? 'on' : ''}" onclick="pkFinishScan('new')">В новую закупку</button><button type="button" class="${mode === 'old' ? 'on' : ''}" ${others.length ? '' : 'disabled'} onclick="pkFinishScan('old')">В существующую</button></div>
+    ${mode === 'new'
+      ? `<label class="pk-muted" style="font-size:13px">Название новой закупки</label><input id="pkFinName" class="pk-inp" value="Отправка ${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}" style="width:100%;margin-top:4px">`
+      : `<label class="pk-muted" style="font-size:13px">Куда перенести</label><select id="pkFinTo" class="pk-inp" style="width:100%;margin-top:4px">${others.map(x => `<option value="${x.id}">${pkEsc(x.name)} · ${pkSt(x.status || 'forming').label}</option>`).join('')}</select>`}
+    <button type="button" class="pk-btn" id="pkFinGo" style="width:100%;margin-top:14px" onclick="pkFinishGo('${mode}')"><i class="ti ti-arrow-forward-up"></i> Перенести ${left} ${pkPl(left, 'трек', 'трека', 'треков')}</button>
+    <button type="button" class="pk-btn ghost" style="width:100%;margin-top:8px" onclick="pkSheetClose()">Продолжить сканирование</button>`);
+}
+async function pkFinishGo(mode) {
+  const b = document.getElementById('pkFinGo'); if (b) { b.disabled = true; b.textContent = 'Переношу…'; }
+  try {
+    const target = mode === 'old' ? { id: (document.getElementById('pkFinTo') || {}).value } : { newName: (document.getElementById('pkFinName') || {}).value };
+    const r = await pkMoveUnscanned(target);
+    pkSheetClose(); pkRender();
+    if (typeof showToast === 'function') showToast(`Перенесли ${r.moved} ${pkPl(r.moved, 'трек', 'трека', 'треков')} в «${r.toName}»`);
+    setTimeout(() => { const w = document.getElementById('weighPrompt'); if (w && TABLE.length && Object.keys(scanned).length >= TABLE.length) w.classList.add('show'); }, 600);
+  } catch (e) {
+    alert('Не получилось перенести: ' + (e && e.message || e));
+    if (b) { b.disabled = false; b.textContent = 'Попробовать ещё раз'; }
+  }
+}
+// Пометка трека, который уже переносили как «не пришёл»: 1 раз — серая строка, 2+ — красная (обратиться в карго)
+function pkMvNote(r) {
+  const mv = parseInt(r && r[7]) || 0; if (!mv) return '';
+  return mv >= 2
+    ? `<div class="pk-mv bad"><i class="ti ti-alert-triangle"></i> Не пришёл ${mv} раза — обратитесь в карго, возможно, посылка потерялась</div>`
+    : `<div class="pk-mv"><i class="ti ti-arrow-forward-up"></i> Перенесён из «${pkEsc(r[8] || 'прошлой закупки')}» — в том грузе не пришёл</div>`;
 }
 
 async function pkScanShip(id) {
