@@ -1205,6 +1205,23 @@ function closeUploadModal() { document.getElementById('uploadModal').classList.r
 // Колонку с треками и колонку с клиентом находим сами; клиент необязателен — его можно проставить потом.
 const PK_TRACK_RE = /^[A-Za-z]{0,4}\d{8,}[A-Za-z]{0,2}(-\d+)*$/;
 function pkCellTrack(v) { const t = String(v == null ? '' : v).replace(/\s+/g, '').trim(); return PK_TRACK_RE.test(t) ? t : ''; }
+// Похоже ли значение на имя/ник клиента: «Анна», «Ольга Петрова», «Сергей (гном)», «masha_v», «A12».
+// Не имя: трек, число/цена, дата, длинная фраза-примечание (больше 4 слов или 40 символов).
+function pkLooksLikeName(v) {
+  v = String(v || '').trim();
+  if (!v || v.length > 40 || pkCellTrack(v)) return false;
+  if (/^[\d\s.,:\-\/₽$¥€]+(byn|руб|р|cny|kg|кг|г)?\.?$/i.test(v)) return false;   // число, цена, вес, дата
+  if (!/[A-Za-zА-Яа-яЁё]/.test(v)) return false;
+  const words = v.replace(/\(.*?\)/g, ' ').split(/\s+/).filter(Boolean);
+  if (words.length > 4) return false;
+  const digits = (v.match(/\d/g) || []).length;
+  if (digits > Math.max(3, v.length * 0.4)) return false;
+  if (/[\u4e00-\u9fff]/.test(v)) return false;                      // китайское описание товара
+  if (PK_GOODS_RE.test(v)) return false;                             // название товара, а не человека
+  // кириллица — имя пишут с большой буквы («срочно», «хрупкое» — это примечания); латиница — ник, любой регистр
+  return /^[А-ЯЁA-Za-z@]/.test(v);
+}
+const PK_GOODS_RE = /(^|\s)(куртк|плать|кроссов|кед|ботин|сапог|шапк|шарф|перчат|носк|колгот|футбол|кофт|свитер|худи|брюк|штан|джинс|юбк|костюм|комбинез|пижам|бель|трус|бюстг|сумк|рюкзак|кошел|ремн|чехол|игрушк|кукл|конструкт|машинк|посуд|кружк|тарел|ложк|полотен|постел|подушк|одеял|штор|ковр|лампа|ламп|наушн|зарядк|кабел|телефон|часы|очки|косметик|крем|шампун|духи|набор|комплект|детск|женск|мужск)/i;
 function pkParseTrackTable(rows) {
   rows = (rows || []).filter(r => Array.isArray(r) && r.some(c => String(c).trim()));
   if (!rows.length) return { data: [], withClient: 0 };
@@ -1214,17 +1231,26 @@ function pkParseTrackTable(rows) {
   let tc = -1, best = 0;
   for (let c = 0; c < width; c++) { const n = sample.filter(r => pkCellTrack(r[c])).length; if (n > best) { best = n; tc = c; } }
   if (tc < 0) return { data: [], withClient: 0 };
-  // колонка клиента — по заголовку (клиент / склад / имя / получатель / кто), иначе самая «текстовая» колонка
+  // колонка клиента. Подписывать её не обязательно: по заголовку ищем только если он есть,
+  // иначе смотрим на сами значения — в строках с треком ищем колонку, где лежат именно имена/ники,
+  // а не примечания, цены, даты или описания товара.
   const head = rows[0].map(x => String(x).toLowerCase());
-  let wc = head.findIndex((h, i) => i !== tc && /клиент|склад|имя|получат|кто|фио|ник|client|name|customer/.test(h));
+  const NOT_NAME_HEAD = /примеч|коммент|товар|описан|назван|цена|сумм|стоим|вес|дата|адрес|кол-во|количеств|мест|статус|трек|track|price|weight|date|note/;
+  let wc = head.findIndex((h, i) => i !== tc && /клиент|склад|имя|получат|кто|фио|ник|покупат|заказчик|client|name|customer/.test(h) && !NOT_NAME_HEAD.test(h));
   if (wc < 0) {
-    let bw = 0;
+    const trackRows = sample.filter(r => pkCellTrack(r[tc]));
+    let bestScore = 0;
     for (let c = 0; c < width; c++) {
-      if (c === tc) continue;
-      const n = sample.filter(r => { const v = String(r[c] == null ? '' : r[c]).trim(); return v && /[A-Za-zА-Яа-яЁё]/.test(v) && !pkCellTrack(v) && v.length <= 60; }).length;
-      if (n > bw) { bw = n; wc = c; }
+      if (c === tc || NOT_NAME_HEAD.test(head[c] || '')) continue;
+      const vals = trackRows.map(r => String(r[c] == null ? '' : r[c]).trim()).filter(Boolean);
+      if (!vals.length) continue;
+      const nameLike = vals.filter(pkLooksLikeName);
+      const share = nameLike.length / trackRows.length;          // сколько строк с треком имеют здесь «имя»
+      if (share < 0.4) continue;
+      const repeat = 1 - new Set(nameLike.map(v => v.toLowerCase())).size / nameLike.length;   // клиенты повторяются — хороший знак
+      const score = share + repeat * 0.5 + (nameLike.length / vals.length) * 0.5 + 0.15 / Math.abs(c - tc);   // при равенстве — ближе к треку
+      if (score > bestScore) { bestScore = score; wc = c; }
     }
-    if (bw < best * 0.3) wc = -1;   // текста почти нет — значит, клиента в файле нет
   }
   const data = [];
   for (const r of rows) {
