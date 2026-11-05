@@ -462,8 +462,8 @@
   <div class="modal-card">
     <h3><i class="ti ti-upload" style="font-size:16px;margin-right:4px"></i> Новая закупка</h3>
     <input type="text" id="shipmentName" placeholder="Название (напр.: Закупка 15.09)">
-    <p style="font-size:12px;color:#888;margin-bottom:8px">CSV: первая колонка — трек, вторая — склад</p>
-    <input type="file" id="csvFile" accept=".csv,.txt">
+    <p style="font-size:12px;color:#888;margin-bottom:8px">Файл Excel или CSV — например от карго. Колонку с треками и колонку с клиентом найдём сами. Клиента можно не указывать — проставите потом.</p>
+    <input type="file" id="csvFile" accept=".xlsx,.xls,.csv,.txt">
     <div class="modal-buttons">
       <button class="modal-btn-cancel" onclick="closeUploadModal()">Отмена</button>
       <button class="modal-btn-ok" onclick="uploadCSV()">Загрузить</button>
