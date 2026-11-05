@@ -418,7 +418,7 @@ function cabTipShow(btn, k) {
   const old = document.getElementById('cabTip'); if (old) { if (old.dataset.k === k) return; old.remove(); }
   const [t, body] = CAB_HELP[k] || ['', ''], ln = CAB_HELP_LINK[k];
   const m = document.createElement('div'); m.className = 'cab-tip'; m.id = 'cabTip'; m.dataset.k = k;
-  m.innerHTML = `<div class="tt"><i class="ti ti-help-circle"></i>${t}</div><div class="tb">${body}</div>${ln ? `<a class="tl" href="/help#${ln}" target="_blank" rel="noopener"><i class="ti ti-book"></i>Подробнее в инструкции<i class="ti ti-arrow-up-right"></i></a>` : ''}`;
+  m.innerHTML = `<div class="tt"><i class="ti ti-help-circle"></i>${t}</div><div class="tb">${body}</div>${ln ? `<span class="tl soon" aria-disabled="true"><i class="ti ti-book"></i>Подробная инструкция — скоро появится</span>` : ''}`;
   m.onmouseenter = () => clearTimeout(cabTipT); m.onmouseleave = cabTipLeave;
   document.body.appendChild(m);
   const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
@@ -2465,7 +2465,7 @@ function renderCabSettings(container) {
       <div class="cab-table-title"><i class="ti ti-help-circle" style="margin-right:6px"></i>Помощь и связь</div>
       <div style="font-size:14px;color:#4a5260;line-height:1.6;margin-bottom:12px">Вопросы по работе, видеоуроки по интерфейсу, ошибки — пишите, ответим.</div>
       <div class="cab-set-help">
-        <a class="cab-set-hb doc" href="/help" target="_blank" rel="noopener"><i class="ti ti-book"></i> Инструкция Piksta</a>
+        <span class="cab-set-hb doc soon" aria-disabled="true" title="Инструкцию обновляем под новые функции"><i class="ti ti-book"></i> Инструкция Piksta<em>скоро появится</em></span>
         <a class="cab-set-hb tg" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i> Telegram · @piksta_support_bot</a>
         <a class="cab-set-hb" href="mailto:support@piksta.online"><i class="ti ti-mail"></i> support@piksta.online</a>
         ${tips ? `<button type="button" class="cab-set-hb" onclick="pkTourStart('c')"><i class="ti ti-route"></i> Подсказки по интерфейсу</button>` : ''}
@@ -3246,7 +3246,7 @@ function cabHelpMenu(ev) {
   const p = document.createElement('div'); p.id = 'cabHelpPop'; p.className = 'cab-help-pop';
   const tips = typeof pkTourMenuOn === 'function' && pkTourMenuOn();
   p.innerHTML = `<div class="hh">Помощь и связь</div>
-    <a class="hb doc" href="/help" target="_blank" rel="noopener"><i class="ti ti-book"></i><span>Инструкция Piksta<small>все разделы по шагам, со скриншотами</small></span></a>
+    <span class="hb doc soon" aria-disabled="true"><i class="ti ti-book"></i><span>Инструкция Piksta<small>скоро появится — обновляем под новые функции</small></span></span>
     <p>Не нашли ответ — напишите, ответим.</p>
     <a class="hb tg" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram"></i><span>Написать в Telegram<small>@piksta_support_bot</small></span></a>
     <a class="hb" href="mailto:support@piksta.online"><i class="ti ti-mail"></i><span>Написать на почту<small>support@piksta.online</small></span></a>

@@ -907,7 +907,7 @@ function pkRenderMore() {
       <button onclick="pkTheme()"><i class="ti ti-moon" aria-hidden="true"></i><span>Тёмная тема</span><small>${document.body.classList.contains('dark') ? 'вкл' : 'выкл'}</small></button>
       <button onclick="pkTariffs()"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span>${pkTariffLine()}</button>
       ${typeof pkTourMenuOn === 'function' && pkTourMenuOn() ? `<button onclick="pkTourStart('m')"><i class="ti ti-route" aria-hidden="true"></i><span>Подсказки по интерфейсу</span><small>пройти обучение заново</small></button>` : ''}
-      <button onclick="window.open('/help','_blank')"><i class="ti ti-book" aria-hidden="true"></i><span>Инструкция<br><small>все разделы по шагам, со скриншотами</small></span></button>
+      <button class="soon" disabled aria-disabled="true"><i class="ti ti-book" aria-hidden="true"></i><span>Инструкция<br><small>скоро появится — обновляем под новые функции</small></span></button>
       <button onclick="pkHelp()"><i class="ti ti-help-circle" aria-hidden="true"></i><span>Помощь и связь</span></button>
       <button onclick="pkToCabinet()"><i class="ti ti-device-desktop" aria-hidden="true"></i><span>Полный Кабинет<br><small>цены, взвешивание, аналитика — удобнее на компьютере</small></span></button>
       ${isAdmin ? `<button onclick="pkToCabinet('admin')"><i class="ti ti-shield" aria-hidden="true"></i><span>Админ</span></button>` : ''}
