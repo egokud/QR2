@@ -454,6 +454,34 @@ function cabTipClick(ev, k) {
 }
 addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cabTipHide(); }, { passive: true, capture: true });
 
+// ── НОВОСТЬ НА ОБЗОРЕ (06.11.2026): «3 маркетплейса одной кнопкой» ──
+// Временно стоит на месте «Деньги в обороте». Крестик прячет её навсегда (в этом браузере), сама пропадает после CAB_NEWS_UNTIL —
+// тогда «Деньги в обороте» возвращаются на место. Следующую новость — сменить CAB_NEWS_ID и текст.
+const CAB_NEWS_ID = 'mk3-2026-11', CAB_NEWS_UNTIL = '2026-11-30';
+function cabNewsOn() {
+  if (new Date().toISOString().slice(0, 10) > CAB_NEWS_UNTIL) return false;
+  try { return localStorage.getItem('pk_news_off') !== CAB_NEWS_ID; } catch (e) { return true; }
+}
+function cabNewsOff() { try { localStorage.setItem('pk_news_off', CAB_NEWS_ID); } catch (e) {} cabNav('overview'); }
+function cabNewsCard() {
+  return `<div class="cab-card cab-news">
+      <button type="button" class="cab-news-x" onclick="cabNewsOff()" title="Скрыть — вернуть «Деньги в обороте»"><i class="ti ti-x"></i></button>
+      <div class="cab-news-l">
+        <span class="cab-news-tag"><i class="ti ti-sparkles"></i> Новое</span>
+        <div class="cab-news-h">3 маркетплейса —<br>одной кнопкой</div>
+        <div class="cab-news-p">Треки, фото, цены и названия на русском с Pinduoduo, Taobao и 1688 — за одну загрузку, сразу в закупку.</div>
+        <div class="cab-news-bt">
+          <a class="cab-news-b1" href="/extension" target="_blank" rel="noopener"><i class="ti ti-download"></i>Обновить расширение</a>
+          <span class="cab-news-v">версия 1.10.4 · бесплатно</span>
+        </div>
+      </div>
+      <div class="cab-news-art" aria-hidden="true">
+        <div class="cab-news-src"><span class="pk-mk pdd">PDD</span><span class="pk-mk tb">TAOBAO</span><span class="pk-mk a1688">1688</span></div>
+        <svg class="cab-news-lines" viewBox="0 0 60 120" preserveAspectRatio="none"><path d="M0 18 C30 18 30 60 60 60M0 60 H60M0 102 C30 102 30 60 60 60" /></svg>
+        <div class="cab-news-box"><i class="ti ti-package"></i><b>Piksta</b><small>1 закупка</small></div>
+      </div>
+    </div>`;
+}
 function renderCabOverview(container) {
   if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyOverview(); return; }
   const ships = cabShipmentsCache;
@@ -521,7 +549,7 @@ function renderCabOverview(container) {
     </div>
 
     <div class="cab-ov-top">
-      <div class="cab-card cab-money">
+      ${cabNewsOn() ? cabNewsCard() : `<div class="cab-card cab-money">
         <div class="cab-card-l"><i class="ti ti-coins"></i> Деньги в обороте${cabHelpBtn('money')}</div>
         <div class="cab-money-v">${cabFmt(money.turnover)} <small>BYN</small></div>
         <div class="cab-money-bar"><span style="width:${frozenPct}%;background:#6C4DB8"></span>${realPct ? `<span style="width:${realPct}%;background:#16a34a"></span>` : ''}</div>
@@ -529,7 +557,7 @@ function renderCabOverview(container) {
           <div><i style="background:#6C4DB8"></i><span>Вложено в товар</span><b>${cabFmt(money.frozen)} BYN</b><em>ждёт оплаты клиентов · ${money.nShips} ${cabPl(money.nShips, 'закупка', 'закупки', 'закупок')}</em></div>
           <div><i style="background:#16a34a"></i><span>Получено прибыли</span><b style="color:#16a34a">${cabFmt(money.realized)} BYN</b><em>уже ваши деньги</em></div>
         </div>
-      </div>
+      </div>`}
       <div class="cab-card cab-wait">
         <div class="cab-card-l"><i class="ti ti-receipt-2"></i> Наценка в заказах${cabHelpBtn('markup')}</div>
         <div class="cab-wait-v">${mk.est > 0.5 ? '≈ ' : ''}${cabFmt(mk.total)} <small>BYN</small></div>
