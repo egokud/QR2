@@ -891,7 +891,7 @@ function cabShipItemsHtml() {
     </div>
     <table class="cab-table cab-items-t">
       <colgroup><col style="width:56px"><col style="width:28%"><col style="width:84px"><col><col style="width:24%"><col style="width:96px"></colgroup>
-      <thead><tr><th></th><th>Трек</th><th title="Где куплено: Pinduoduo, Taobao">Площадка</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
+      <thead><tr><th></th><th>Трек</th><th title="Где куплено: Pinduoduo, Taobao, 1688">Площадка</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
     </table>
   </div>`;

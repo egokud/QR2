@@ -1538,10 +1538,10 @@ function levenshtein(a, b) {
 
 // ============ LOOKUP ============
 // метка маркетплейса у позиции: откуда трек (расширение 1.10.0 сохраняет mk = pdd / tb)
-// Пометка площадки у трека (06.11.2026): PDD — красная, TAOBAO — оранжевая, POIZON — бирюзовая (импорт Poizon будет позже).
+// Пометка площадки у трека (06.11.2026): PDD — красная, TAOBAO — оранжевая, 1688 — синяя, POIZON — бирюзовая (импорт Poizon будет позже).
 // Ставится только треками из импорта расширения 1.10.0+; у старых закупок поля mk нет — пометки нет.
 // Маршрутизация: эта же функция рисует пометку в телефоне (списки треков) и в Кабинете (колонка «Площадка»).
-function pkMkBadge(row){ const m=row&&row[9]; return m==='tb'?'<span class="pk-mk tb">TAOBAO</span>':m==='pdd'?'<span class="pk-mk pdd">PDD</span>':m==='pz'?'<span class="pk-mk pz">POIZON</span>':''; }
+function pkMkBadge(row){ const m=row&&row[9]; return m==='tb'?'<span class="pk-mk tb">TAOBAO</span>':m==='pdd'?'<span class="pk-mk pdd">PDD</span>':m==='pz'?'<span class="pk-mk pz">POIZON</span>':m==='1688'?'<span class="pk-mk a1688">1688</span>':''; }
 // звук + вибрация «уже отмечен» / «не найден» (06.11.2026)
 function pkSndSafe(k){ try{ if(typeof pkSnd==='function'){ pkSnd(k); pkVib(k); } }catch(e){} }
 function lookup(code) {
