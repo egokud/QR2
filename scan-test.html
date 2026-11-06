@@ -107,6 +107,7 @@ th{color:var(--mut);font-weight:600}
 
   <div class="card mt" id="ctl" style="display:none">
     <div class="lenses" id="lenses"></div>
+    <div class="row mt" id="fdRow" style="display:none"><i class="ti ti-focus-2" style="color:var(--mut)"></i><span class="note" style="white-space:nowrap">близко</span><input type="range" id="fd" step="0.01"><span class="note" style="white-space:nowrap">далеко</span><button class="btn gh sm on" id="afBtn">Авто</button></div>
     <div class="row mt" id="zoomRow" style="display:none"><i class="ti ti-zoom-in" style="color:var(--mut)"></i><input type="range" id="zoom" step="0.1"><b id="zoomV" style="min-width:42px;text-align:right">1×</b></div>
     <div class="row mt">
       <button class="btn gh sm" id="torchBtn" style="display:none"><i class="ti ti-bulb"></i> Фонарик</button>
@@ -198,7 +199,7 @@ function zxing() {
 
 // ===================== Камера =====================
 let stream = null, track = null, running = false, paused = false, loopId = 0, oldScanner = null;
-let tStart = 0, frames = 0, decMs = 0, fpsT = 0, lensId = null, cams = [];
+let tStart = 0, frames = 0, decMs = 0, fpsT = 0, lensId = null, cams = [], lastFps = 0, decSum = 0, decN = 0, FOCUS = {};
 const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
 
 $('startBtn').onclick = () => start();
@@ -284,16 +285,32 @@ function setupCaps() {
   }
   if (c.torch) { $('torchBtn').style.display = ''; $('torchBtn').classList.remove('on'); }
   if (c.focusMode && c.focusMode.includes('single-shot')) $('focusBtn').style.display = '';
+  FOCUS = { modes: (c.focusMode || []).join(','), fd: c.focusDistance ? [c.focusDistance.min, c.focusDistance.max].map(x => +(+x).toFixed(3)).join('–') : '' };
+  if (c.focusDistance && c.focusDistance.max > c.focusDistance.min && (c.focusMode || []).includes('manual')) {
+    const f = $('fd'); f.min = c.focusDistance.min; f.max = Math.min(c.focusDistance.max, 1); f.step = c.focusDistance.step || 0.01; f.value = s.focusDistance || 0.2;
+    $('fdRow').style.display = ''; $('afBtn').classList.add('on');
+  }
   hud();
 }
 $('zoom').oninput = async e => { $('zoomV').textContent = (+e.target.value).toFixed(1) + '×'; try { await track.applyConstraints({ advanced: [{ zoom: +e.target.value }] }); } catch (er) {} hud(); };
 $('torchBtn').onclick = async () => { const on = !$('torchBtn').classList.contains('on'); try { await track.applyConstraints({ advanced: [{ torch: on }] }); $('torchBtn').classList.toggle('on', on); } catch (e) {} };
+// ручной фокус (Android): ползунок «близко ↔ далеко»; «Авто» возвращает автофокус
+$('fd').oninput = async e => { try { await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: +e.target.value }] }); $('afBtn').classList.remove('on'); } catch (er) {} hud(); };
+$('afBtn').onclick = async () => { try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); $('afBtn').classList.add('on'); } catch (e) {} hud(); };
+// касание по видео — навести фокус в эту точку (если телефон умеет)
+$('cam').addEventListener('click', async e => {
+  if (!track || !track.getCapabilities || e.target.closest('button')) return;
+  const c = track.getCapabilities(), r = $('cam').getBoundingClientRect();
+  const pt = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+  try { if (c.pointsOfInterest !== undefined || 'pointsOfInterest' in (track.getSettings() || {})) await track.applyConstraints({ advanced: [{ pointsOfInterest: [pt] }] }); } catch (er) {}
+  try { if (c.focusMode && c.focusMode.includes('single-shot')) { await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }); setTimeout(() => track && $('afBtn').classList.contains('on') && track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {}), 900); } } catch (er) {}
+});
 $('focusBtn').onclick = async () => { try { await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }); setTimeout(() => track && track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {}), 800); } catch (e) {} };
 
 function hud() {
   const s = track && track.getSettings ? track.getSettings() : {};
   const engName = { native: 'Системный', zxing: 'ZXing', old: 'Как сейчас' }[S.eng];
-  $('hudL').textContent = `${engName} · ${s.width ? s.width + '×' + s.height : '?'}${s.zoom ? ' · ' + (+s.zoom).toFixed(1) + '×' : ''}`;
+  $('hudL').textContent = `${engName} · ${s.width ? s.width + '×' + s.height : '?'}${s.zoom ? ' · ' + (+s.zoom).toFixed(1) + '×' : ''}${s.focusMode ? ' · фокус ' + ({ continuous: 'авто', manual: 'ручной', 'single-shot': 'разовый', none: 'нет' }[s.focusMode] || s.focusMode) : ''}`;
 }
 
 // ===================== Распознавание (новые) =====================
@@ -310,7 +327,7 @@ async function detectLoop(my) {
     const t0 = performance.now();
     let codes = [];
     try { codes = await det.detect(canvas); } catch (e) { codes = []; }
-    decMs = performance.now() - t0; frames++;
+    decMs = performance.now() - t0; frames++; decSum += decMs; decN++;
     if (my !== loopId || paused) continue;
     const hit = pickCode(codes.map(c => c.rawValue));
     if (hit) onCode(hit, S.eng);
@@ -331,7 +348,7 @@ function tick() {
     const el = (performance.now() - tStart) / 1000;
     $('timer').textContent = el.toFixed(1).replace('.', ',') + ' с';
     if (performance.now() - fpsT > 1000) {
-      const fps = frames / ((performance.now() - fpsT) / 1000); frames = 0; fpsT = performance.now();
+      const fps = frames / ((performance.now() - fpsT) / 1000); frames = 0; fpsT = performance.now(); lastFps = fps;
       $('hudR').textContent = S.eng === 'old' ? `${fps.toFixed(0)} к/с` : `${fps.toFixed(0)} к/с · ${decMs.toFixed(0)} мс`;
       hud();
     }
@@ -408,7 +425,9 @@ let stats = [];
 try { stats = JSON.parse(localStorage.getItem('pk_scantest_stats') || '[]'); } catch (e) {}
 function record(x) {
   const s = track && track.getSettings ? track.getSettings() : {};
-  const rec = { at: Date.now(), dev: DEV, eng: x.eng, ok: x.ok, kind: x.kind, ms: Math.round(x.ms), res: s.width ? s.width + 'x' + s.height : '', roi: x.eng === 'old' ? 'full' : S.roi, zoom: s.zoom || null, lens: (cams.find(c => c.deviceId === s.deviceId) || {}).label || '' };
+  const diag = { fps: Math.round(lastFps), dec: decN ? Math.round(decSum / decN) : null, fm: s.focusMode || '', fd: s.focusDistance != null ? +(+s.focusDistance).toFixed(3) : null, fmodes: FOCUS.modes || '', fdr: FOCUS.fd || '' };
+  decSum = 0; decN = 0;
+  const rec = { at: Date.now(), dev: DEV, eng: x.eng, ...diag, ok: x.ok, kind: x.kind, ms: Math.round(x.ms), res: s.width ? s.width + 'x' + s.height : '', roi: x.eng === 'old' ? 'full' : S.roi, zoom: s.zoom || null, lens: (cams.find(c => c.deviceId === s.deviceId) || {}).label || '' };
   stats.push(rec); try { localStorage.setItem('pk_scantest_stats', JSON.stringify(stats.slice(-300))); } catch (e) {}
   if (x.ok) addLog(`${x.kind === 'ok' ? '✓' : x.kind === 'al' ? '↺' : '✗'} ${(x.ms / 1000).toFixed(1)} с — ${x.eng} — ${x.code}`);
   renderStats();
