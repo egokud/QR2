@@ -3303,7 +3303,7 @@ function cabEmptyOverview() {
   return `<div class="cab-main-title">${first ? 'Добро пожаловать, ' + cabEsc(first) + '!' : 'Добро пожаловать в Piksta!'}</div>
     <div class="cab-start"><h2>С чего начать</h2><p>Три шага — и первая закупка разобрана по клиентам. Начните с закупки: всё остальное Piksta посчитает сама.</p></div>
     <div class="cab-start-steps">
-      <div class="cab-start-st cur"><span class="n">1</span><b>Создайте закупку</b><span>Импорт с Pinduoduo через расширение — или вручную, с любой площадки.</span><button type="button" class="cab-eb" onclick="cabNav('shipments')">Перейти в «Закупки» <i class="ti ti-arrow-right"></i></button></div>
+      <div class="cab-start-st cur"><span class="n">1</span><b>Создайте закупку</b><span>Импорт с Pinduoduo, Taobao и 1688 через расширение — или вручную, с любой площадки.</span><button type="button" class="cab-eb" onclick="cabNav('shipments')">Перейти в «Закупки» <i class="ti ti-arrow-right"></i></button></div>
       <div class="cab-start-st"><span class="n">2</span><b>Отправили — «В дороге»</b><span>Карго забрало посылки — отметьте отправку в закупке. Включится сканер.</span></div>
       <div class="cab-start-st"><span class="n">3</span><b>Приехало — сканируйте</b><span>С телефона: посылка → чья. Взвесьте, и Piksta посчитает, кто сколько должен.</span></div>
     </div>
@@ -3313,10 +3313,11 @@ function cabEmptyShipments() {
   return `<div class="cab-main-title">Закупки</div>
     <div class="cab-emp-head"><b>У вас пока нет ни одной закупки</b><span>Откуда ваши заказы? Выберите путь — к каждому есть короткий гайд на 1 страницу.</span></div>
     <div class="cab-choice">
-      <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С Pinduoduo</b><small>треки, фото и цены подтянутся сами</small></span></div>
-        <ol><li>Скачайте расширение и поставьте в Chrome (2 минуты).</li><li>В Chrome войдите в Piksta и в Pinduoduo.</li><li>Значок Piksta → даты заказов → «Проставить склады» → <b>новая закупка</b>.</li><li>Впишите клиентов → «Сохранить в Piksta» — закупка появится здесь.</li></ol>
+      <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С маркетплейсов · автоматически</b><small>треки, фото, цены и названия подтянутся сами</small></span></div>
+        <div class="cab-ch-mk"><span class="pk-mk pdd">PDD</span><span class="pk-mk tb">TAOBAO</span><span class="pk-mk a1688">1688</span><span class="cab-ch-mk-t">за одну загрузку</span></div>
+        <ol><li>Скачайте расширение и поставьте в Chrome (2 минуты).</li><li>В Chrome войдите в Piksta и на свои площадки: Pinduoduo, Taobao, 1688.</li><li>Значок Piksta → отметьте площадки и даты → «Загрузить» → «Распределить по клиентам».</li><li>Впишите клиентов → «Сохранить в Piksta» — закупка откроется здесь.</li></ol>
         <div class="bt"><a class="cab-eb" href="/extension" target="_blank" rel="noopener"><i class="ti ti-download"></i>Скачать расширение</a><a class="cab-eb gh" href="${CAB_GUIDE_PDD}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Гайд</a></div></div>
-      <div class="cab-ch"><div class="hd"><span class="ic"><i class="ti ti-pencil-plus"></i></span><span><b>Вручную · любые площадки</b><small>Taobao, 1688, Poizon и другие</small></span></div>
+      <div class="cab-ch"><div class="hd"><span class="ic"><i class="ti ti-pencil-plus"></i></span><span><b>Вручную · любые площадки</b><small>Poizon и все остальные</small></span></div>
         <ol><li>«Создать вручную» → название (дата подставится сама).</li><li>Трек — вписать или снять камерой; название, цена, фото — по желанию.</li><li>Клиент — имя, Piksta подсказывает уже знакомые.</li><li>«Сохранить закупку».</li></ol>
         <div class="bt"><button type="button" class="cab-eb" onclick="cabManualOpen()"><i class="ti ti-plus"></i>Создать вручную</button><a class="cab-eb gh" href="${CAB_GUIDE_MAN}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i>Гайд</a></div></div>
     </div>
