@@ -2470,10 +2470,10 @@ function pkCamControls(){
   if(c.torch) tb.style.display='';
   if(c.zoom&&c.zoom.max>c.zoom.min){
     zs.min=c.zoom.min; zs.max=Math.min(c.zoom.max,4); zs.step=c.zoom.step||0.1; zs.value=s.zoom||c.zoom.min;
-    // 06.11.2026: Android по тесту лучше всего читает с приближением 2× (держать в 25–30 см); iPhone — как есть (1×).
+    // 06.11.2026: по тесту и на Android, и на iPhone лучше всего 2× (держать в 25–30 см, в кадр не попадают соседние посылки).
     // Если человек сам двигал ползунок — на этом устройстве запоминаем его выбор.
     let want=null; try{ want=parseFloat(localStorage.getItem('pk_cam_zoom')); }catch(e){}
-    if(!(want>0) && !PkCam.IOS) want=2;
+    if(!(want>0)) want=2;
     if(want>0){ want=Math.max(c.zoom.min,Math.min(want,+zs.max)); zs.value=want; setZoom(want,true); }
     document.getElementById('zoomVal').textContent=(+zs.value).toFixed(1).replace('.0','').replace('.',',')+'×'; zr.style.display='';
   }
