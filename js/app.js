@@ -1631,7 +1631,8 @@ function overlayOk() {
   let mb=document.querySelector('.multi-btns'); if(mb)mb.remove();
   let mw=document.querySelector('.multi-warn'); if(mw)mw.remove();
   if (scanner) try{scanner.resume()}catch(e){}
-  setTimeout(()=>document.getElementById('manualInput').focus(),200);
+  if (pkCanAutoFocus()) setTimeout(()=>document.getElementById('manualInput').focus(),200);
+  if (scanning) setTimeout(pkCamIntoView,150);
   // Всё отсканировано (осталось 0) → предлагаем взвешивание
   const total = TABLE.length, done = Object.keys(scanned).length;
   if (total > 0 && done >= total) {
@@ -2394,12 +2395,24 @@ document.getElementById('manualInput').addEventListener('input',function(e){
   }
 });
 document.getElementById('manualInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();manualSearch()}});
-document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&!e.target.closest('.pk-sheet,.pk-res-full,.pk-tabs,.pk-pane:not(#pkPane-scan)')&&!(typeof pkTab!=='undefined'&&document.body.classList.contains('pk-m')&&pkTab!=='scan')&&document.getElementById('appScreen').style.display!=='none')document.getElementById('manualInput').focus()});
+document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&!e.target.closest('.pk-sheet,.pk-res-full,.pk-tabs,.pk-pane:not(#pkPane-scan)')&&!(typeof pkTab!=='undefined'&&document.body.classList.contains('pk-m')&&pkTab!=='scan')&&document.getElementById('appScreen').style.display!=='none'&&pkCanAutoFocus())document.getElementById('manualInput').focus()});
 
 // ============ CAMERA ============
 // 06.11.2026: новый распознаватель (js/pkcam.js) — системный на Android (720p) или ZXing на iPhone (1080p),
 // рамка-полоса с красной линией, фонарик, приближение с 1×. Если браузер не умеет ни то ни другое — старый html5-qrcode.
 function toggleScanner(){scanning?stopScanner():startScanner()}
+// 06.11.2026: на телефоне при включённой камере курсор в поле сами не ставим — иначе выскакивает клавиатура и закрывает камеру.
+// Нажать в поле самому (ввести последние цифры) — можно, клавиатура появится как обычно.
+const PK_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+function pkCanAutoFocus(){ return !(scanning && PK_TOUCH); }
+// окно камеры целиком на экране (над нижним меню): после включения и после каждой «Следующей посылки»
+function pkCamIntoView(){
+  if(!scanning) return; const el=document.getElementById('cameraSection'); if(!el) return;   // камера вместе с фонариком и приближением
+  const r=el.getBoundingClientRect(), nav=document.getElementById('pkTabs');
+  const nb=nav&&getComputedStyle(nav).display!=='none'?nav.getBoundingClientRect().height:0;
+  const bottom=window.innerHeight-nb-8;
+  if(r.bottom>bottom||r.top<0) window.scrollBy({top:r.bottom-bottom,behavior:'smooth'});
+}
 function pkCamMarkup(){
   const r=document.getElementById('reader'); if(!r||r.dataset.pkc) return;
   r.dataset.pkc='1';
@@ -2411,7 +2424,9 @@ async function startScanner(){
   pkCamMarkup();
   document.getElementById('cameraSection').style.display='block';document.getElementById('zoomSection').style.display='block';
   document.getElementById('scanBtn').innerHTML='<i class="ti ti-player-stop" aria-hidden="true" style="font-size:22px"></i> Стоп';document.getElementById('scanBtn').style.background='#6C4DB8';document.getElementById('scanBtn').style.color='#fff';scanning=true;
+  if(PK_TOUCH&&document.activeElement&&document.activeElement.id==='manualInput') document.activeElement.blur();
   await startWithCam(null);
+  setTimeout(pkCamIntoView,200);
   // объективы: после разрешения камеры у устройств появляются названия. На iPhone не показываем — там «тройная камера» сама переключает объективы
   try{ allCameras=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput') }catch(e){ allCameras=[] }
   const bc=document.getElementById('cameraButtons'); bc.innerHTML='';

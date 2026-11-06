@@ -54,8 +54,8 @@ function pkBuild() {
   box.appendChild(sc);
   const lock = document.createElement('div'); lock.className = 'pk-lock'; lock.id = 'pkLock'; lock.style.display = 'none';
   box.appendChild(lock);
+  box.appendChild(document.getElementById('cameraSection'));   // 06.11.2026: камера выше карточки результата
   box.appendChild(document.getElementById('resultBlock'));
-  box.appendChild(document.getElementById('cameraSection'));
   scan.appendChild(document.querySelector('#appScreen > .bottom-section'));
 
   for (const k of ['ships', 'clients', 'money', 'more']) {
@@ -276,6 +276,7 @@ function pkResOk(silent) {
   if (silent) return;
   if (typeof overlayOk === 'function') overlayOk();   // фокус сканера, предложение взвесить
   pkRender();
+  if (typeof pkCamIntoView === 'function') setTimeout(pkCamIntoView, 200);
 }
 function pkUndo() {
   if (!pkLastOk) return pkResOk();
