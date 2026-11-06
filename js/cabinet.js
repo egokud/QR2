@@ -655,7 +655,7 @@ function cabTrackSearch(v) {
   box.innerHTML = `<div class="cab-ts-head">${R.fuzzy ? 'Точно такого трека нет. Похожие' : 'Найдено'}: ${R.list.length}${R.list.length > show.length ? ' · показаны первые ' + show.length + ', уточните запрос' : ''}</div>
     <div class="cab-ts-list">${show.map(x => {
       const q = parseInt(x.r[5]) || 1;
-      const img = x.r[2] ? `<img src="${esc(x.r[2])}" loading="lazy" alt="">` : '<span></span>';
+      const img = x.r[2] ? `<img src="${esc(pkImg(x.r[2]))}" loading="lazy" alt="">` : '<span></span>';
       return `<button type="button" class="cab-ts-row" onclick="cabTrackGo('${x.ship.id}','${encodeURIComponent(x.r[0])}')">
         <span class="cab-ts-img">${img}</span>
         <span class="cab-ts-t"><b>${cabTrackMark(x.r[0], R.fuzzy ? '' : R.q)}${q > 1 ? ` <em>×${q}</em>` : ''}</b><small>${esc(x.ship.name || 'Закупка')} · ${cabShipPill(x.ship.status)}</small></span>
@@ -1808,7 +1808,7 @@ function cabRenderClientCard(container, name) {
           const parts = splitWarehouses(r[1] || '');
           const shared = parts.length > 1 ? ` <span style="font-size:12px;color:#6b7280">(общий: ${r[1]})</span>` : '';
           const price = parseFloat(r[4]) || parseFloat(r[3]) || 0;
-          const img = r[2] ? `<img src="${r[2]}" loading="lazy" onclick="cabZoomImg(this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
+          const img = r[2] ? `<img src="${pkImg(r[2])}" loading="lazy" onclick="cabZoomImg(this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
           return `<tr><td style="width:52px">${img}</td><td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${shared}</td><td>${price ? cabFmt2(price) + ' ¥' : '—'}${(parseInt(r[5]) || 1) > 1 ? ' ×' + r[5] : ''}</td></tr>`;
         }).join('');
       items = `<div style="padding:4px 0 6px">

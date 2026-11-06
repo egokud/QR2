@@ -310,7 +310,7 @@ function pkShipSearch() {
   box.innerHTML = `<div class="pk-lbl">${R.fuzzy ? 'Точно такого нет · похожие' : 'Найдено'}: ${R.list.length}${R.list.length > show.length ? ' · уточните запрос' : ''}</div>
     <div class="pk-list">${show.map(x => {
       const st = pkSt(x.ship.status || 'forming'), q = parseInt(x.r[5]) || 1;
-      return `<div class="pk-li" onclick="pkShipSheet('${x.ship.id}')"><span class="ph" ${x.r[2] ? `style="background-image:url('${pkEsc(x.r[2])}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${cabTrackMark(x.r[0], R.fuzzy ? '' : R.q)}${q > 1 ? ' ×' + q : ''}</b><small>${pkEsc(x.ship.name)} · <span style="color:${st.text}">${st.label}</span></small></div><span class="r" style="color:var(--pk-acc);font-weight:700;max-width:40vw;overflow:hidden;text-overflow:ellipsis">${pkEsc((x.r[1] || '').trim() || '—')}</span></div>`;
+      return `<div class="pk-li" onclick="pkShipSheet('${x.ship.id}')"><span class="ph" ${x.r[2] ? `style="background-image:url('${pkEsc(pkImg(x.r[2]))}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${cabTrackMark(x.r[0], R.fuzzy ? '' : R.q)}${q > 1 ? ' ×' + q : ''}</b><small>${pkEsc(x.ship.name)} · <span style="color:${st.text}">${st.label}</span></small></div><span class="r" style="color:var(--pk-acc);font-weight:700;max-width:40vw;overflow:hidden;text-overflow:ellipsis">${pkEsc((x.r[1] || '').trim() || '—')}</span></div>`;
     }).join('')}</div>`;
 }
 function pkRenderShips() {
@@ -514,7 +514,7 @@ function pkRenderClientCard(pane, name) {
       <div class="pk-muted" style="font-size:12px;margin-top:8px">«Напомнить» копирует вежливое сообщение — вставьте в переписку</div></div>`; }).join('')}
     ${!debts.length ? `<div class="pk-card pk-row"><span>Долгов нет</span><b style="color:var(--pk-ok)">оплачено</b></div>` : ''}
     <div class="pk-lbl">Что заказала сейчас</div>
-    <div class="pk-list">${items.map(({ r, ship }) => `<div class="pk-li"><span class="ph" ${r[2] ? `style="background-image:url('${pkEsc(r[2])}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) + ' · ' : ''}${pkEsc(ship.name)} · ${pkSt(ship.status || 'forming').label}</small></div><span class="r">${(parseInt(r[5] || '1', 10) || 1) > 1 ? '×' + r[5] : ''}</span></div>`).join('') || '<div class="pk-empty">Сейчас ничего не заказано</div>'}</div>
+    <div class="pk-list">${items.map(({ r, ship }) => `<div class="pk-li"><span class="ph" ${r[2] ? `style="background-image:url('${pkEsc(pkImg(r[2]))}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) + ' · ' : ''}${pkEsc(ship.name)} · ${pkSt(ship.status || 'forming').label}</small></div><span class="r">${(parseInt(r[5] || '1', 10) || 1) > 1 ? '×' + r[5] : ''}</span></div>`).join('') || '<div class="pk-empty">Сейчас ничего не заказано</div>'}</div>
     <div class="pk-2"><div class="pk-card"><small>Всего купила</small><b>${pkFmt(totalBought)} ${pkCur()}</b></div><div class="pk-card"><small>Позиций</small><b>${c.totalItems}</b></div></div>`;
 }
 // Несколько долгов: сверху общий, одна кнопка «Внести оплату» (гасит от старой закупки к новой), ниже — по закупкам (03.11.2026)

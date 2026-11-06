@@ -1142,9 +1142,19 @@ function applyClientRules() {
 let currentDueOverride = {};
 
 // Разложить данные документа прихода по глобальным переменным (используется при загрузке и при живой синхронизации)
+// Картинки товара (06.11.2026): сервер 1688 cbu01/cbu02.alicdn.com не отдаёт картинки чужим сайтам,
+// тот же файл берём с открытого img.alicdn.com. Заодно http → https.
+// Маршрутизация: TABLE получает адрес уже исправленным здесь; списки по всем закупкам (поиск трека, карточка клиента)
+// вызывают pkImg() у себя — в mobile.js и cabinet.js.
+function pkImg(u) {
+  u = String(u || '');
+  if (!u) return '';
+  return u.replace(/^(https?:)?\/\/cbu0\d\.alicdn\.com\//i, 'https://img.alicdn.com/').replace(/^http:\/\//i, 'https://');
+}
 function applyShipDoc(d) {
   d = d || {};
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'']);  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'']);
+  TABLE.forEach(r => { if (r[2]) r[2] = pkImg(r[2]); });  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};
   currentTare = d.tare || 0;
