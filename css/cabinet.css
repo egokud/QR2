@@ -666,7 +666,7 @@
 .cab-nw{display:inline-block;margin-left:4px;font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;border-radius:999px;padding:2px 8px}
 @container (max-width:900px){.cab-wg{grid-template-columns:minmax(0,1fr)}.cab-wg-side{position:static}.cab-cs{grid-template-columns:minmax(0,1fr)}}
 /* Товары и цены: таблица не растягивается на весь экран (03.11.2026) */
-.cab-items-wrap{max-width:1040px}
+.cab-items-wrap{max-width:none}   /* «Товары и цены» — на всю ширину (06.11.2026) */
 .cab-items-t td{vertical-align:middle}
 /* Тариф и оплата в Кабинете — как в мобильной (03.11.2026) */
 .ctf{max-width:1080px;white-space:normal}.ctf *{white-space:normal}.ctf .ctf-tag,.ctf-seg button{white-space:nowrap}
@@ -903,3 +903,9 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 
 /* «+ Добавить позицию» в «Товарах и ценах» закупки (06.11.2026) */
 .cab-add-pos{height:38px;padding:0 16px;font-weight:600;white-space:nowrap}
+
+/* «Товары и цены»: постоянная верхняя строка + плашки площадок второй строкой (06.11.2026) */
+.cab-items-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.cab-items-q{flex:1 1 220px;min-width:180px;max-width:420px}
+.cab-items-sort{display:flex;gap:6px;margin-left:auto;flex-wrap:nowrap}
+.cab-items-wrap .cab-mk-chips{margin:-2px 0 12px}
