@@ -173,11 +173,16 @@
   function fix(n) {
     const src = String(n || '').trim(); if (!src) return '';
     const c = clean(src);
+    if (!c) return src;                                   // всё оказалось «мусором» — лучше оставить как было
     const s = short(src, src);
-    // название уже начинается с того, что это за товар («Костюм спортивный», «Шампунь Authentic Musk») — только убираем мусор
-    if (s && c && c.toLowerCase().startsWith(s.split(' ')[0].toLowerCase())) return c[0].toUpperCase() + c.slice(1);
-    const out = s || fallback(src, 40);
-    return out ? out[0].toUpperCase() + out.slice(1) : src;
+    const cat = s ? s.split(' ')[0].toLowerCase().replace(/ё/g, 'е') : '';
+    const cl = c.toLowerCase().replace(/ё/g, 'е');
+    let out = c;
+    // словарь даёт другое, более понятное слово («базовый слой» → «Термобельё», Lip Gloss → «Блеск для губ»),
+    // или название начинается с латинской марки («PROYA Эссенция» → «Эссенция для лица PROYA»)
+    if (s && (!cl.includes(cat) || /^[A-Za-z]/.test(c)) && (c !== src || enPick(src) || /^[A-Za-z]/.test(c))) out = s;
+    if (!/[А-Яа-яЁё]/.test(out)) out = 'Товар ' + out;   // осталась одна латиница (марка)
+    return out[0].toUpperCase() + out.slice(1);
   }
   const api = { clean, short, fallback, fix, brandOf };
   root.pkNameShort = (ru, orig) => short(ru, orig);
