@@ -835,9 +835,15 @@ async function cabRenameShip() {
 }
 
 // ---- Товары и цены ----
-let cabItemSort = 'track';  // 'track' — как в закупке (по трек-кодам), 'wh' — по складам
+let cabItemSort = 'track';  // 'track' — как в закупке (по трек-кодам), 'wh' — по клиентам, 'mk' — по маркетплейсам
+let cabItemMk = 'all';       // в режиме «По маркетплейсам»: 'all' или одна площадка — показываем только её треки (06.11.2026)
+// Порядок и подписи площадок. Пометка mk ставится импортом расширения 1.10+; у старых закупок её нет → «Без пометки».
+// Маршрутизация: цвета плашек — те же классы .pk-mk, что рисует pkMkBadge() в app.js.
+const CAB_MK = [['pdd', 'PDD', 'pdd'], ['tb', 'TAOBAO', 'tb'], ['1688', '1688', 'a1688'], ['pz', 'POIZON', 'pz'], ['', 'Без пометки', '']];
+const cabMkOf = r => (r && r[9]) || '';
 
-function cabSetItemSort(m) { cabItemSort = m; cabRenderShip(); }
+function cabSetItemSort(m) { cabItemSort = m; if (m !== 'mk') cabItemMk = 'all'; cabRenderShip(); }
+function cabSetItemMk(k) { cabItemMk = cabItemMk === k ? 'all' : k; cabRenderShip(); }
 
 const CAB_NOPDD_TIP = 'Трек есть только в файле карго — в ваших заказах Pinduoduo за даты импорта его не нашли. Причины: заказ раньше даты «С», продавец отправил поздно или заказано с другого аккаунта. Фото нет, цену впишите вручную.';
 function cabShipItemsHtml() {
@@ -851,17 +857,29 @@ function cabShipItemsHtml() {
       return ka.localeCompare(kb, 'ru') || a - b;
     });
   }
+  const mkCount = {};
+  for (const r of TABLE) { const k = cabMkOf(r); mkCount[k] = (mkCount[k] || 0) + 1; }
+  if (cabItemSort === 'mk') {
+    const rank = k => { const n = CAB_MK.findIndex(m => m[0] === k); return n < 0 ? 99 : n; };
+    order.sort((a, b) => rank(cabMkOf(TABLE[a])) - rank(cabMkOf(TABLE[b])) || a - b);
+    if (cabItemMk !== 'all') order = order.filter(i => cabMkOf(TABLE[i]) === cabItemMk);
+  }
   const whCount = {};
   for (const r of TABLE) { const k = (r[1] || '').trim().toLowerCase(); whCount[k] = (whCount[k] || 0) + 1; }
-  let lastWh = null;
+  let lastWh = null, lastMk = null;
   const rows = order.map(i => {
     const r = TABLE[i];
+    if (cabItemSort === 'mk' && cabMkOf(r) !== lastMk) {
+      lastMk = cabMkOf(r);
+      const m = CAB_MK.find(x => x[0] === lastMk) || [lastMk, lastMk, ''];
+      var mkHead = `<tr class="cab-item-grp"><td colspan="6" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <span style="font-weight:400;color:#6b7280">· ${mkCount[lastMk] || 0}</span></td></tr>`;
+    } else var mkHead = '';
     let head = '';
     if (cabItemSort === 'wh') {
       const k = (r[1] || '').trim().toLowerCase();
       if (k !== lastWh) {
         lastWh = k;
-        head = `<tr class="cab-item-grp"><td colspan="6" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без склада'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
+        head = `<tr class="cab-item-grp"><td colspan="6" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без клиента'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
       }
     }
     const qty = parseInt(r[5]) || 1;
@@ -870,23 +888,27 @@ function cabShipItemsHtml() {
     const mvNote = !mv ? '' : mv >= 2
       ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:600;color:#b42318;margin-top:3px;white-space:normal"><i class="ti ti-alert-triangle"></i> Не пришёл ${mv} раза — обратитесь в карго, возможно, посылка потерялась</div>`
       : `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;color:#6b7280;margin-top:3px;white-space:normal"><i class="ti ti-arrow-forward-up"></i> Перенесён из «${cabEsc(r[8] || 'прошлой закупки')}» — в том грузе не пришёл</div>`;
-    return head + `<tr class="cab-item-row" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '')).toLowerCase().replace(/"/g, '')}">
+    return mkHead + head + `<tr class="cab-item-row" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
       <td style="width:52px">${img}</td>
-      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note" title="Из одного магазина, товары могут быть разными"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком</div>` : ''}</td>
+      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] || r[9] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note" title="Из одного магазина, товары могут быть разными"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком</div>` : ''}</td>
       <td class="cab-mk-cell">${typeof pkMkBadge === 'function' ? pkMkBadge(r) : ''}</td>
       <td><input data-idx="${i}" value="${(r[6] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,6)" maxlength="40" placeholder="название, 1–3 слова" style="${cabInp};width:100%"></td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
       <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
     </tr>`;
   }).join('');
-  const noPdd = TABLE.filter(r => !r[2]).length;
+  const noPdd = TABLE.filter(r => !r[2] && !r[9]).length;   // трек с пометкой площадки пришёл из импорта — это не «только из карго»
   return `<div class="cab-table-wrap cab-items-wrap">
     ${noPdd ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px;color:#92400e;line-height:1.5;white-space:normal"><b>${noPdd} ${cabPl(noPdd, 'трек', 'трека', 'треков')} без данных Pinduoduo</b> — нет фото, цену нужно вписать вручную. Они пришли только из файла карго: заказ раньше выбранной при импорте даты, продавец отправил поздно или заказано с другого аккаунта. В расширении Piksta 1.9.15 и новее есть кнопка «Поискать за 3 месяца».</div>` : ''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку, названию или клиенту" style="${cabInp};width:100%;max-width:340px">
+      ${cabItemSort === 'mk' ? `<div class="cab-mk-chips">
+        <button class="cab-mk-chip ${cabItemMk === 'all' ? 'on' : ''}" onclick="cabSetItemMk('all')">Все <small>${TABLE.length}</small></button>
+        ${CAB_MK.filter(m => m[0] !== 'pz' || mkCount.pz).filter(m => m[0] || mkCount['']).map(m => `<button class="cab-mk-chip ${cabItemMk === m[0] ? 'on' : ''}" ${mkCount[m[0]] ? '' : 'disabled'} onclick="cabSetItemMk('${m[0]}')">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <small>${mkCount[m[0]] || 0}</small></button>`).join('')}
+      </div>` : `<input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку, названию, клиенту или площадке" style="${cabInp};width:100%;max-width:340px">`}
       <div style="display:flex;gap:6px;margin-left:auto">
         <button class="cab-filter-btn ${cabItemSort === 'track' ? 'active' : ''}" onclick="cabSetItemSort('track')">По трек-кодам</button>
-        <button class="cab-filter-btn ${cabItemSort === 'wh' ? 'active' : ''}" onclick="cabSetItemSort('wh')">По складам</button>
+        <button class="cab-filter-btn ${cabItemSort === 'wh' ? 'active' : ''}" onclick="cabSetItemSort('wh')">По клиентам</button>
+        <button class="cab-filter-btn ${cabItemSort === 'mk' ? 'active' : ''}" onclick="cabSetItemSort('mk')">По маркетплейсам</button>
       </div>
     </div>
     <table class="cab-table cab-items-t">
