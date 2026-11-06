@@ -3325,7 +3325,8 @@ function cabHelpMenu(ev) {
 
 // ============ ПЕРВЫЙ ВХОД: ПУСТЫЕ РАЗДЕЛЫ (03.11.2026) ============
 // Пока в разделе нечего показать — объясняем, что здесь будет и что сделать сейчас. Появились данные — обычный экран.
-const CAB_GUIDE_PDD = '/guides/piksta-start-pinduoduo.pdf', CAB_GUIDE_MAN = '/guides/piksta-start-vse-ploshchadki.pdf';
+// Гайды «Быстрый старт» (обновлены 06.11.2026 под импорт Pinduoduo / Taobao / 1688). Исходники: project code/guide/quickstart*.html
+const CAB_GUIDE_PDD = '/guides/piksta-start-marketplejsy.pdf', CAB_GUIDE_MAN = '/guides/piksta-start-vruchnuyu.pdf';
 function cabEmptyOverview() {
   const first = userProfile && userProfile.name ? String(userProfile.name).split(' ')[0] : '';
   return `<div class="cab-main-title">${first ? 'Добро пожаловать, ' + cabEsc(first) + '!' : 'Добро пожаловать в Piksta!'}</div>
