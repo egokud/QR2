@@ -322,11 +322,16 @@ async function detectLoop(my) {
     // «Полоса»: середина кадра по высоте, ~36% — как на экране; длинная сторона кадра идёт вдоль полосы
     let sx = 0, sy = 0, sw = W, sh = H;
     if (S.roi === 'band') { sh = Math.round(H * 0.40); sy = Math.round((H - sh) / 2); sx = Math.round(W * 0.02); sw = W - 2 * sx; }
-    if (canvas.width !== sw || canvas.height !== sh) { canvas.width = sw; canvas.height = sh; }
-    ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
     const t0 = performance.now();
     let codes = [];
-    try { codes = await det.detect(canvas); } catch (e) { codes = []; }
+    if (S.eng === 'native' && window.createImageBitmap) {
+      // системный: кадр отдаём картинкой без копирования через холст (быстрее на Android)
+      try { const bmp = await createImageBitmap(v, sx, sy, sw, sh); codes = await det.detect(bmp); bmp.close && bmp.close(); } catch (e) { codes = []; }
+    } else {
+      if (canvas.width !== sw || canvas.height !== sh) { canvas.width = sw; canvas.height = sh; }
+      ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
+      try { codes = await det.detect(canvas); } catch (e) { codes = []; }
+    }
     decMs = performance.now() - t0; frames++; decSum += decMs; decN++;
     if (my !== loopId || paused) continue;
     const hit = pickCode(codes.map(c => c.rawValue));
