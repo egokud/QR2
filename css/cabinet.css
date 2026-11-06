@@ -900,3 +900,6 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-nav-ext .mks .pdd{background:#ffe8e3;color:#d9381e}.cab-nav-ext .mks .tb{background:#fff1e0;color:#e85d00}.cab-nav-ext .mks .a1688{background:#e8f0ff;color:#2563eb}
 .cab-nav-ext .dl{font-size:18px;opacity:.9;margin-top:6px}
 .cab-mini .cab-nav-ext{justify-content:center;align-items:center;padding:8px 0}.cab-mini .cab-nav-ext .tx,.cab-mini .cab-nav-ext .dl{display:none}
+
+/* «+ Добавить позицию» в «Товарах и ценах» закупки (06.11.2026) */
+.cab-add-pos{height:38px;padding:0 16px;font-weight:600;white-space:nowrap}
