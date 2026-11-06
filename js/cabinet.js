@@ -3320,13 +3320,15 @@ function cabViewState() {
 const cabViewKey = st => [st.s, st.sh || '', st.cl || ''].join('|');
 function cabHistMark() {
   if (cabHistRestoring || typeof cabInCabinet !== 'function' || !cabInCabinet()) return;
-  const st = cabViewState(), cur = history.state && history.state.cab;
-  if (!cur) { history.replaceState({ cab: st, d: 0 }, ''); return; }
-  if (cabViewKey(cur) === cabViewKey(st)) { history.replaceState({ cab: st, d: history.state.d || 0, p: history.state.p }, ''); return; }
-  history.pushState({ cab: st, d: (history.state.d || 0) + 1, p: cur.l || '' }, '');
+  // u — чей это Кабинет: вышли из одного аккаунта и вошли в другой в той же вкладке — история прошлого аккаунта
+  // не считается, «← Назад» начинается заново (06.11.2026)
+  const st = cabViewState(), u = savedUid || '', cur = history.state && history.state.cab && history.state.u === u ? history.state.cab : null;
+  if (!cur) { history.replaceState({ cab: st, d: 0, u }, ''); return; }
+  if (cabViewKey(cur) === cabViewKey(st)) { history.replaceState({ cab: st, d: history.state.d || 0, p: history.state.p, u }, ''); return; }
+  history.pushState({ cab: st, d: (history.state.d || 0) + 1, p: cur.l || '', u }, '');
 }
 window.addEventListener('popstate', async e => {
-  const st = e.state && e.state.cab;
+  const st = e.state && e.state.cab && e.state.u === (savedUid || '') ? e.state.cab : null;
   if (!st || typeof cabInCabinet !== 'function' || !cabInCabinet()) return;
   cabHistRestoring = true;
   try {
@@ -3345,7 +3347,7 @@ function cabTopBar() {
   const main = document.getElementById('cabMain'); if (!main) return;
   let bar = main.firstElementChild && main.firstElementChild.id === 'cabTop' ? main.firstElementChild : null;
   if (!bar) { bar = document.createElement('div'); bar.id = 'cabTop'; bar.className = 'cab-top'; main.insertBefore(bar, main.firstChild); }
-  const h = history.state || {}, back = h.cab && h.d > 0 ? (h.p || 'назад') : '';
+  const h = history.state || {}, back = h.cab && h.d > 0 && h.u === (savedUid || '') ? (h.p || 'назад') : '';
   bar.innerHTML = `${back ? `<button type="button" class="cab-top-back" onclick="history.back()" title="Вернуться"><i class="ti ti-arrow-left"></i><span>Назад: <b>${cabEsc(back)}</b></span></button>` : '<span></span>'}
     <button type="button" class="cab-top-help" onclick="cabHelpMenu(event)"><i class="ti ti-help-circle"></i> Помощь</button>`;
 }
