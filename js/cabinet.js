@@ -30,6 +30,7 @@ function cabSidebarInit() {
 }
 async function openCabinet() {
   cabSidebarInit();
+  { const v = document.getElementById('cabExtVer'); if (v) v.textContent = 'версия ' + PK_EXT_VER; }
   const isAdmin = userProfile && userProfile.role === 'admin';
   document.getElementById('cabAdminBtn').style.display = isAdmin ? 'flex' : 'none';
   document.getElementById('cabAdminDivider').style.display = isAdmin ? 'block' : 'none';
@@ -458,6 +459,9 @@ addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cab
 // Временно стоит на месте «Деньги в обороте». Крестик прячет её в этом аккаунте (в этом браузере), сама пропадает после CAB_NEWS_UNTIL —
 // тогда «Деньги в обороте» возвращаются на место. Следующую новость — сменить CAB_NEWS_ID и текст.
 const CAB_NEWS_ID = 'mk3-2026-11', CAB_NEWS_UNTIL = '2026-11-30';
+// Актуальная версия расширения — ОДНО место: кнопка «Расширение» в меню и баннер Обзора берут её отсюда.
+// Выложили новое расширение на сайт (piksta-extension.zip) — поменять здесь.
+const PK_EXT_VER = '1.10.4';
 // Крестик запоминается для каждого аккаунта отдельно (ключ с uid): закрыл в своём Кабинете — в другом аккаунте
 // на этом же компьютере новость всё равно видна, пока там тоже не нажмут крестик.
 const cabNewsKey = () => 'pk_news_off_' + (typeof savedUid !== 'undefined' && savedUid ? savedUid : 'anon');
@@ -475,7 +479,7 @@ function cabNewsCard() {
         <div class="cab-news-p">Треки, фото, цены и названия на русском с Pinduoduo, Taobao и 1688 — за одну загрузку, сразу в закупку.</div>
         <div class="cab-news-bt">
           <a class="cab-news-b1" href="/extension" target="_blank" rel="noopener"><i class="ti ti-download"></i>Обновить расширение</a>
-          <span class="cab-news-v">версия 1.10.4 · бесплатно</span>
+          <span class="cab-news-v">версия ${PK_EXT_VER} · бесплатно</span>
         </div>
       </div>
       <div class="cab-news-art" aria-hidden="true">
