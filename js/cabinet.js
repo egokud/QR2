@@ -455,14 +455,17 @@ function cabTipClick(ev, k) {
 addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cabTipHide(); }, { passive: true, capture: true });
 
 // ── НОВОСТЬ НА ОБЗОРЕ (06.11.2026): «3 маркетплейса одной кнопкой» ──
-// Временно стоит на месте «Деньги в обороте». Крестик прячет её навсегда (в этом браузере), сама пропадает после CAB_NEWS_UNTIL —
+// Временно стоит на месте «Деньги в обороте». Крестик прячет её в этом аккаунте (в этом браузере), сама пропадает после CAB_NEWS_UNTIL —
 // тогда «Деньги в обороте» возвращаются на место. Следующую новость — сменить CAB_NEWS_ID и текст.
 const CAB_NEWS_ID = 'mk3-2026-11', CAB_NEWS_UNTIL = '2026-11-30';
+// Крестик запоминается для каждого аккаунта отдельно (ключ с uid): закрыл в своём Кабинете — в другом аккаунте
+// на этом же компьютере новость всё равно видна, пока там тоже не нажмут крестик.
+const cabNewsKey = () => 'pk_news_off_' + (typeof savedUid !== 'undefined' && savedUid ? savedUid : 'anon');
 function cabNewsOn() {
   if (new Date().toISOString().slice(0, 10) > CAB_NEWS_UNTIL) return false;
-  try { return localStorage.getItem('pk_news_off') !== CAB_NEWS_ID; } catch (e) { return true; }
+  try { return localStorage.getItem(cabNewsKey()) !== CAB_NEWS_ID; } catch (e) { return true; }
 }
-function cabNewsOff() { try { localStorage.setItem('pk_news_off', CAB_NEWS_ID); } catch (e) {} cabNav('overview'); }
+function cabNewsOff() { try { localStorage.setItem(cabNewsKey(), CAB_NEWS_ID); } catch (e) {} cabNav('overview'); }
 function cabNewsCard() {
   return `<div class="cab-card cab-news">
       <button type="button" class="cab-news-x" onclick="cabNewsOff()" title="Скрыть — вернуть «Деньги в обороте»"><i class="ti ti-x"></i></button>
