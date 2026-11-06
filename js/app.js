@@ -138,6 +138,8 @@ function enterMode(mode) {
   }
 }
 
+// ?ship=<id> в адресе — открыть закупку в Кабинете (ссылка из расширения после сохранения импорта)
+function pkUrlShip() { try { return new URLSearchParams(location.search).get('ship') || ''; } catch (e) { return ''; } }
 async function showApp() {
   document.getElementById('authScreen').classList.add('hide');
   // Без экрана выбора: последний выбор пользователя, иначе по устройству — телефон → сканер, компьютер → Кабинет
@@ -146,6 +148,7 @@ async function showApp() {
     const phone = window.matchMedia && (matchMedia('(max-width: 820px)').matches || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 768));
     remembered = phone ? 'scanner' : 'cabinet';
   }
+  if (pkUrlShip()) remembered = 'cabinet';   // импорт делают на компьютере — сразу в Кабинет, в нужную закупку
   enterMode(remembered);
   setTimeout(() => { try { if (typeof pkCountryCheck === 'function') pkCountryCheck(); } catch (e) {} }, 2500);  // страна по IP (04.11)
   document.getElementById('userBadgeName').textContent = userProfile.name || currentUser.email;

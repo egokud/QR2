@@ -57,6 +57,20 @@ async function loadCabinetData() {
 // Где пользователь в Кабинете — чтобы «Обновить» в браузере вернуло туда же (только эта вкладка браузера)
 function cabSaveAt() { try { sessionStorage.setItem('pk_cab_at', JSON.stringify({ s: cabCurrentSection, ship: cabShipId || '', tab: cabShipId ? cabShipTab : '', cl: cabClientOpen || '' })); } catch (e) {} }
 async function cabRestoreAt() {
+  // Пришли из расширения после «Сохранить в Piksta» → «Перейти в Piksta» (?ship=<id>, 06.11.2026):
+  // сразу открываем эту закупку на вкладке «Товары и цены». Параметр убираем из адреса, чтобы «Обновить» работало как обычно.
+  // Маршрутизация: ссылку строит расширение (assign.js, кнопка «Перейти в Piksta»), режим Кабинета включает showApp() в app.js.
+  const goShip = pkUrlShip();
+  if (goShip) {
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    window.__cabAtUsed = 1;
+    if (!cabShipmentsCache.some(x => x.id === goShip)) await loadCabinetData();
+    if (cabShipmentsCache.some(x => x.id === goShip)) {
+      cabNav('shipments'); await cabOpenShip(goShip);
+      if (cabShipTab !== 'items') cabShipTabSet('items');
+      return;
+    }
+  }
   let at = null;
   try { const nav = performance.getEntriesByType('navigation')[0]; if (!window.__cabAtUsed && nav && nav.type === 'reload') at = JSON.parse(sessionStorage.getItem('pk_cab_at') || 'null'); } catch (e) {}
   window.__cabAtUsed = 1;
@@ -904,7 +918,7 @@ function cabShipItemsHtml() {
       ${cabItemSort === 'mk' ? `<div class="cab-mk-chips">
         <button class="cab-mk-chip ${cabItemMk === 'all' ? 'on' : ''}" onclick="cabSetItemMk('all')">Все <small>${TABLE.length}</small></button>
         ${CAB_MK.filter(m => m[0] !== 'pz' || mkCount.pz).filter(m => m[0] || mkCount['']).map(m => `<button class="cab-mk-chip ${cabItemMk === m[0] ? 'on' : ''}" ${mkCount[m[0]] ? '' : 'disabled'} onclick="cabSetItemMk('${m[0]}')">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <small>${mkCount[m[0]] || 0}</small></button>`).join('')}
-      </div>` : `<input oninput="cabFilterItems(this.value)" placeholder="Поиск по треку, названию, клиенту или площадке" style="${cabInp};width:100%;max-width:340px">`}
+      </div>` : `<input oninput="cabFilterItems(this.value)" placeholder="Трек, название, клиент или площадка" style="${cabInp};width:100%;max-width:340px">`}
       <div style="display:flex;gap:6px;margin-left:auto">
         <button class="cab-filter-btn ${cabItemSort === 'track' ? 'active' : ''}" onclick="cabSetItemSort('track')">По трек-кодам</button>
         <button class="cab-filter-btn ${cabItemSort === 'wh' ? 'active' : ''}" onclick="cabSetItemSort('wh')">По клиентам</button>
