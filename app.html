@@ -13,6 +13,7 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico?v=5">
 <title>Piksta — сканер посылок</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="/js/scan-bd.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -208,11 +209,14 @@
 <div id="cameraSection" style="display:none;margin:0 16px 12px">
   <div id="reader" style="margin-bottom:8px"></div>
   <div id="zoomSection" style="display:none">
-    <div id="cameraButtons" style="display:flex;gap:6px;margin-bottom:6px"></div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-size:12px;color:#999">Zoom</span>
-      <input id="zoomSlider" type="range" min="1" max="2" step="0.1" value="1.5" oninput="setZoom(this.value)" style="flex:1;accent-color:#6C4DB8">
-      <span id="zoomVal" style="font-size:12px;font-weight:600;color:#6C4DB8">1.5x</span>
+    <div id="cameraButtons" class="pkc-lenses"></div>
+    <div class="pkc-ctl">
+      <button type="button" id="torchBtn" class="pkc-torch" onclick="toggleTorch()" style="display:none"><i class="ti ti-bulb" aria-hidden="true"></i>Фонарик</button>
+      <div id="zoomRow" class="pkc-zoom" style="display:none">
+        <i class="ti ti-zoom-in" aria-hidden="true"></i>
+        <input id="zoomSlider" type="range" min="1" max="2" step="0.1" value="1" oninput="setZoom(this.value)" aria-label="Приближение">
+        <span id="zoomVal">1×</span>
+      </div>
     </div>
   </div>
 </div>
@@ -476,6 +480,7 @@
 <script src="/js/verify.js"></script>
 <script src="/js/cabinet.js"></script>
 <script src="/js/app.js"></script>
+<script src="/js/pkcam.js"></script>
 <script src="/js/mobile.js"></script>
 <script src="/js/mtariff.js"></script>
 <script src="/js/tour.js"></script>
