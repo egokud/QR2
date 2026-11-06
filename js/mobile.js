@@ -376,6 +376,7 @@ function pkShipSheet(id) {
       ? `<button class="pk-btn" style="width:100%" onclick="pkScanShip('${id}')"><i class="ti ti-scan" aria-hidden="true"></i> ${id === activeShipmentId ? 'Сканирую эту закупку' : 'Сканировать эту закупку'}</button>`
       : `<button class="pk-btn ghost" style="width:100%" onclick="pkSetStatus('${id}','transit')"><i class="ti ti-truck" aria-hidden="true"></i> Закупка отправлена → «В дороге»</button>`}
     <button type="button" class="pk-main-act" onclick="${act('openPriceEditor()')}"><span class="ic"><i class="ti ti-list-details" aria-hidden="true"></i></span><span><b>Позиции закупки</b><small>треки, названия, клиенты, цены</small></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
+    <button class="pk-btn ghost" style="width:100%;margin:2px 0 2px" onclick="pkSheetClose();pkAddItems('${id}')"><i class="ti ti-plus" aria-hidden="true"></i> Добавить позицию</button>
     <div class="pk-tiles2">
       <button onclick="${act('openWeighing()')}"><i class="ti ti-scale" aria-hidden="true"></i>Взвешивание</button>
       <button onclick="pkSheetClose();pkCCOpen('${id}')"><i class="ti ti-cash" aria-hidden="true"></i><span>Расчёт с клиентами${pkCCTileSub(s)}</span></button>
@@ -946,7 +947,7 @@ function pkHelp() {
 // Фото сжимаются до 240 px и хранятся прямо в закупке (data:URL) — Storage не нужен. Черновик держим в localStorage.
 let pkMan = null, pkManScan = null;
 const PK_MAN_KEY = 'pk_manual_draft';
-function pkManSaveDraft() { try { if (pkMan && pkMan.items.length) localStorage.setItem(PK_MAN_KEY, JSON.stringify(pkMan)); else localStorage.removeItem(PK_MAN_KEY); } catch (e) {} }
+function pkManSaveDraft() { try { if (pkMan && pkMan.addTo) return; if (pkMan && pkMan.items.length) localStorage.setItem(PK_MAN_KEY, JSON.stringify(pkMan)); else localStorage.removeItem(PK_MAN_KEY); } catch (e) {} }
 function pkManDraft() { try { const d = JSON.parse(localStorage.getItem(PK_MAN_KEY) || 'null'); return d && d.items && d.items.length ? d : null; } catch (e) { return null; } }
 function pkNewManual() {
   if (typeof pkLimitCheck === 'function' && !pkLimitCheck(1)) return;
@@ -966,9 +967,18 @@ function pkManStart() {
   pkSheetClose();
   pkManOpen(v.trim() || ('Отправка ' + new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })), false);
 }
-function pkManOpen(name, fromDraft) {
+// «Добавить позицию» в уже созданную закупку (06.11.2026): та же форма, но «Сохранить» дописывает товары в эту закупку.
+// Маршрутизация: открывают Кабинет (закупка → «Товары и цены» → «+ Добавить позицию») и телефон (шторка закупки).
+function pkAddItems(id, onDone) {
+  const s = (allShipments || []).find(x => x.id === id) || (typeof cabShipmentsCache !== 'undefined' ? cabShipmentsCache.find(x => x.id === id) : null);
+  if (!s) { showToast('Закупка не найдена — обновите страницу'); return; }
+  const tracks = new Set((s.data || []).map(r => pkManNorm(Array.isArray(r) ? r[0] : r.t)));
+  pkManOpen(s.name || 'Закупка', false, { id, tracks, onDone });
+}
+function pkManOpen(name, fromDraft, addTo) {
   pkMan = fromDraft ? pkManDraft() : { name, items: [] };
   if (!pkMan) return;
+  pkMan.addTo = addTo || null;
   pkMan.edit = null; pkMan.img = '';
   if (fromDraft) try { localStorage.removeItem(PK_MAN_KEY); } catch (e) {}
   let el = document.getElementById('pkMan');
@@ -998,7 +1008,7 @@ function pkManOpen(name, fromDraft) {
       <div class="pk-man-list" id="pkManList"></div>
     </div>
     <div class="pk-man-foot"><div class="sum"><span id="pkManSumL"></span><b id="pkManSumR"></b></div>
-      <button type="button" class="pk-btn ok" id="pkManSave" onclick="pkManSave()"><i class="ti ti-check" aria-hidden="true"></i> Сохранить закупку</button></div>`;
+      <button type="button" class="pk-btn ok" id="pkManSave" onclick="pkManSave()"><i class="ti ti-check" aria-hidden="true"></i> ${pkMan.addTo ? 'Добавить в закупку' : 'Сохранить закупку'}</button></div>`;
   document.body.classList.add('pk-man-on');
   requestAnimationFrame(() => el.classList.add('on'));
   pkManForm(); pkManRender();
@@ -1060,7 +1070,7 @@ function pkManAdd() {
   const err = document.getElementById('pkManErr');
   if (!t) { err.textContent = 'Впишите трек-номер — без него товар не найти при сканировании'; document.getElementById('pkManT').focus(); return; }
   const dup = pkMan.items.findIndex((x, i) => i !== pkMan.edit && pkManNorm(x.t) === pkManNorm(t));
-  if (dup >= 0) { err.textContent = 'Такой трек уже есть в этой закупке'; document.getElementById('pkManT').focus(); return; }
+  if (dup >= 0 || (pkMan.addTo && pkMan.addTo.tracks.has(pkManNorm(t)))) { err.textContent = 'Такой трек уже есть в этой закупке'; document.getElementById('pkManT').focus(); return; }
   const p = String(document.getElementById('pkManP').value || '').replace(',', '.').trim();
   const it = { t, n: (document.getElementById('pkManN').value || '').trim(), p: p && !isNaN(+p) ? String(+p) : '', w: (document.getElementById('pkManW').value || '').trim(), img: pkMan.img || '' };
   const size = JSON.stringify(pkMan.items).length + JSON.stringify(it).length;
@@ -1096,8 +1106,8 @@ function pkManRender() {
 function pkManBack() {
   if (pkMan && pkMan.items.length) {
     pkSheet(`<h3>Выйти без сохранения?</h3><p class="pk-muted" style="font-size:14px;line-height:1.5;margin:10px 0 14px">Добавлено ${pkMan.items.length} ${pkPl(pkMan.items.length, 'позиция', 'позиции', 'позиций')}. Черновик останется — продолжить можно через «+ Новая» → «Создать вручную».</p>
-      <button class="pk-btn ok" style="width:100%" onclick="pkSheetClose();pkManSave()"><i class="ti ti-check" aria-hidden="true"></i> Сохранить закупку</button>
-      <button class="pk-btn ghost" style="width:100%;margin-top:8px" onclick="pkSheetClose();pkManClose(true)">Выйти, оставить черновик</button>
+      <button class="pk-btn ok" style="width:100%" onclick="pkSheetClose();pkManSave()"><i class="ti ti-check" aria-hidden="true"></i> ${pkMan.addTo ? 'Добавить в закупку' : 'Сохранить закупку'}</button>
+      <button class="pk-btn ghost" style="width:100%;margin-top:8px" onclick="pkSheetClose();pkManClose(${pkMan.addTo ? 'false' : 'true'})">${pkMan.addTo ? 'Выйти без добавления' : 'Выйти, оставить черновик'}</button>
       <button class="pk-btn ghost" style="width:100%;margin-top:8px" onclick="pkSheetClose()">Остаться</button>`);
     return;
   }
@@ -1105,7 +1115,7 @@ function pkManBack() {
 }
 function pkManClose(keep) {
   pkManScanStop();
-  if (keep) pkManSaveDraft(); else try { localStorage.removeItem(PK_MAN_KEY); } catch (e) {}
+  if (!(pkMan && pkMan.addTo)) { if (keep) pkManSaveDraft(); else try { localStorage.removeItem(PK_MAN_KEY); } catch (e) {} }   // черновик «новой закупки» не трогаем при добавлении в существующую
   const el = document.getElementById('pkMan'); if (el) el.classList.remove('on');
   document.body.classList.remove('pk-man-on');
   pkMan = null;
@@ -1114,6 +1124,29 @@ async function pkManSave() {
   if (!pkMan || !pkMan.items.length) return;
   if (typeof pkLimitCheck === 'function' && !pkLimitCheck(pkMan.items.length)) return;
   const b = document.getElementById('pkManSave'); b.disabled = true; b.textContent = 'Сохраняю…';
+  if (pkMan.addTo) {   // дописываем в существующую закупку
+    const A = pkMan.addTo;
+    try {
+      const add = pkMan.items.slice().reverse().map(x => { const o = { t: x.t, w: x.w || '', img: x.img || '', p: x.p || '', pc: '', q: '1' }; if (x.n) o.n = x.n; return o; });
+      const ref = shipmentsRef().doc(A.id);
+      await db.runTransaction(async tr => {
+        const doc = await tr.get(ref); if (!doc.exists) throw new Error('закупка не найдена');
+        const data = (doc.data().data || []).concat(add);
+        if (JSON.stringify(data).length > 900000) throw new Error('закупка слишком большая — уберите фото у части товаров');
+        tr.update(ref, { data });
+      });
+      const n = add.length;
+      pkManClose(false);
+      try { await loadShipments(); } catch (e) {}
+      if (A.id === activeShipmentId) { try { await loadShipmentData(A.id, true); } catch (e) {} }
+      showToast(`Добавлено в закупку · ${n} ${pkPl(n, 'позиция', 'позиции', 'позиций')}`);
+      if (typeof A.onDone === 'function') A.onDone(n);
+    } catch (e) {
+      b.disabled = false; b.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Добавить в закупку';
+      showToast('Не сохранилось: ' + (e.message || e));
+    }
+    return;
+  }
   try {
     let rates = { ...DEFAULT_RATES };
     if (userProfile && userProfile.baseRates) rates = { ...DEFAULT_RATES, ...userProfile.baseRates };

@@ -950,6 +950,7 @@ function cabShipItemsHtml() {
   return `<div class="cab-table-wrap cab-items-wrap">
     ${noPdd ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px;color:#92400e;line-height:1.5;white-space:normal"><b>${noPdd} ${cabPl(noPdd, 'трек', 'трека', 'треков')} без данных Pinduoduo</b> — нет фото, цену нужно вписать вручную. Они пришли только из файла карго: заказ раньше выбранной при импорте даты, продавец отправил поздно или заказано с другого аккаунта. В расширении Piksta 1.9.15 и новее есть кнопка «Поискать за 3 месяца».</div>` : ''}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <button type="button" class="cab-eb cab-add-pos" onclick="cabAddItemsOpen()"><i class="ti ti-plus"></i>Добавить позицию</button>
       ${cabItemSort === 'mk' ? `<div class="cab-mk-chips">
         <button class="cab-mk-chip ${cabItemMk === 'all' ? 'on' : ''}" onclick="cabSetItemMk('all')">Все <small>${TABLE.length}</small></button>
         ${CAB_MK.filter(m => m[0] !== 'pz' || mkCount.pz).filter(m => m[0] || mkCount['']).map(m => `<button class="cab-mk-chip ${cabItemMk === m[0] ? 'on' : ''}" ${mkCount[m[0]] ? '' : 'disabled'} onclick="cabSetItemMk('${m[0]}')">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <small>${mkCount[m[0]] || 0}</small></button>`).join('')}
@@ -963,7 +964,7 @@ function cabShipItemsHtml() {
     <table class="cab-table cab-items-t">
       <colgroup><col style="width:56px"><col style="width:28%"><col style="width:84px"><col><col style="width:24%"><col style="width:96px"></colgroup>
       <thead><tr><th></th><th>Трек</th><th title="Где куплено: Pinduoduo, Taobao, 1688">Площадка</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px">Нет товаров · <a href="#" onclick="cabAddItemsOpen();return false">добавить позицию</a></td></tr>'}</tbody>
     </table>
   </div>`;
 }
@@ -3486,6 +3487,23 @@ function cabManualOpen() {
   const t = setInterval(() => { const sh = document.getElementById('pkSheetBg');   // фон шторки включается сразу, без анимации
     if (typeof pkMan !== 'undefined' && pkMan) { clearInterval(t); return; }   // форма товаров открыта — затемнение снимет pkManClose
     if (!sh || !sh.classList.contains('on')) { clearInterval(t); document.body.classList.remove('pk-cabman'); } }, 300);
+}
+// «+ Добавить позицию» в открытую закупку (06.11.2026): форма как в «Закупке вручную» (mobile.js → pkAddItems),
+// после сохранения перечитываем закупку и остаёмся на «Товарах и ценах».
+function cabAddItemsOpen() {
+  if (typeof pkAddItems !== 'function' || !cabShipId) { alert('Обновите страницу'); return; }
+  cabEnsureSheet();
+  document.body.classList.add('pk-cabman');
+  let bk = document.getElementById('cabManBk');
+  if (!bk) { bk = document.createElement('div'); bk.id = 'cabManBk'; bk.className = 'cab-manbk'; bk.onclick = () => { if (typeof pkManBack === 'function') pkManBack(); }; document.body.appendChild(bk); }
+  const id = cabShipId;
+  pkAddItems(id, async () => {
+    document.body.classList.remove('pk-cabman');
+    await loadCabinetData();
+    if (cabShipId === id) { await loadShipmentData(id, true); cabShipTab = 'items'; cabRenderShip(); }
+  });
+  // закрыли без добавления — снять затемнение
+  const t = setInterval(() => { if (typeof pkMan !== 'undefined' && pkMan) return; clearInterval(t); document.body.classList.remove('pk-cabman'); }, 400);
 }
 // «Создать закупку» — то же окно «Новая закупка», что на телефоне (pkNewShip): расширение / таблица / вручную
 function cabNewShipOpen() {
