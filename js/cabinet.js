@@ -462,13 +462,20 @@ addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cab
 const CAB_NEWS_ID = 'mk3-2026-11', CAB_NEWS_UNTIL = '2026-11-30';
 // Актуальная версия расширения — ОДНО место: кнопка «Расширение» в меню и баннер Обзора берут её отсюда.
 // Выложили новое расширение на сайт (piksta-extension.zip) — поменять здесь.
-const PK_EXT_VER = '1.10.4';
-// Какая версия стоит у человека (1.10.5+ сама кладёт номер в localStorage pk_ext_ver, когда открыт piksta.online).
+const PK_EXT_VER = '1.10.5';
+// Какая версия стоит у человека (1.10.5+ при каждой загрузке piksta.online кладёт номер в localStorage pk_ext_ver
+// и время в pk_ext_seen, и шлёт событие pk-ext). Номер в localStorage мог остаться от прошлого раза — если человек
+// откатился на старую версию или выключил расширение, свежего отклика в этой загрузке страницы не будет.
 // Старые версии номер не сообщают — узнаём по последнему импорту: с 06.11.2026 у треков из импорта есть пометка площадки (mk).
+const PK_PAGE_T0 = Date.now(), PK_EXT_WAIT = 6000;
 function cabVerLess(a, b) { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); } return false; }
 function cabExtState() {
-  let v = ''; try { v = localStorage.getItem('pk_ext_ver') || ''; } catch (e) {}
-  if (v) return { old: cabVerLess(v, PK_EXT_VER), ver: v };
+  let v = '', seen = 0; try { v = localStorage.getItem('pk_ext_ver') || ''; seen = +localStorage.getItem('pk_ext_seen') || 0; } catch (e) {}
+  if (v) {
+    if (seen >= PK_PAGE_T0 - 1500) return { old: cabVerLess(v, PK_EXT_VER), ver: v };   // расширение отозвалось сейчас
+    if (Date.now() - PK_PAGE_T0 < PK_EXT_WAIT) return { old: false, ver: '' };          // ещё ждём отклик — ничего не подсвечиваем
+    return { old: true, ver: '' };                                                      // раньше было 1.10.5+, а сейчас молчит — стоит старая
+  }
   // последняя закупка из импорта расширения: у товаров картинки с площадок (pddpic / alicdn), это не перенесённые треки (mvFrom)
   const fromExt = r => { const o = Array.isArray(r) ? { img: r[2] } : r; return /pddpic|yangkeduo|alicdn/.test(String(o.img || '')) && !o.mvFrom; };
   const imp = (cabShipmentsCache || []).filter(s => s.src !== 'manual' && new Date(s.created || 0) >= new Date('2026-11-06') && (s.data || []).filter(fromExt).length >= 3)[0];
@@ -486,7 +493,10 @@ function cabExtPaint() {
   if (!st.old && u) { u.remove(); const d = a.querySelector('.dot'); if (d) d.remove(); }
   a.title = st.old ? 'Расширение устарело — скачайте ' + PK_EXT_VER : 'Скачать расширение Piksta для Chrome';
 }
-window.addEventListener('pk-ext', () => { cabExtPaint(); if (typeof cabCurrentSection !== 'undefined' && cabCurrentSection === 'overview' && !cabShipId && document.getElementById('cabMain')) cabNav('overview'); });
+function cabExtRepaint() { cabExtPaint(); if (cabInCabinet() && cabCurrentSection === 'overview' && !cabShipId && document.getElementById('cabMain')) cabNav('overview'); }
+window.addEventListener('pk-ext', cabExtRepaint);
+// Расширение так и не отозвалось за PK_EXT_WAIT — перерисовать (если раньше был номер, теперь покажем «старая»).
+setTimeout(() => { let v = '', seen = 0; try { v = localStorage.getItem('pk_ext_ver') || ''; seen = +localStorage.getItem('pk_ext_seen') || 0; } catch (e) {} if (v && seen < PK_PAGE_T0 - 1500) cabExtRepaint(); }, PK_EXT_WAIT + 200);
 // Крестик запоминается для каждого аккаунта отдельно (ключ с uid): закрыл в своём Кабинете — в другом аккаунте
 // на этом же компьютере новость всё равно видна, пока там тоже не нажмут крестик.
 const cabNewsKey = () => 'pk_news_off_' + (typeof savedUid !== 'undefined' && savedUid ? savedUid : 'anon');
