@@ -849,3 +849,11 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-help-pop .hb.soon em,.cab-set-hb.soon em,.cab-tip .tl.soon em{margin-left:auto;font-style:normal;font-size:11.5px;font-weight:600;background:#f1eefa;color:#6C4DB8;border-radius:7px;padding:2px 8px;white-space:nowrap}
 .cab-set-hb.soon em{margin-left:6px}
 .cab-tip .tl.soon:hover{text-decoration:none}
+
+/* Кабинет → закупка → «Товары и цены» → «По маркетплейсам» (06.11.2026): плашки-фильтры вместо строки поиска */
+.cab-mk-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cab-mk-chip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;font:600 13px Inter,system-ui,sans-serif;color:#374151;cursor:pointer}
+.cab-mk-chip small{font-weight:500;color:#6b7280;font-size:12px}
+.cab-mk-chip:hover:not([disabled]){border-color:#c4b5fd}
+.cab-mk-chip.on{border-color:#6C4DB8;background:#f6f3ff;box-shadow:0 0 0 2px rgba(108,77,184,.12)}
+.cab-mk-chip[disabled]{opacity:.45;cursor:default}
