@@ -1537,6 +1537,8 @@ function levenshtein(a, b) {
 }
 
 // ============ LOOKUP ============
+// звук + вибрация «уже отмечен» / «не найден» (06.11.2026)
+function pkSndSafe(k){ try{ if(typeof pkSnd==='function'){ pkSnd(k); pkVib(k); } }catch(e){} }
 function lookup(code) {
   // если после действия из шестерёнки загружен другой приход — сначала вернуть выбранный, потом искать
   if (editingShipmentId && activeShipmentId && editingShipmentId !== activeShipmentId) { restoreActiveEditing().then(() => lookup(code)); return; }
@@ -1550,13 +1552,13 @@ function lookup(code) {
     if (by4.length) { const ut=[...new Set(by4.map(r=>r.t))]; showResult('fuzzy',code,null,null,ut,'По последним 4 цифрам:'); return; }
     const fz = TABLE.map((r,i)=>({i,t:r[0],w:r[1],d:levenshtein(cl,r[0].toLowerCase())})).filter(r=>r.d<=3).sort((a,b)=>a.d-b.d);
     if (fz.length) { showResult('fuzzy',code,null,null,[...new Set(fz.slice(0,4).map(r=>r.t))],'Похожие варианты:'); return; }
-    showResult('error',code,null,'Не найден'); return;
+    pkSndSafe('no'); showResult('error',code,null,'Не найден'); return;
   }
-  if (!rows.length) { showResult('error',code,null,'«'+code+'» не найден'); return; }
+  if (!rows.length) { pkSndSafe('no'); showResult('error',code,null,'«'+code+'» не найден'); return; }
   const ut=[...new Set(rows.map(r=>r.t))];
   if (isP && ut.length>1) { showResult('multi',code,null,null,ut); return; }
   const free = rows.find(r => !scanned[r.i]);
-  if (!free) { showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
+  if (!free) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
   scanned[free.i] = true;
   saveScanned();
   const wh = [...new Set(rows.map(r=>r.w))].join(' + ');
@@ -2395,38 +2397,82 @@ document.getElementById('manualInput').addEventListener('keydown',e=>{if(e.key==
 document.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input')&&!e.target.closest('select')&&!e.target.closest('.overlay-card')&&!e.target.closest('.modal-card')&&!e.target.closest('.pk-sheet,.pk-res-full,.pk-tabs,.pk-pane:not(#pkPane-scan)')&&!(typeof pkTab!=='undefined'&&document.body.classList.contains('pk-m')&&pkTab!=='scan')&&document.getElementById('appScreen').style.display!=='none')document.getElementById('manualInput').focus()});
 
 // ============ CAMERA ============
+// 06.11.2026: новый распознаватель (js/pkcam.js) — системный на Android (720p) или ZXing на iPhone (1080p),
+// рамка-полоса с красной линией, фонарик, приближение с 1×. Если браузер не умеет ни то ни другое — старый html5-qrcode.
 function toggleScanner(){scanning?stopScanner():startScanner()}
+function pkCamMarkup(){
+  const r=document.getElementById('reader'); if(!r||r.dataset.pkc) return;
+  r.dataset.pkc='1';
+  r.innerHTML=`<div class="pkc" id="pkc"><video id="pkcVideo" playsinline muted autoplay></video><div class="pkc-band"></div>
+    <button type="button" class="pkc-x" onclick="stopScanner()" aria-label="Выключить камеру"><i class="ti ti-x"></i></button>
+    <div class="pkc-tip">Код — вдоль красной линии · 15–20 см</div></div><div id="readerOld"></div>`;
+}
 async function startScanner(){
+  pkCamMarkup();
   document.getElementById('cameraSection').style.display='block';document.getElementById('zoomSection').style.display='block';
   document.getElementById('scanBtn').innerHTML='<i class="ti ti-player-stop" aria-hidden="true" style="font-size:22px"></i> Стоп';document.getElementById('scanBtn').style.background='#6C4DB8';document.getElementById('scanBtn').style.color='#fff';scanning=true;
-  try{allCameras=await Html5Qrcode.getCameras()}catch(e){allCameras=[]}
-  const bc=document.getElementById('cameraButtons');bc.innerHTML='';
-  const backs=allCameras.filter(d=>{const l=d.label.toLowerCase();return!l.includes('front')&&!l.includes('face')});
-  const cams=backs.length?backs:allCameras;
-  const named=cams.map((c,i)=>{const l=c.label.toLowerCase();let n=''+(i+1);
-    if(l.includes('ultra')&&l.includes('wide'))n='0.5x';else if(l.includes('telephoto')||l.includes('tele'))n='3x';
-    else if(l.includes('wide')&&!l.includes('ultra'))n='1x';return{...c,dn:n}});
+  await startWithCam(null);
+  // объективы: после разрешения камеры у устройств появляются названия. На iPhone не показываем — там «тройная камера» сама переключает объективы
+  try{ allCameras=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput') }catch(e){ allCameras=[] }
+  const bc=document.getElementById('cameraButtons'); bc.innerHTML='';
+  const backs=allCameras.filter(d=>!/front|face|передн|user/i.test(d.label));
+  const named=backs.map((c,i)=>{const l=c.label.toLowerCase();let n='Камера '+(i+1);
+    if(l.includes('ultra')&&l.includes('wide'))n='0,5×';else if(l.includes('telephoto')||l.includes('tele'))n='Теле';
+    else if(l.includes('wide')&&!l.includes('ultra'))n='1×';return{...c,dn:n}});
   allCameras=named;
-  if(named.length>1)named.forEach((c,i)=>{const b=document.createElement('button');b.id='camBtn'+i;b.textContent=c.dn;
-    b.style.cssText='min-width:44px;flex-shrink:0;border:1.5px solid #e0e0e0;background:#f5f5f5;border-radius:8px;padding:7px;font-size:13px;font-weight:700;cursor:pointer;color:#555';
-    b.onclick=()=>switchCam(c.id,i);bc.appendChild(b)});
-  const def=named.find(d=>d.dn==='1x')||named[0]; await startWithCam(def?.id); highlightCam(named.indexOf(def));
+  if(named.length>1&&!PkCam.IOS) named.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.id='camBtn'+i;b.textContent=c.dn;b.className='pkc-lens';
+    b.onclick=()=>switchCam(c.deviceId,i);bc.appendChild(b)});
+  const cur=scanner&&scanner.settings?scanner.settings().deviceId:null;
+  highlightCam(named.findIndex(c=>c.deviceId===cur));
 }
 async function switchCam(id,i){if(activeCameraId===id)return;if(scanner){try{await scanner.stop()}catch(e){}scanner=null}await startWithCam(id);highlightCam(i)}
-function highlightCam(ai){allCameras.forEach((_,i)=>{const b=document.getElementById('camBtn'+i);if(!b)return;
-  b.style.background=i===ai?'#6C4DB8':'#f5f5f5';b.style.color=i===ai?'#fff':'#555';b.style.borderColor=i===ai?'#6C4DB8':'#e0e0e0'})}
-async function startWithCam(id){activeCameraId=id;scanner=new Html5Qrcode("reader");
+function highlightCam(ai){allCameras.forEach((_,i)=>{const b=document.getElementById('camBtn'+i);if(b)b.classList.toggle('on',i===ai)})}
+async function startWithCam(id){
+  activeCameraId=id;
+  const pkc=document.getElementById('pkc'), old=document.getElementById('readerOld');
+  if(await PkCam.available()){
+    pkc.style.display=''; old.style.display='none';
+    scanner=new PkCam.Cam(document.getElementById('pkcVideo'), c=>lookup(c));
+    try{ await scanner.start(id); }
+    catch(e){ scanner=null; showToast(e&&e.name==='NotAllowedError'?'Разрешите доступ к камере в настройках браузера':'Камера не включилась'); stopScanner(); return; }
+    pkCamControls(); return;
+  }
+  // запасной путь — старый распознаватель
+  pkc.style.display='none'; old.style.display='';
+  scanner=new Html5Qrcode("readerOld");
   try{await scanner.start(id?{deviceId:{exact:id}}:{facingMode:"environment"},
     {fps:30,disableFlip:true,formatsToSupport:[Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.CODE_93,Html5QrcodeSupportedFormats.ITF]},
-    c=>lookup(c.trim()),()=>{});setTimeout(()=>setZoom(1.5),500)}catch(e){stopScanner()}}
-function setZoom(v){document.getElementById('zoomVal').textContent=v+'x';if(!scanner)return;
+    c=>lookup(c.trim()),()=>{});}catch(e){stopScanner();return}
+  pkCamControls();
+}
+// фонарик и приближение — только если телефон их даёт
+function pkCamControls(){
+  const tb=document.getElementById('torchBtn'), zr=document.getElementById('zoomRow'), zs=document.getElementById('zoomSlider');
+  tb.style.display='none'; tb.classList.remove('on'); zr.style.display='none';
+  let c={},s={};
+  if(scanner&&scanner.caps){c=scanner.caps();s=scanner.settings();}
+  else{try{const t=scanner.getRunningTrackCameraCapabilities();if(t.zoomFeature().isSupported()){c.zoom={min:t.zoomFeature().min(),max:t.zoomFeature().max(),step:t.zoomFeature().step()};s.zoom=t.zoomFeature().value();}if(t.torchFeature().isSupported())c.torch=true;}catch(e){}}
+  if(c.torch) tb.style.display='';
+  if(c.zoom&&c.zoom.max>c.zoom.min){
+    zs.min=c.zoom.min; zs.max=Math.min(c.zoom.max,4); zs.step=c.zoom.step||0.1; zs.value=s.zoom||c.zoom.min;
+    document.getElementById('zoomVal').textContent=(+zs.value).toFixed(1).replace('.0','').replace('.',',')+'×'; zr.style.display='';
+  }
+}
+function setZoom(v){document.getElementById('zoomVal').textContent=(+v).toFixed(1).replace('.0','').replace('.',',')+'×';if(!scanner)return;
+  if(scanner.zoom){scanner.zoom(parseFloat(v));return}
   try{const t=scanner.getRunningTrackCameraCapabilities();if(t&&t.zoomFeature().isSupported())t.zoomFeature().apply(parseFloat(v))}catch(e){}}
-function stopScanner(){if(scanner){scanner.stop().catch(()=>{});scanner=null}
+async function toggleTorch(){const b=document.getElementById('torchBtn');const on=!b.classList.contains('on');let ok=false;
+  if(scanner&&scanner.torch) ok=await scanner.torch(on);
+  else{try{await scanner.getRunningTrackCameraCapabilities().torchFeature().apply(on);ok=true}catch(e){}}
+  if(ok)b.classList.toggle('on',on)}
+function stopScanner(){if(scanner){try{const r=scanner.stop();r&&r.catch&&r.catch(()=>{})}catch(e){}scanner=null}
   document.getElementById('cameraSection').style.display='none';document.getElementById('zoomSection').style.display='none';
   document.getElementById('scanBtn').innerHTML='<i class="ti ti-camera" aria-hidden="true" style="font-size:22px"></i> Камера';document.getElementById('scanBtn').style.background='';document.getElementById('scanBtn').style.color='';scanning=false}
 
 // ============ BEEP & VIBRATE ============
-function beep(){try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
+// «Отмечено» — свой звук; «уже отмечен» и «не найден» — свои (pkSnd в js/pkcam.js)
+function beep(){ if(typeof pkSnd==='function') return pkSnd('ok');
+  try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
   o.connect(g);g.connect(c.destination);o.frequency.value=1800;o.type='sine';
   g.gain.setValueAtTime(.3,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.15);
   o.start(c.currentTime);o.stop(c.currentTime+.15)}catch(e){}}
