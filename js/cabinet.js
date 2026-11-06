@@ -949,18 +949,21 @@ function cabShipItemsHtml() {
   const noPdd = TABLE.filter(r => !r[2] && !r[9]).length;   // трек с пометкой площадки пришёл из импорта — это не «только из карго»
   return `<div class="cab-table-wrap cab-items-wrap">
     ${noPdd ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px;color:#92400e;line-height:1.5;white-space:normal"><b>${noPdd} ${cabPl(noPdd, 'трек', 'трека', 'треков')} без данных Pinduoduo</b> — нет фото, цену нужно вписать вручную. Они пришли только из файла карго: заказ раньше выбранной при импорте даты, продавец отправил поздно или заказано с другого аккаунта. В расширении Piksta 1.9.15 и новее есть кнопка «Поискать за 3 месяца».</div>` : ''}
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+    <!-- Панель «Товары и цены» (06.11.2026): верхняя строка не меняется при переключении режимов (кнопки не прыгают),
+         плашки площадок появляются второй строкой только в «По маркетплейсам» -->
+    <div class="cab-items-bar">
       <button type="button" class="cab-eb cab-add-pos" onclick="cabAddItemsOpen()"><i class="ti ti-plus"></i>Добавить позицию</button>
-      ${cabItemSort === 'mk' ? `<div class="cab-mk-chips">
-        <button class="cab-mk-chip ${cabItemMk === 'all' ? 'on' : ''}" onclick="cabSetItemMk('all')">Все <small>${TABLE.length}</small></button>
-        ${CAB_MK.filter(m => m[0] !== 'pz' || mkCount.pz).filter(m => m[0] || mkCount['']).map(m => `<button class="cab-mk-chip ${cabItemMk === m[0] ? 'on' : ''}" ${mkCount[m[0]] ? '' : 'disabled'} onclick="cabSetItemMk('${m[0]}')">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <small>${mkCount[m[0]] || 0}</small></button>`).join('')}
-      </div>` : `<input oninput="cabFilterItems(this.value)" placeholder="Трек, название, клиент или площадка" style="${cabInp};width:100%;max-width:340px">`}
-      <div style="display:flex;gap:6px;margin-left:auto">
+      <input oninput="cabFilterItems(this.value)" placeholder="Трек, название, клиент или площадка" class="cab-items-q" style="${cabInp}">
+      <div class="cab-items-sort">
         <button class="cab-filter-btn ${cabItemSort === 'track' ? 'active' : ''}" onclick="cabSetItemSort('track')">По трек-кодам</button>
         <button class="cab-filter-btn ${cabItemSort === 'wh' ? 'active' : ''}" onclick="cabSetItemSort('wh')">По клиентам</button>
         <button class="cab-filter-btn ${cabItemSort === 'mk' ? 'active' : ''}" onclick="cabSetItemSort('mk')">По маркетплейсам</button>
       </div>
     </div>
+    ${cabItemSort === 'mk' ? `<div class="cab-mk-chips">
+        <button class="cab-mk-chip ${cabItemMk === 'all' ? 'on' : ''}" onclick="cabSetItemMk('all')">Все <small>${TABLE.length}</small></button>
+        ${CAB_MK.filter(m => m[0] !== 'pz' || mkCount.pz).filter(m => m[0] || mkCount['']).map(m => `<button class="cab-mk-chip ${cabItemMk === m[0] ? 'on' : ''}" ${mkCount[m[0]] ? '' : 'disabled'} onclick="cabSetItemMk('${m[0]}')">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <small>${mkCount[m[0]] || 0}</small></button>`).join('')}
+      </div>` : ''}
     <table class="cab-table cab-items-t">
       <colgroup><col style="width:56px"><col style="width:28%"><col style="width:84px"><col><col style="width:24%"><col style="width:96px"></colgroup>
       <thead><tr><th></th><th>Трек</th><th title="Где куплено: Pinduoduo, Taobao, 1688">Площадка</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
