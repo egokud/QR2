@@ -2470,10 +2470,15 @@ function pkCamControls(){
   if(c.torch) tb.style.display='';
   if(c.zoom&&c.zoom.max>c.zoom.min){
     zs.min=c.zoom.min; zs.max=Math.min(c.zoom.max,4); zs.step=c.zoom.step||0.1; zs.value=s.zoom||c.zoom.min;
+    // 06.11.2026: Android по тесту лучше всего читает с приближением 2× (держать в 25–30 см); iPhone — как есть (1×).
+    // Если человек сам двигал ползунок — на этом устройстве запоминаем его выбор.
+    let want=null; try{ want=parseFloat(localStorage.getItem('pk_cam_zoom')); }catch(e){}
+    if(!(want>0) && !PkCam.IOS) want=2;
+    if(want>0){ want=Math.max(c.zoom.min,Math.min(want,+zs.max)); zs.value=want; setZoom(want,true); }
     document.getElementById('zoomVal').textContent=(+zs.value).toFixed(1).replace('.0','').replace('.',',')+'×'; zr.style.display='';
   }
 }
-function setZoom(v){document.getElementById('zoomVal').textContent=(+v).toFixed(1).replace('.0','').replace('.',',')+'×';if(!scanner)return;
+function setZoom(v,auto){if(!auto){try{localStorage.setItem('pk_cam_zoom',String(v))}catch(e){}}document.getElementById('zoomVal').textContent=(+v).toFixed(1).replace('.0','').replace('.',',')+'×';if(!scanner)return;
   if(scanner.zoom){scanner.zoom(parseFloat(v));return}
   try{const t=scanner.getRunningTrackCameraCapabilities();if(t&&t.zoomFeature().isSupported())t.zoomFeature().apply(parseFloat(v))}catch(e){}}
 async function toggleTorch(){const b=document.getElementById('torchBtn');const on=!b.classList.contains('on');let ok=false;
