@@ -886,3 +886,17 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-news-box b{font-size:13px;margin-top:2px}
 .cab-news-box small{font-size:11px;color:#8a84a3}
 @media (max-width:1100px){.cab-news-art{display:none}}
+
+/* Меню Кабинета: кнопка «Расширение» (06.11.2026) */
+.cab-nav-ext{display:flex;align-items:flex-start;gap:10px;margin:10px 0 4px;padding:12px 10px 12px 11px;border-radius:12px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#6C4DB8,#9b7be8);box-shadow:0 4px 12px rgba(108,77,184,.25);transition:transform .15s,box-shadow .15s}
+.cab-nav-ext:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(108,77,184,.35)}
+.cab-nav-ext .ic{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex:none}
+.cab-nav-ext .ic i{font-size:18px}
+.cab-nav-ext .tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}
+.cab-nav-ext .tx b{font-size:14.5px;font-weight:700}
+.cab-nav-ext .tx small{font-size:11.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.cab-nav-ext .mks{display:flex;gap:3px;margin-top:7px}
+.cab-nav-ext .mks em{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.02em;border-radius:5px;padding:2px 5px;line-height:1.2}
+.cab-nav-ext .mks .pdd{background:#ffe8e3;color:#d9381e}.cab-nav-ext .mks .tb{background:#fff1e0;color:#e85d00}.cab-nav-ext .mks .a1688{background:#e8f0ff;color:#2563eb}
+.cab-nav-ext .dl{font-size:18px;opacity:.9;margin-top:6px}
+.cab-mini .cab-nav-ext{justify-content:center;align-items:center;padding:8px 0}.cab-mini .cab-nav-ext .tx,.cab-mini .cab-nav-ext .dl{display:none}
