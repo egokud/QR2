@@ -482,9 +482,14 @@ function cabExtState() {
   if (imp && !(imp.data || []).some(r => !Array.isArray(r) && r.mk)) return { old: true, ver: '' };
   return { old: false, ver: '' };
 }
+// Что уже нарисовано: перерисовываем, только если «старая / не старая» реально поменялась.
+// ВАЖНО (06.11.2026): каждый cabNav меняет адрес (history), Chrome считает это загрузкой — расширение 1.10.5
+// снова присылает pk-ext. Без этой проверки Обзор перерисовывался по кругу много раз в секунду.
+let cabExtLastKey = null;
+const cabExtKey = st => st.old ? 'old|' + st.ver : 'ok';
 function cabExtPaint() {
   const a = document.querySelector('.cab-nav-ext'); if (!a) return;
-  const st = cabExtState();
+  const st = cabExtState(); cabExtLastKey = cabExtKey(st);
   a.classList.toggle('old', st.old);
   const v = document.getElementById('cabExtVer');
   if (v) v.textContent = st.old ? (st.ver ? 'у вас старая ' + st.ver : 'у вас старая версия') : 'версия ' + PK_EXT_VER;
@@ -493,7 +498,7 @@ function cabExtPaint() {
   if (!st.old && u) { u.remove(); const d = a.querySelector('.dot'); if (d) d.remove(); }
   a.title = st.old ? 'Расширение устарело — скачайте ' + PK_EXT_VER : 'Скачать расширение Piksta для Chrome';
 }
-function cabExtRepaint() { cabExtPaint(); if (cabInCabinet() && cabCurrentSection === 'overview' && !cabShipId && document.getElementById('cabMain')) cabNav('overview'); }
+function cabExtRepaint() { if (cabExtKey(cabExtState()) === cabExtLastKey) return; cabExtPaint(); if (cabInCabinet() && cabCurrentSection === 'overview' && !cabShipId && document.getElementById('cabMain')) cabNav('overview'); }
 window.addEventListener('pk-ext', cabExtRepaint);
 // Расширение так и не отозвалось за PK_EXT_WAIT — перерисовать (если раньше был номер, теперь покажем «старая»).
 setTimeout(() => { let v = '', seen = 0; try { v = localStorage.getItem('pk_ext_ver') || ''; seen = +localStorage.getItem('pk_ext_seen') || 0; } catch (e) {} if (v && seen < PK_PAGE_T0 - 1500) cabExtRepaint(); }, PK_EXT_WAIT + 200);
