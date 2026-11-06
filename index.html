@@ -5,12 +5,12 @@
 <script>/* Главная piksta.online: вошедших, установленное приложение и старые ссылки /?login — сразу в приложение /app. На /welcome лендинг виден всегда */(function(){try{var p=location.pathname;if(p==='/'||p==='/index.html'){var sa=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;if(localStorage.getItem('pk_in')==='1'||sa||/[?&]login\b/.test(location.search))location.replace('/app'+location.hash);}}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Piksta — разбор посылок из Китая для организаторов СП</title>
-<meta name="description" content="Треки и фото сами приходят из Pinduoduo. Сканируете посылку — видите товар и клиента. Вес, доставка и долги считаются без Excel. 30 дней бесплатно.">
+<meta name="description" content="Треки и фото сами приходят из Pinduoduo, Taobao и 1688. Сканируете посылку — видите товар и клиента. Вес, доставка и долги считаются без Excel. 30 дней бесплатно.">
 <meta name="theme-color" content="#6C4DB8">
 <meta name="yandex-verification" content="d484f3b04bae0c45" />
 <script defer src="/_vercel/insights/script.js"></script>
 <meta property="og:title" content="Piksta — разберите посылки из Китая за час">
-<meta property="og:description" content="Импорт из Pinduoduo, сканер с фото товара, расчёт веса, доставки и долгов. Для организаторов СП и всех, кто выкупает товары из Китая для клиентов, — в Беларуси, России и Казахстане.">
+<meta property="og:description" content="Импорт из Pinduoduo, Taobao и 1688, сканер с фото товара, расчёт веса, доставки и долгов. Для организаторов СП и всех, кто выкупает товары из Китая для клиентов, — в Беларуси, России и Казахстане.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.piksta.online/">
 <link rel="canonical" href="https://www.piksta.online/">
@@ -22,7 +22,7 @@
 <meta property="og:image:alt" content="Piksta — разберите посылки из Китая за час, а не за выходные">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://www.piksta.online/img/og.png">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Organization", "@id": "https://www.piksta.online/#org", "name": "Piksta", "url": "https://www.piksta.online/", "logo": "https://www.piksta.online/icons/icon-512x512.png", "email": "support@piksta.online"}, {"@type": "SoftwareApplication", "name": "Piksta", "url": "https://www.piksta.online/", "applicationCategory": "BusinessApplication", "operatingSystem": "Web, Android, iOS", "inLanguage": "ru", "description": "Сервис для организаторов совместных покупок из Китая: импорт заказов из Pinduoduo с треками и фото, сканирование посылок, расчёт веса, доставки и долгов клиентов.", "publisher": {"@id": "https://www.piksta.online/#org"}, "offers": {"@type": "AggregateOffer", "priceCurrency": "BYN", "lowPrice": "15", "highPrice": "45", "offerCount": "3"}}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Organization", "@id": "https://www.piksta.online/#org", "name": "Piksta", "url": "https://www.piksta.online/", "logo": "https://www.piksta.online/icons/icon-512x512.png", "email": "support@piksta.online"}, {"@type": "SoftwareApplication", "name": "Piksta", "url": "https://www.piksta.online/", "applicationCategory": "BusinessApplication", "operatingSystem": "Web, Android, iOS", "inLanguage": "ru", "description": "Сервис для организаторов совместных покупок из Китая: импорт заказов из Pinduoduo, Taobao и 1688 с треками и фото, сканирование посылок, расчёт веса, доставки и долгов клиентов.", "publisher": {"@id": "https://www.piksta.online/#org"}, "offers": {"@type": "AggregateOffer", "priceCurrency": "BYN", "lowPrice": "15", "highPrice": "45", "offerCount": "3"}}]}</script>
 <link rel="icon" type="image/x-icon" href="/favicon.ico?v=5">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -386,7 +386,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
     <div class="grid2">
       <div class="card" style="display: flex; flex-direction: column; gap: 18px">
         <div class="disp" style="font-size: 24px; font-weight: 700">«Вечер за ноутбуком: 300&nbsp;треков руками»</div>
-        <div style="display: flex; gap: 12px; align-items: flex-start; background: #f1edfb; border-radius: 14px; padding: 14px 16px"><span style="font-weight: 700; color: #6C4DB8">→</span><span>Расширение забирает треки, фото и цены из Pinduoduo за минуты. Ничего не вбиваете.</span></div>
+        <div style="display: flex; gap: 12px; align-items: flex-start; background: #f1edfb; border-radius: 14px; padding: 14px 16px"><span style="font-weight: 700; color: #6C4DB8">→</span><span>Расширение забирает треки, фото и цены из Pinduoduo, Taobao и 1688 за минуты. Ничего не вбиваете.</span></div>
       </div>
       <div class="card" style="display: flex; flex-direction: column; gap: 18px">
         <div class="disp" style="font-size: 24px; font-weight: 700">«Гора пакетов — и&nbsp;ни&nbsp;одного имени»</div>
@@ -704,7 +704,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
     <h2 class="disp h2" style="font-weight: 800; margin-bottom: 20px">Частые вопросы</h2>
     <details open>
       <summary>Сколько ручной работы остаётся? <span style="color: #6C4DB8">+</span></summary>
-      <p>Немного — и без рутины. Заказы с Pinduoduo подтягиваются сами, вместе с треками, фото и ценами: остаётся отметить, чей товар. Заказы с других площадок пока добавляете сами. А вес, доставку и долги Piksta считает за вас.</p>
+      <p>Немного — и без рутины. Заказы с Pinduoduo, Taobao и 1688 подтягиваются сами, вместе с треками, фото и ценами: остаётся отметить, чей товар. Заказы с других площадок пока добавляете сами. А вес, доставку и долги Piksta считает за вас.</p>
     </details>
     <details>
       <summary>А если на складе нет интернета? <span style="color: #6C4DB8">+</span></summary>
@@ -716,7 +716,7 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
     </details>
     <details>
       <summary>Какие площадки поддерживаются? <span style="color: #6C4DB8">+</span></summary>
-      <p>Сейчас импорт работает с Pinduoduo. Taobao, 1688, Poison, VIP.com и другие — в планах, они войдут во все тарифы без доплаты. Заказы с любых площадок можно добавлять вручную уже сейчас.</p>
+      <p>Импорт работает с Pinduoduo, Taobao и 1688 — во всех тарифах, без доплаты. Poizon, VIP.com и другие площадки — в планах. Заказы с любых площадок можно добавлять вручную уже сейчас.</p>
     </details>
     <details>
       <summary>Что будет после бесплатного периода? <span style="color: #6C4DB8">+</span></summary>
