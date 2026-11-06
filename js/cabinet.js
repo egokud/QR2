@@ -466,20 +466,21 @@ const PK_EXT_VER = '1.10.5';
 // Какая версия стоит у человека (1.10.5+ при каждой загрузке piksta.online кладёт номер в localStorage pk_ext_ver
 // и время в pk_ext_seen, и шлёт событие pk-ext). Номер в localStorage мог остаться от прошлого раза — если человек
 // откатился на старую версию или выключил расширение, свежего отклика в этой загрузке страницы не будет.
-// Старые версии номер не сообщают — узнаём по последнему импорту: с 06.11.2026 у треков из импорта есть пометка площадки (mk).
+// Старые версии (до 1.10.5) номер не сообщают. Поэтому: если за PK_EXT_WAIT расширение в этом браузере не отозвалось,
+// а человек вообще импортирует через расширение (есть закупки с фото с площадок) — значит стоит старая версия
+// (или расширение выключено / не стоит в этом браузере) → подсвечиваем «нужно обновить». Не импортирует — молчим.
+// 06.11.2026: раньше смотрели только импорты с 06.11 — у тех, кто давно не импортировал (1.9.x), подсветки не было.
 const PK_PAGE_T0 = Date.now(), PK_EXT_WAIT = 6000;
 function cabVerLess(a, b) { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); } return false; }
+function cabExtUsed() {   // есть закупка из импорта расширения: ≥3 товара с картинками площадок (pddpic / alicdn), не перенесённые (mvFrom)
+  const fromExt = r => { const o = Array.isArray(r) ? { img: r[2] } : r; return /pddpic|yangkeduo|alicdn/.test(String(o.img || '')) && !o.mvFrom; };
+  return (cabShipmentsCache || []).some(s => s.src !== 'manual' && (s.data || []).filter(fromExt).length >= 3);
+}
 function cabExtState() {
   let v = '', seen = 0; try { v = localStorage.getItem('pk_ext_ver') || ''; seen = +localStorage.getItem('pk_ext_seen') || 0; } catch (e) {}
-  if (v) {
-    if (seen >= PK_PAGE_T0 - 1500) return { old: cabVerLess(v, PK_EXT_VER), ver: v };   // расширение отозвалось сейчас
-    if (Date.now() - PK_PAGE_T0 < PK_EXT_WAIT) return { old: false, ver: '' };          // ещё ждём отклик — ничего не подсвечиваем
-    return { old: true, ver: '' };                                                      // раньше было 1.10.5+, а сейчас молчит — стоит старая
-  }
-  // последняя закупка из импорта расширения: у товаров картинки с площадок (pddpic / alicdn), это не перенесённые треки (mvFrom)
-  const fromExt = r => { const o = Array.isArray(r) ? { img: r[2] } : r; return /pddpic|yangkeduo|alicdn/.test(String(o.img || '')) && !o.mvFrom; };
-  const imp = (cabShipmentsCache || []).filter(s => s.src !== 'manual' && new Date(s.created || 0) >= new Date('2026-11-06') && (s.data || []).filter(fromExt).length >= 3)[0];
-  if (imp && !(imp.data || []).some(r => !Array.isArray(r) && r.mk)) return { old: true, ver: '' };
+  if (v && seen >= PK_PAGE_T0 - 1500) return { old: cabVerLess(v, PK_EXT_VER), ver: v };   // расширение отозвалось сейчас
+  if (Date.now() - PK_PAGE_T0 < PK_EXT_WAIT) return { old: false, ver: '' };              // ещё ждём отклик — ничего не подсвечиваем
+  if (v || cabExtUsed()) return { old: true, ver: '' };                                     // молчит, а раньше стояло / импортирует → старая
   return { old: false, ver: '' };
 }
 // Что уже нарисовано: перерисовываем, только если «старая / не старая» реально поменялась.
@@ -492,7 +493,7 @@ function cabExtPaint() {
   const st = cabExtState(); cabExtLastKey = cabExtKey(st);
   a.classList.toggle('old', st.old);
   const v = document.getElementById('cabExtVer');
-  if (v) v.textContent = st.old ? (st.ver ? 'у вас старая ' + st.ver : 'у вас старая версия') : 'версия ' + PK_EXT_VER;
+  if (v) v.textContent = st.old ? (st.ver ? 'у вас старая ' + st.ver : 'нужно обновить') : 'версия ' + PK_EXT_VER;
   let u = a.querySelector('.upd');
   if (st.old && !u) { a.querySelector('.tx').insertAdjacentHTML('beforeend', `<span class="upd">Обновить до ${PK_EXT_VER} →</span>`); a.insertAdjacentHTML('beforeend', '<span class="dot"></span>'); }
   if (!st.old && u) { u.remove(); const d = a.querySelector('.dot'); if (d) d.remove(); }
@@ -500,8 +501,8 @@ function cabExtPaint() {
 }
 function cabExtRepaint() { if (cabExtKey(cabExtState()) === cabExtLastKey) return; cabExtPaint(); if (cabInCabinet() && cabCurrentSection === 'overview' && !cabShipId && document.getElementById('cabMain')) cabNav('overview'); }
 window.addEventListener('pk-ext', cabExtRepaint);
-// Расширение так и не отозвалось за PK_EXT_WAIT — перерисовать (если раньше был номер, теперь покажем «старая»).
-setTimeout(() => { let v = '', seen = 0; try { v = localStorage.getItem('pk_ext_ver') || ''; seen = +localStorage.getItem('pk_ext_seen') || 0; } catch (e) {} if (v && seen < PK_PAGE_T0 - 1500) cabExtRepaint(); }, PK_EXT_WAIT + 200);
+// Ждём отклик расширения PK_EXT_WAIT — потом перерисовать, если что-то поменялось (cabExtRepaint сам проверит).
+setTimeout(() => { try { if (cabInCabinet()) cabExtRepaint(); } catch (e) {} }, PK_EXT_WAIT + 200);
 // Крестик запоминается для каждого аккаунта отдельно (ключ с uid): закрыл в своём Кабинете — в другом аккаунте
 // на этом же компьютере новость всё равно видна, пока там тоже не нажмут крестик.
 const cabNewsKey = () => 'pk_news_off_' + (typeof savedUid !== 'undefined' && savedUid ? savedUid : 'anon');
