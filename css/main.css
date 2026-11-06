@@ -475,3 +475,7 @@ body.dark .profile-card div{color:#c4b8f0}
 .pkc-zoom span{font-size:13px;font-weight:700;color:#6C4DB8;min-width:30px;text-align:right}
 body.dark .pkc-lens,body.dark .pkc-torch{background:#1d1a2e;border-color:#3b3360;color:#c9b8ff}
 body.dark .pkc-lens.on,body.dark .pkc-torch.on{background:#a48cf0;border-color:#a48cf0;color:#110f1c}
+/* метка маркетплейса у позиции (06.11.2026) */
+.pk-mk{display:inline-block;font-family:Inter,system-ui,sans-serif;font-size:10px;font-weight:800;letter-spacing:.02em;border-radius:5px;padding:1px 5px;margin-right:6px;vertical-align:1px;line-height:1.4}
+.pk-mk.pdd{background:#ffe8e3;color:#d9381e}.pk-mk.tb{background:#fff1e0;color:#e85d00}
+body.dark .pk-mk.pdd{background:#3d1d17;color:#ff9b85}body.dark .pk-mk.tb{background:#3a2610;color:#ffb066}
