@@ -481,7 +481,7 @@ function cabNewsCard() {
       <div class="cab-news-art" aria-hidden="true">
         <div class="cab-news-src"><span class="pk-mk pdd">PDD</span><span class="pk-mk tb">TAOBAO</span><span class="pk-mk a1688">1688</span></div>
         <svg class="cab-news-lines" viewBox="0 0 60 120" preserveAspectRatio="none"><path d="M0 18 C30 18 30 60 60 60M0 60 H60M0 102 C30 102 30 60 60 60" /></svg>
-        <div class="cab-news-box"><i class="ti ti-package"></i><b>Piksta</b><small>1 закупка</small></div>
+        <div class="cab-news-box"><img src="/icons/icon-192x192.png" alt=""><b>Piksta</b><small>1 закупка</small></div>
       </div>
     </div>`;
 }
