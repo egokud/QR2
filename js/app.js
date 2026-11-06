@@ -338,7 +338,7 @@ function renderPriceEditor() {
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
         <input class="pe-name" data-idx="${r.idx}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="+ название" maxlength="40" onchange="onEditName(this)" onclick="event.stopPropagation()" autocomplete="off">
-        <div class="pe-bot"><div class="pe-track">${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}
+        <div class="pe-bot"><div class="pe-track">${pkMkBadge(r.row)}${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}
         ${byWh ? '' : `<div style="position:relative"><input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" oninput="showClientHints(this)" onfocus="showClientHints(this)" onblur="hideClientHints(this)" onclick="event.stopPropagation()" autocomplete="off"></div>`}
       </div></div>
       <div class="pe-prices">
@@ -1144,7 +1144,7 @@ let currentDueOverride = {};
 // Разложить данные документа прихода по глобальным переменным (используется при загрузке и при живой синхронизации)
 function applyShipDoc(d) {
   d = d || {};
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'']);  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'']);  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};
   currentTare = d.tare || 0;
@@ -1537,6 +1537,8 @@ function levenshtein(a, b) {
 }
 
 // ============ LOOKUP ============
+// метка маркетплейса у позиции: откуда трек (расширение 1.10.0 сохраняет mk = pdd / tb)
+function pkMkBadge(row){ const m=row&&row[9]; return m==='tb'?'<span class="pk-mk tb">TAOBAO</span>':m==='pdd'?'<span class="pk-mk pdd">PDD</span>':''; }
 // звук + вибрация «уже отмечен» / «не найден» (06.11.2026)
 function pkSndSafe(k){ try{ if(typeof pkSnd==='function'){ pkSnd(k); pkVib(k); } }catch(e){} }
 function lookup(code) {
@@ -1916,7 +1918,7 @@ function renderWarehouseGrouped(items, container) {
     html += g.items.map(r => `<div class="fulllist-item">
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
+        <span class="fulllist-track">${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
         <span class="fulllist-price">¥${(parseFloat(r.price)||0).toFixed(2)}</span>
       </div>`).join('');
   }
@@ -1945,7 +1947,7 @@ function renderFullList() {
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
+        <span class="fulllist-track">${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
         <span class="fulllist-wh"><input value="${r.wh}" onchange="editWarehouse(${r.idx}, this.value)" /></span>
       </div>`).join('');
   // Инициализируем картинки в списке через JS (избегаем inline handlers)
@@ -2005,7 +2007,7 @@ function toggleRemainingList() {
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">⬜</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}</span>
+        <span class="fulllist-track">${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}</span>
         <span class="fulllist-wh"><input value="${r.wh}" data-idx="${r.idx}" /></span>
       </div>`).join('');
   document.querySelectorAll('.fulllist-img-wrap').forEach(wrap => {
