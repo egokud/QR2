@@ -338,7 +338,7 @@ function renderPriceEditor() {
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
         <input class="pe-name" data-idx="${r.idx}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="+ название" maxlength="40" onchange="onEditName(this)" onclick="event.stopPropagation()" autocomplete="off">
-        <div class="pe-bot"><div class="pe-track">${pkMkBadge(r.row)}${r.track}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}
+        <div class="pe-bot"><div class="pe-track">${r.track}${pkMkBadge(r.row)}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}
         ${byWh ? '' : `<div style="position:relative"><input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" oninput="showClientHints(this)" onfocus="showClientHints(this)" onblur="hideClientHints(this)" onclick="event.stopPropagation()" autocomplete="off"></div>`}
       </div></div>
       <div class="pe-prices">
@@ -1538,7 +1538,10 @@ function levenshtein(a, b) {
 
 // ============ LOOKUP ============
 // метка маркетплейса у позиции: откуда трек (расширение 1.10.0 сохраняет mk = pdd / tb)
-function pkMkBadge(row){ const m=row&&row[9]; return m==='tb'?'<span class="pk-mk tb">TAOBAO</span>':m==='pdd'?'<span class="pk-mk pdd">PDD</span>':''; }
+// Пометка площадки у трека (06.11.2026): PDD — красная, TAOBAO — оранжевая, POIZON — бирюзовая (импорт Poizon будет позже).
+// Ставится только треками из импорта расширения 1.10.0+; у старых закупок поля mk нет — пометки нет.
+// Маршрутизация: эта же функция рисует пометку в телефоне (списки треков) и в Кабинете (колонка «Площадка»).
+function pkMkBadge(row){ const m=row&&row[9]; return m==='tb'?'<span class="pk-mk tb">TAOBAO</span>':m==='pdd'?'<span class="pk-mk pdd">PDD</span>':m==='pz'?'<span class="pk-mk pz">POIZON</span>':''; }
 // звук + вибрация «уже отмечен» / «не найден» (06.11.2026)
 function pkSndSafe(k){ try{ if(typeof pkSnd==='function'){ pkSnd(k); pkVib(k); } }catch(e){} }
 function lookup(code) {
@@ -1918,7 +1921,7 @@ function renderWarehouseGrouped(items, container) {
     html += g.items.map(r => `<div class="fulllist-item">
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
+        <span class="fulllist-track">${r.track}${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
         <span class="fulllist-price">¥${(parseFloat(r.price)||0).toFixed(2)}</span>
       </div>`).join('');
   }
@@ -1947,7 +1950,7 @@ function renderFullList() {
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">${r.done ? '✅' : '⬜'}</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
+        <span class="fulllist-track">${r.track}${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}</span>
         <span class="fulllist-wh"><input value="${r.wh}" onchange="editWarehouse(${r.idx}, this.value)" /></span>
       </div>`).join('');
   // Инициализируем картинки в списке через JS (избегаем inline handlers)
@@ -2007,7 +2010,7 @@ function toggleRemainingList() {
         <span class="fulllist-idx">${r.idx + 1}</span>
         <span class="fulllist-status">⬜</span>
         <span class="fulllist-img-wrap" data-img="${r.img}" data-idx="${r.idx}"></span>
-        <span class="fulllist-track">${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${r.track}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}</span>
+        <span class="fulllist-track">${r.track}${pkMkBadge(r.row||TABLE[r.idx]||TABLE[r.i])}${(r.qty && r.qty>1)?` <span class="qty-b">×${r.qty}</span>`:''}${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}</span>
         <span class="fulllist-wh"><input value="${r.wh}" data-idx="${r.idx}" /></span>
       </div>`).join('');
   document.querySelectorAll('.fulllist-img-wrap').forEach(wrap => {

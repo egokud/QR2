@@ -861,7 +861,7 @@ function cabShipItemsHtml() {
       const k = (r[1] || '').trim().toLowerCase();
       if (k !== lastWh) {
         lastWh = k;
-        head = `<tr class="cab-item-grp"><td colspan="5" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без склада'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
+        head = `<tr class="cab-item-grp"><td colspan="6" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без склада'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
       }
     }
     const qty = parseInt(r[5]) || 1;
@@ -872,7 +872,8 @@ function cabShipItemsHtml() {
       : `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;color:#6b7280;margin-top:3px;white-space:normal"><i class="ti ti-arrow-forward-up"></i> Перенесён из «${cabEsc(r[8] || 'прошлой закупки')}» — в том грузе не пришёл</div>`;
     return head + `<tr class="cab-item-row" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '')).toLowerCase().replace(/"/g, '')}">
       <td style="width:52px">${img}</td>
-      <td style="font-family:monospace;font-size:13px;color:#4a5260">${typeof pkMkBadge === 'function' ? pkMkBadge(r) : ''}${r[0] || ''}${mvNote}${r[2] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note" title="Из одного магазина, товары могут быть разными"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком</div>` : ''}</td>
+      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note" title="Из одного магазина, товары могут быть разными"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком</div>` : ''}</td>
+      <td class="cab-mk-cell">${typeof pkMkBadge === 'function' ? pkMkBadge(r) : ''}</td>
       <td><input data-idx="${i}" value="${(r[6] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,6)" maxlength="40" placeholder="название, 1–3 слова" style="${cabInp};width:100%"></td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
       <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
@@ -889,9 +890,9 @@ function cabShipItemsHtml() {
       </div>
     </div>
     <table class="cab-table cab-items-t">
-      <colgroup><col style="width:56px"><col style="width:30%"><col><col style="width:24%"><col style="width:96px"></colgroup>
-      <thead><tr><th></th><th>Трек</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
+      <colgroup><col style="width:56px"><col style="width:28%"><col style="width:84px"><col><col style="width:24%"><col style="width:96px"></colgroup>
+      <thead><tr><th></th><th>Трек</th><th title="Где куплено: Pinduoduo, Taobao">Площадка</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px">Нет товаров</td></tr>'}</tbody>
     </table>
   </div>`;
 }
