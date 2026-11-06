@@ -2546,7 +2546,7 @@ function renderCabSettings(container) {
     </div>
     <div class="cab-table-wrap" style="margin-top:16px">
       <div class="cab-table-title"><i class="ti ti-puzzle" style="margin-right:6px"></i>Расширение для Chrome</div>
-      <div style="font-size:14px;color:#4a5260;line-height:1.6;margin-bottom:12px">Импорт заказов из Pinduoduo в закупку — с фото, ценами и сверкой с файлом карго. Ставится один раз; обновление — так же, новой папкой.</div>
+      <div style="font-size:14px;color:#4a5260;line-height:1.6;margin-bottom:12px">Импорт заказов из Pinduoduo, Taobao и 1688 в закупку — с фото, ценами и сверкой с файлом карго. Ставится один раз; обновление — так же, новой папкой.</div>
       <a href="/extension" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:#6C4DB8;color:#fff;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:500;text-decoration:none"><i class="ti ti-download" style="font-size:18px"></i> Скачать расширение</a>
       <ol style="font-size:14px;color:#4a5260;line-height:1.7;margin:12px 0 0;padding-left:20px">
         <li>Распакуйте архив — получится папка с расширением.</li>
@@ -2683,7 +2683,7 @@ function cabSetTariffPeriod(m) { cabTariffPeriod = m; renderCabTariffs(document.
 // Срок — только месяц или год. Оплата открывается окном поверх Кабинета (шаги из mtariff.js: срок и способ → реквизиты и скрин).
 const CAB_TF_FEATS = [
   ['Мобильная версия: сканер, закупки, клиенты, оплаты', ['start', 'main', 'pro']],
-  ['Импорт заказов из Pinduoduo', ['start', 'main', 'pro']],
+  ['Импорт заказов из Pinduoduo, Taobao и 1688', ['start', 'main', 'pro']],
   ['Кабинет на компьютере', ['main', 'pro']],
   ['Аналитика бизнеса', ['pro']],
   ['Telegram-бот и общение с клиентами', ['pro']]
