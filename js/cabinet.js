@@ -30,7 +30,7 @@ function cabSidebarInit() {
 }
 async function openCabinet() {
   cabSidebarInit();
-  { const v = document.getElementById('cabExtVer'); if (v) v.textContent = 'версия ' + PK_EXT_VER; }
+
   const isAdmin = userProfile && userProfile.role === 'admin';
   document.getElementById('cabAdminBtn').style.display = isAdmin ? 'flex' : 'none';
   document.getElementById('cabAdminDivider').style.display = isAdmin ? 'block' : 'none';
@@ -40,6 +40,7 @@ async function openCabinet() {
   const logo = document.querySelector('.cab-sidebar-logo');
   if (logo) { logo.style.cursor = 'pointer'; logo.title = 'Обзор'; logo.onclick = () => cabNav('overview'); }
   await loadCabinetData();
+  cabExtPaint();   // кнопка «Расширение»: версия / «устарело»
   await cabRestoreAt();
 }
 
@@ -462,6 +463,30 @@ const CAB_NEWS_ID = 'mk3-2026-11', CAB_NEWS_UNTIL = '2026-11-30';
 // Актуальная версия расширения — ОДНО место: кнопка «Расширение» в меню и баннер Обзора берут её отсюда.
 // Выложили новое расширение на сайт (piksta-extension.zip) — поменять здесь.
 const PK_EXT_VER = '1.10.4';
+// Какая версия стоит у человека (1.10.5+ сама кладёт номер в localStorage pk_ext_ver, когда открыт piksta.online).
+// Старые версии номер не сообщают — узнаём по последнему импорту: с 06.11.2026 у треков из импорта есть пометка площадки (mk).
+function cabVerLess(a, b) { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); } return false; }
+function cabExtState() {
+  let v = ''; try { v = localStorage.getItem('pk_ext_ver') || ''; } catch (e) {}
+  if (v) return { old: cabVerLess(v, PK_EXT_VER), ver: v };
+  // последняя закупка из импорта расширения: у товаров картинки с площадок (pddpic / alicdn), это не перенесённые треки (mvFrom)
+  const fromExt = r => { const o = Array.isArray(r) ? { img: r[2] } : r; return /pddpic|yangkeduo|alicdn/.test(String(o.img || '')) && !o.mvFrom; };
+  const imp = (cabShipmentsCache || []).filter(s => s.src !== 'manual' && new Date(s.created || 0) >= new Date('2026-11-06') && (s.data || []).filter(fromExt).length >= 3)[0];
+  if (imp && !(imp.data || []).some(r => !Array.isArray(r) && r.mk)) return { old: true, ver: '' };
+  return { old: false, ver: '' };
+}
+function cabExtPaint() {
+  const a = document.querySelector('.cab-nav-ext'); if (!a) return;
+  const st = cabExtState();
+  a.classList.toggle('old', st.old);
+  const v = document.getElementById('cabExtVer');
+  if (v) v.textContent = st.old ? (st.ver ? 'у вас старая ' + st.ver : 'у вас старая версия') : 'версия ' + PK_EXT_VER;
+  let u = a.querySelector('.upd');
+  if (st.old && !u) { a.querySelector('.tx').insertAdjacentHTML('beforeend', `<span class="upd">Обновить до ${PK_EXT_VER} →</span>`); a.insertAdjacentHTML('beforeend', '<span class="dot"></span>'); }
+  if (!st.old && u) { u.remove(); const d = a.querySelector('.dot'); if (d) d.remove(); }
+  a.title = st.old ? 'Расширение устарело — скачайте ' + PK_EXT_VER : 'Скачать расширение Piksta для Chrome';
+}
+window.addEventListener('pk-ext', () => { cabExtPaint(); if (typeof cabCurrentSection !== 'undefined' && cabCurrentSection === 'overview' && !cabShipId && document.getElementById('cabMain')) cabNav('overview'); });
 // Крестик запоминается для каждого аккаунта отдельно (ключ с uid): закрыл в своём Кабинете — в другом аккаунте
 // на этом же компьютере новость всё равно видна, пока там тоже не нажмут крестик.
 const cabNewsKey = () => 'pk_news_off_' + (typeof savedUid !== 'undefined' && savedUid ? savedUid : 'anon');
@@ -509,6 +534,7 @@ function renderCabOverview(container) {
   const dupes = cabFindDupes(S.list).length;
 
   const todo = [];
+  { const E = cabExtState(); if (E.old) todo.push({ ic: 'ti-puzzle', tone: 'orange', t: `Устарело расширение: ${E.ver ? 'у вас <b>' + E.ver + '</b>, ' : ''}есть <b>${PK_EXT_VER}</b>`, s: 'В новой версии — импорт с Taobao и 1688, названия на русском. Обновление — 1 минута', a: `window.open('/extension','_blank')`, btn: 'Обновить' }); }
   if (debtors) todo.push({ ic: 'ti-cash', tone: 'red', t: `${debtors} ${cabPl(debtors, 'клиент должен', 'клиента должны', 'клиентов должны')} <b>${cabFmt(debtSum)} BYN</b>`, s: 'По рассортированным закупкам. Отметьте, кто уже заплатил', a: `cabClientFilter='all';cabNav('clients')`, btn: 'Отметить оплаты' });
   const cnb = cabCnBreak();
   if (cnb) todo.push({ ic: 'ti-calendar-event', tone: 'orange', t: `Через ${cnb.days} ${cabPl(cnb.days, 'день', 'дня', 'дней')} Китай уходит на <b>${cnb.name}</b>`, s: `Фабрики и склады встанут ${cnb.len}. Напишите клиентам заранее — пусть успеют заказать до ${cnb.fmt(cnb.orderBy)}`, a: `cabClientFilter='all';cabNav('clients')`, btn: 'Написать клиентам' });
@@ -3532,12 +3558,46 @@ function cabShipMore(ev, id) {
   const m = document.createElement('div'); m.className = 'cab-menu'; m.id = 'cabRowMenu';
   m.innerHTML = `<button onclick="cabRowMenuClose();cabShipArchive('${id}',${done ? 0 : 1})"><i class="ti ${done ? 'ti-archive-off' : 'ti-archive'}"></i>${done ? 'Вернуть из архива' : 'В архив'}</button>
     <button onclick="cabRowMenuClose();cabShipCSV('${id}')"><i class="ti ti-file-spreadsheet"></i>Скачать расчёт (Excel / CSV)</button>
+    <button onclick="cabRowMenuClose();cabNamesClean('${id}')"><i class="ti ti-wand"></i>Почистить названия</button>
     <button class="r" onclick="cabRowMenuClose();cabShipDel('${id}')"><i class="ti ti-trash"></i>Удалить закупку</button>`;
   document.body.appendChild(m);
   const r = ev.currentTarget.getBoundingClientRect(), mw = 260;
   m.style.left = Math.max(8, Math.min(window.innerWidth - mw - 8, r.right - mw)) + 'px';
   m.style.top = (r.bottom + 4) + 'px';
   setTimeout(() => document.addEventListener('click', cabRowMenuClose, { once: true }), 0);
+}
+// «Почистить названия» (06.11.2026): тот же словарь, что в расширении (pknames.js → pkNameFix). Сначала показываем
+// «было → станет», меняем только по кнопке «Применить». Пустые названия не трогаем.
+let cabNamesFix = null;
+function cabNamesClean(id) {
+  if (typeof pkNameFix !== 'function') { alert('Обновите страницу'); return; }
+  const ship = cabShipmentsCache.find(s => s.id === id); if (!ship) return;
+  const ch = [];
+  (ship.data || []).forEach((r, i) => { const n = Array.isArray(r) ? '' : String(r.n || '').trim(); if (!n) return; const f = pkNameFix(n); if (f && f !== n) ch.push({ i, from: n, to: f }); });
+  cabNamesFix = { id, ch };
+  const ov = document.createElement('div'); ov.className = 'cab-ovl'; ov.id = 'cabNamesOv'; ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `<div class="cab-dlg" style="max-width:620px"><div class="cab-dlg-h"><b>Почистить названия</b><button class="cab-dlg-x" onclick="document.getElementById('cabNamesOv').remove()"><i class="ti ti-x"></i></button></div>
+    <div style="padding:4px 2px 10px;color:#4a5260;font-size:14px;line-height:1.5">${ch.length ? `Уберём «2026», «новинка», повторы и обрывки, английские слова переведём: <b>${ch.length}</b> ${cabPl(ch.length, 'название', 'названия', 'названий')} из ${(ship.data || []).length}.` : 'Все названия уже в порядке — чистить нечего.'}</div>
+    ${ch.length ? `<div class="cab-nf-list">${ch.slice(0, 200).map(x => `<div class="cab-nf"><span class="f">${cabEsc(x.from)}</span><i class="ti ti-arrow-right"></i><b>${cabEsc(x.to)}</b></div>`).join('')}</div>` : ''}
+    <div class="cab-dlg-f"><span>${ch.length ? 'Любое название потом можно поправить вручную' : ''}</span>${ch.length ? `<button class="cab-eb" onclick="cabNamesApply(this)"><i class="ti ti-check"></i>Применить</button>` : `<button class="cab-filter-btn" onclick="document.getElementById('cabNamesOv').remove()">Закрыть</button>`}</div></div>`;
+  document.body.appendChild(ov);
+}
+async function cabNamesApply(btn) {
+  const F = cabNamesFix; if (!F || !F.ch.length) return;
+  btn.disabled = true; btn.textContent = 'Сохраняю…';
+  try {
+    const ref = shipmentsRef().doc(F.id);
+    await db.runTransaction(async t => {
+      const doc = await t.get(ref); if (!doc.exists) return;
+      const data = doc.data().data || [];
+      for (const x of F.ch) { const r = data[x.i]; if (!r || Array.isArray(r) || String(r.n || '').trim() !== x.from) continue; r.n = x.to; }
+      t.update(ref, { data });
+    });
+    document.getElementById('cabNamesOv').remove();
+    await loadCabinetData();
+    if (cabShipId === F.id) { await loadShipmentData(F.id, true); cabRenderShip(); }
+    if (typeof showToast === 'function') showToast('Названия почищены · ' + F.ch.length);
+  } catch (e) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i>Применить'; alert('Не сохранилось: ' + (e.message || e)); }
 }
 async function cabShipArchive(id, on) {
   if (on && !confirm('Отправить закупку в архив? Она пропадёт из активных, статистика сохранится.')) return;
