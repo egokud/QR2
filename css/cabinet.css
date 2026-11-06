@@ -862,3 +862,27 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-ch-mk{display:flex;align-items:center;gap:6px;margin:2px 0 10px}
 .cab-ch-mk .pk-mk{margin-left:0;font-size:11px;padding:2px 7px}
 .cab-ch-mk-t{font-size:12.5px;color:#6b7280;margin-left:4px}
+
+/* Обзор: новость «3 маркетплейса одной кнопкой» на месте «Деньги в обороте» (06.11.2026) */
+.cab-news{position:relative;display:flex;align-items:center;gap:18px;overflow:hidden;background:linear-gradient(135deg,#6C4DB8 0%,#8b6be0 55%,#b49af0 100%);border:none;color:#fff;padding:24px 26px}
+.cab-news::before{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.08)}
+.cab-news::after{content:"";position:absolute;left:38%;bottom:-90px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.06)}
+.cab-news-l{position:relative;z-index:1;flex:1;min-width:0}
+.cab-news-tag{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.18);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;letter-spacing:.02em}
+.cab-news-h{font-size:26px;line-height:1.15;font-weight:800;margin:10px 0 8px;letter-spacing:-.01em}
+.cab-news-p{font-size:14px;line-height:1.5;opacity:.92;max-width:380px}
+.cab-news-bt{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.cab-news-b1{display:inline-flex;align-items:center;gap:7px;background:#fff;color:#5b3fa8;font-weight:700;font-size:14px;padding:10px 16px;border-radius:10px;text-decoration:none;box-shadow:0 4px 14px rgba(40,20,90,.25)}
+.cab-news-b1:hover{background:#f6f3ff}
+.cab-news-v{font-size:12.5px;opacity:.8}
+.cab-news-x{position:absolute;top:10px;right:10px;z-index:2;width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.cab-news-x:hover{background:rgba(255,255,255,.3)}
+.cab-news-art{position:relative;z-index:1;display:flex;align-items:center;flex:none}
+.cab-news-src{display:flex;flex-direction:column;gap:22px}
+.cab-news-src .pk-mk{margin:0;font-size:12px;padding:4px 10px;border-radius:7px;box-shadow:0 3px 10px rgba(40,20,90,.2);text-align:center;min-width:64px}
+.cab-news-lines{width:56px;height:120px;fill:none;stroke:rgba(255,255,255,.75);stroke-width:2;stroke-dasharray:4 4}
+.cab-news-box{width:96px;height:96px;border-radius:20px;background:#fff;color:#6C4DB8;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(40,20,90,.3)}
+.cab-news-box i{font-size:34px}
+.cab-news-box b{font-size:13px;margin-top:2px}
+.cab-news-box small{font-size:11px;color:#8a84a3}
+@media (max-width:1100px){.cab-news-art{display:none}}
