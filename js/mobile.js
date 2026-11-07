@@ -336,7 +336,7 @@ function pkRenderShips() {
       }
       if ((s.status || 'forming') === 'forming') extra = `<button class="pk-btn ghost sm" onclick="event.stopPropagation();pkSetStatus('${s.id}','transit')">Закупка отправлена → «В дороге»</button>`;
       if (typeof cabShipPayState === 'function') { cabShipmentsCache = allShipments || []; const ps = cabShipPayState(s); if (ps.text) line += ` · <b style="color:${ps.kind === 'ok' ? 'var(--pk-ok)' : ps.kind === 'due' ? 'var(--pk-due)' : 'var(--pk-acc)'}">${ps.text}</b>`; }
-      return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur && (s.status || 'forming') !== 'forming' ? ' · сканирую' : ''}</span><div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
+      return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur && (s.status || 'forming') !== 'forming' ? ' · сканирую' : ''}</span>${typeof pkOffPill === 'function' ? pkOffPill(s) : ''}<div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
     }).join('') || '<div class="pk-card pk-empty">Закупок пока нет.<br>Создайте первую: вручную — прямо здесь, или импортом с Pinduoduo, Taobao и 1688 через расширение на компьютере.<button type="button" class="pk-btn" style="width:100%;margin-top:12px" onclick="pkNewShip()"><i class="ti ti-plus"></i> Создать закупку</button></div>'}`;
   pkShipSearch();
   if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
@@ -366,7 +366,7 @@ function pkShipSheet(id) {
   for (const row of (s.data || [])) { const w = Array.isArray(row) ? row[1] : row.w; for (const p of (typeof splitWarehouses === 'function' ? splitWarehouses(w || '') : [w])) if (p && p.trim()) cl.add(p.trim().toLowerCase()); }
   const order = ['forming', 'transit', 'warehouse', 'sorted', 'done'];
   if (cur === 'delayed') order.splice(2, 0, 'delayed');
-  let off = 0; try { off = +localStorage.getItem('pk_off_' + id) || 0; } catch (e) {}
+  const offSt = typeof pkOffState === 'function' ? pkOffState(s) : '';   // «Подготовить к складу» — js/pkoff.js
   const act = (fn) => `pkSheetClose();loadForAction('${id}').then(()=>${fn})`;
   const st = pkSt(cur);
   pkSheet(`<div class="pk-row" style="align-items:flex-start"><div style="min-width:0"><h3>${pkEsc(s.name)}</h3><div class="pk-muted" style="font-size:14px">${n} ${pkPl(n, 'позиция', 'позиции', 'позиций')} · ${cl.size} ${pkPl(cl.size, 'клиент', 'клиента', 'клиентов')}</div></div><button class="pk-btn ghost sm" onclick="pkSheetClose();renameShipment('${id}')" aria-label="Переименовать закупку"><i class="ti ti-pencil" aria-hidden="true"></i></button></div>
@@ -383,7 +383,7 @@ function pkShipSheet(id) {
     </div>
     <div class="pk-menu">
       <button onclick="pkSheetClose();openCargoCompare('${id}')"><i class="ti ti-arrows-diff" aria-hidden="true"></i><span>Сверка с карго</span></button>
-      <button onclick="${act(`cacheShipmentImages('${id}')`)}"><i class="ti ${off ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>${off ? 'Фото скачаны · обновить' : 'Скачать фото для работы без интернета'}</span>${off ? `<small>${off}</small>` : ''}</button>
+      <button onclick="pkSheetClose();pkPrepOffline('${id}')"><i class="ti ${offSt === 'ok' ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"${offSt === 'ok' ? ' style="color:var(--pk-ok)"' : ''}></i><span>${offSt === 'ok' ? 'Готова без интернета · обновить' : offSt === 'stale' ? 'Обновить для работы без интернета' : 'Подготовить к складу без интернета'}<small class="pk-muted" style="display:block;font-size:12.5px">приложение, позиции, клиенты и фото — на телефон</small></span></button>
       <button onclick="pkSheetClose();exportForInventory('${id}')"><i class="ti ti-file-export" aria-hidden="true"></i><span>Выгрузить для описи</span></button>
       <button onclick="${act(`openRatesModal('${id}')`)}"><i class="ti ti-adjustments" aria-hidden="true"></i><span>Курсы закупки<small class="pk-muted" style="display:block;font-size:12.5px">настройки этой закупки</small></span></button>
       <button onclick="${act('resetAll()')}.then(restoreActiveEditing)"><i class="ti ti-refresh" aria-hidden="true"></i><span>Сбросить отметки сканирования</span></button>
@@ -898,14 +898,15 @@ function pkRenderMore() {
   const isAdmin = userProfile && userProfile.role === 'admin';
   const skin = pkSkin();
   const pv = { compact: '<i></i><i class="a"></i><i></i>', lenta: '<i class="a" style="height:8px;width:60%"></i><i></i><i></i><i></i>', bottom: '<i></i><i></i><i style="flex:1;background:none"></i><i class="a"></i>' };
-  let off = 0; try { off = +localStorage.getItem('pk_off_' + activeShipmentId) || 0; } catch (e) {}
+  // дублирующий вход: то же «Подготовить к складу», что в меню закупки (js/pkoff.js), — для текущей закупки
+  const offSt = typeof pkOffState === 'function' ? pkOffState((allShipments || []).find(x => x.id === activeShipmentId)) : '';
   document.getElementById('pkPane-more').innerHTML = `<h1 class="pk-h1">Ещё</h1>
     <div class="pk-card pk-me" onclick="openProfile()" style="cursor:pointer"><span class="pk-av" style="width:48px;height:48px;border-radius:24px">${pkEsc(document.getElementById('pkAva').textContent)}</span><div style="flex:1;min-width:0"><b style="display:block">${pkEsc(name)}</b><small class="pk-muted">${isAdmin ? 'Администратор' : 'Профиль, пароль, валюта'}</small></div><i class="ti ti-chevron-right" aria-hidden="true"></i></div>
     <div class="pk-lbl">Вид сканера</div>
     <div class="pk-skins">${PK_SKINS.map(([k, l]) => `<button type="button" class="pk-skin ${skin === k ? 'on' : ''}" onclick="pkSetSkin('${k}')" aria-pressed="${skin === k}"><span class="pv">${pv[k]}</span><span>${l}</span></button>`).join('')}</div>
     <div class="pk-menu">
       <button onclick="if(pkIsPhone())location.href='/extension';else window.open('/extension','_blank')"><i class="ti ti-puzzle" aria-hidden="true"></i><span>Расширение Piksta для Chrome<br><small>скачать и инструкция · ставится на компьютер</small></span></button>
-      <button onclick="${activeShipmentId ? `cacheShipmentImages('${activeShipmentId}')` : ''}"><i class="ti ${off ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>Фото для работы без интернета</span><small>${off ? 'скачаны · ' + off : 'текущая закупка'}</small></button>
+      <button onclick="${activeShipmentId ? `pkPrepOffline('${activeShipmentId}')` : ''}"><i class="ti ${offSt === 'ok' ? 'ti-cloud-check' : 'ti-cloud-download'}" aria-hidden="true"></i><span>Работа без интернета</span><small>${offSt === 'ok' ? 'готова · обновить' : 'подготовить текущую закупку'}</small></button>
       <button onclick="pkTheme()"><i class="ti ti-moon" aria-hidden="true"></i><span>Тёмная тема</span><small>${document.body.classList.contains('dark') ? 'вкл' : 'выкл'}</small></button>
       <button onclick="pkTariffs()"><i class="ti ti-receipt" aria-hidden="true"></i><span>Тариф и оплата</span>${pkTariffLine()}</button>
       ${typeof pkTourMenuOn === 'function' && pkTourMenuOn() ? `<button onclick="pkTourStart('m')"><i class="ti ti-route" aria-hidden="true"></i><span>Подсказки по интерфейсу</span><small>пройти обучение заново</small></button>` : ''}
