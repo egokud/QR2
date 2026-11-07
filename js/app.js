@@ -1153,6 +1153,9 @@ function pkImg(u) {
   // 07.11.2026: фото Pinduoduo — уменьшенная копия с их же сервера (480 px, webp): ~10 КБ вместо 50–200 КБ.
   // Быстрее грузится везде и быстро скачивается для работы без интернета.
   if (/^https:\/\/[^/]*(pddpic|pddugc)\.com\//i.test(u) && u.indexOf('?') < 0) u += '?imageView2/2/w/480/q/75/format/webp';
+  // 07.11.2026: фото Taobao и 1688 (alicdn.com) — через наш сервер /api/img: из Беларуси alicdn часто не отвечает,
+  // наш сервер забирает фото один раз и держит копию на CDN. Маршрутизация: тот же /api/img, что у выгрузки для описи.
+  if (/^https:\/\/([a-z0-9-]+\.)*alicdn\.com\//i.test(u)) u = '/api/img?url=' + encodeURIComponent(u);
   return u;
 }
 function applyShipDoc(d) {
