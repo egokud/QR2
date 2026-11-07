@@ -6,7 +6,7 @@ auth.onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
     savedUid = user.uid;
-    try { savedToken = await user.getIdToken(); } catch(e) {}
+    try { savedToken = await (typeof pkTimeout === 'function' ? pkTimeout(user.getIdToken(), 6000) : user.getIdToken()); } catch(e) {}   // без интернета токен может не обновиться — работаем с копией на телефоне
     await loadUserProfile();
     // Подтверждение e-mail (js/verify.js): новые — экран до подтверждения, старые — плашка
     const vNeed = typeof pkNeedsVerify === 'function' ? pkNeedsVerify(user, userProfile) : null;
@@ -99,16 +99,18 @@ async function doRecovery() {
   }
 }
 
-function doLogout() { if (scanning) stopScanner(); auth.signOut(); }
+async function doLogout() { if (typeof pkLogoutCheck === 'function' && !(await pkLogoutCheck())) return; if (scanning) stopScanner(); auth.signOut(); }
 
 // ============ USER PROFILE ============
 async function loadUserProfile() {
   const uid = savedUid, email = (currentUser&&currentUser.email)||'', displayName = (currentUser&&currentUser.displayName)||'';
-  const token = await currentUser.getIdToken();
   let doc;
-  try { doc = await fsGet('users/' + uid, token); } catch(e) { doc = { exists: false }; }
-  if (doc.exists) {
+  try { doc = await fsGet('users/' + uid); } catch(e) { doc = null; }
+  if (doc && doc.exists) {
     userProfile = doc.data();
+  } else if (!doc) {
+    // 07.11.2026: не прочитали (нет связи и нет копии на телефоне) — НЕ создаём профиль заново, иначе затрём настоящий
+    userProfile = { name: displayName || email, email, role: email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user' };
   } else {
     const role = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
     userProfile = { name: displayName || email, email, role };
@@ -198,11 +200,12 @@ async function showApp() {
 
 // ============ SHIPMENTS (FIRESTORE) ============
 function shipmentsRef() { return db.collection('users').doc(currentUser.uid).collection('shipments'); }
+function shipPath(id) { return 'users/' + savedUid + '/shipments/' + id; }
 
 // Сохранить курсы текущего прихода в Firebase
 async function saveRates() {
   if (!activeShipmentId) return;
-  await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ rates: currentRates });
+  await pkWrite(shipPath(editingShipmentId || activeShipmentId), 'update', { rates: currentRates });
 }
 
 // Тара процентом от веса клиентов (когда недовешенные «вес в цене» не дают посчитать тару по карго).
@@ -214,18 +217,18 @@ function onTarePctChange(v) {
   const ti = document.getElementById('tareInput'); if (ti) ti.disabled = currentTarePct > 0;
   if (typeof renderWeighList === 'function' && document.getElementById('weighList')) renderWeighList();
   const id = editingShipmentId || activeShipmentId;
-  if (id) shipmentsRef().doc(id).update({ tarePct: currentTarePct });
+  if (id) pkWrite(shipPath(id), 'update', { tarePct: currentTarePct });
   updateClientsWeightTotal();
 }
 
 async function saveWeights() {
   if (!activeShipmentId) return;
-  await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ weights: currentWeights, tare: currentTare, priceInclWeight: currentPriceInclWeight });
+  await pkWrite(shipPath(editingShipmentId || activeShipmentId), 'update', { weights: currentWeights, tare: currentTare, priceInclWeight: currentPriceInclWeight });
 }
 
 async function saveOwners() {
   if (!activeShipmentId) return;
-  await shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ owners: currentOwners, costGoods: currentCostGoods, costShip: currentCostShip });
+  await pkWrite(shipPath(editingShipmentId || activeShipmentId), 'update', { owners: currentOwners, costGoods: currentCostGoods, costShip: currentCostShip });
 }
 
 function toggleOwner(name) {
@@ -456,31 +459,9 @@ async function onEditClient(input) {
 async function savePriceAt(idx) {
   const shipId = editingShipmentId || activeShipmentId;  // пишем в тот приход, который сейчас редактируем
   if (!shipId || idx < 0 || idx >= TABLE.length) return;
-  const ref = shipmentsRef().doc(shipId);
-  // Транзакция: читаем свежий массив и меняем только одну строку — правки с другого устройства не затираются
-  await db.runTransaction(async t => {
-    const doc = await t.get(ref);
-    if (!doc.exists) return;
-    const data = doc.data().data;
-    if (!data || !data[idx]) return;
-    const nm = String(TABLE[idx][6]||'').trim();
-    if (Array.isArray(data[idx]) && nm) {
-      // старый формат-массив: чтобы сохранить название, переводим строку в объект
-      const a = data[idx]; data[idx] = { t: a[0], w: a[1]||'', img: a[2]||'', p: a[3]||'', pc: a[4]||'', q: a[5]||'1' };
-    }
-    if (Array.isArray(data[idx])) {
-      // старый формат-массив [t,w,img,p,pc,q]
-      data[idx][1] = String(TABLE[idx][1]||'');  // склад/клиент
-      data[idx][3] = String(TABLE[idx][3]||'');
-      data[idx][4] = String(TABLE[idx][4]||'');
-    } else {
-      data[idx].w = String(TABLE[idx][1]||'');   // склад/клиент
-      data[idx].p = String(TABLE[idx][3]||'');
-      data[idx].pc = String(TABLE[idx][4]||'');
-      if (nm) data[idx].n = nm; else delete data[idx].n;
-    }
-    t.update(ref, { data });
-  });
+  // 07.11.2026: через очередь (js/pkoff.js) — без интернета правка ждёт на телефоне. Отправка — транзакцией:
+  // читаем свежий массив и меняем только эту позицию (по трек-коду), правки с другого устройства не затираются
+  await pkRowWrite(shipId, idx);
 }
 
 // ============ ВЫГРУЗКА ОТЧЁТА В PDF (через печать, табличный вид) ============
@@ -926,7 +907,7 @@ function onDepartedChange() {
   // Галочка "выехала" автоматически меняет статус: вкл → В дороге (transit), выкл → Формируется
   const newStatus = shipmentDeparted ? 'transit' : 'forming';
   const upd = { departed: shipmentDeparted, status: newStatus };
-  shipmentsRef().doc(shipId).update(upd);
+  pkWrite(shipPath(shipId), 'update', upd);
   // обновим кэш и плашки
   const s = allShipments.find(x => x.id === shipId);
   if (s) s.status = newStatus;
@@ -936,7 +917,7 @@ function onDepartedChange() {
 function onCargoWeightChange() {
   const grams = parseFloat(document.getElementById('cargoWeightInput').value) || 0;
   currentCargoWeight = grams / 1000;  // храним в кг, вводим в граммах
-  if (editingShipmentId || activeShipmentId) shipmentsRef().doc(editingShipmentId || activeShipmentId).update({ cargoWeight: currentCargoWeight });
+  if (editingShipmentId || activeShipmentId) pkWrite(shipPath(editingShipmentId || activeShipmentId), 'update', { cargoWeight: currentCargoWeight });
 }
 function scannedRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('scanned').doc(shipId); }
 function historyRef(shipId) { return db.collection('users').doc(currentUser.uid).collection('history').doc(shipId || activeShipmentId); }
@@ -990,7 +971,9 @@ async function loadShipments() {
     ? '<option value="">— Загрузите CSV —</option>'
     : shipments.map(s => `<option value="${s.id}">${s.name} (${s.data.length})</option>`).join('');
   if (shipments.length > 0) {
-    const id = activeShipmentId && shipments.find(s => s.id === activeShipmentId) ? activeShipmentId : shipments[0].id;
+    let last = null; try { last = localStorage.getItem('pk_active_' + savedUid); } catch (e) {}
+    const id = activeShipmentId && shipments.find(s => s.id === activeShipmentId) ? activeShipmentId
+      : last && shipments.find(s => s.id === last) ? last : shipments[0].id;
     sel.value = id;
     await loadShipmentData(id);
   } else {
@@ -1117,7 +1100,7 @@ async function setStatus(id, key) {
   if (s) s.status = key;
   document.getElementById('statusPicker').classList.remove('open');
   renderShipmentCards();
-  try { await shipmentsRef().doc(id).update({ status: key }); } catch(e) {}
+  try { await pkWrite(shipPath(id), 'update', { status: key }); } catch(e) {}
 }
 
 // ПРАВИЛА КЛИЕНТА из карточки клиента (кабинет): userProfile.clientRules = { "имя в нижнем регистре": { owner, costGoods, costShip } }
@@ -1173,7 +1156,7 @@ function applyShipDoc(d) {
 }
 
 async function loadShipmentData(id, keepActive) {
-  if (!keepActive) activeShipmentId = id;
+  if (!keepActive) { activeShipmentId = id; try { localStorage.setItem('pk_active_' + savedUid, id); } catch (e) {} }   // 07.11.2026: открыли приложение заново (в т.ч. без интернета) — та же закупка
   editingShipmentId = id;  // редактируемый приход = тот что грузим
   // Проверяем статус кэша картинок для нового прихода (зелёный если уже загружены)
   const cacheBtn = document.getElementById('btnCacheImages');
@@ -1526,7 +1509,7 @@ async function updateShipmentStats() {
 async function saveScanned() {
   const sid = editingShipmentId || activeShipmentId;  // отметки принадлежат приходу, чьи данные загружены — никогда не пишем их в чужой
   if (!sid) return;
-  await scannedRef(sid).set({ items: scanned });
+  await pkWrite('users/' + savedUid + '/scanned/' + sid, 'set', { items: scanned });
 }
 
 // ============ HISTORY (FIRESTORE) ============
@@ -1537,7 +1520,7 @@ async function loadHistory() {
   } catch(e) { scanHistory = []; }
 }
 async function saveHistory() {
-  await historyRef().set({ items: scanHistory.slice(0, 30) });
+  await pkWrite('users/' + savedUid + '/history/' + activeShipmentId, 'set', { items: scanHistory.slice(0, 30) }, null, true);   // историю в счётчик действий не считаем
 }
 
 // ============ LEVENSHTEIN ============
@@ -1687,7 +1670,7 @@ document.addEventListener('click', (e) => {
 async function checkCacheStatus() {
   const btn = document.getElementById('btnCacheImages');
   if (!btn || typeof TABLE === 'undefined') return;
-  const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))];
+  const urls = [...new Set(TABLE.map(r => r[2]).filter(u => u && !/^data:/.test(u)))];   // фото, добавленные вручную, уже лежат в самой закупке
   if (urls.length === 0) {
     btn.classList.remove('cached');
     btn.title = 'В этой закупке нет картинок';
@@ -1710,10 +1693,11 @@ async function checkCacheStatus() {
 
 // Пункт меню шестерёнки: показывает, скачаны ли фото этого прихода
 function pkOfflineMenuBtn(id) {
-  let n = 0; try { n = +localStorage.getItem('pk_off_' + id) || 0; } catch (e) {}
-  return n
-    ? `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}')).then(restoreActiveEditing);closeShipMenu()" style="color:#15803d"><i class="ti ti-cloud-check" aria-hidden="true"></i> Фото скачаны (${n}) · обновить</button>`
-    : `<button onclick="loadForAction('${id}').then(()=>cacheShipmentImages('${id}')).then(restoreActiveEditing);closeShipMenu()"><i class="ti ti-cloud-download" aria-hidden="true"></i> Скачать фото для работы без интернета</button>`;
+  // 07.11.2026: тот же вход, что в новом меню закупки (mobile.js) — «Подготовить к складу» (js/pkoff.js)
+  const s = (allShipments || []).find(x => x.id === id), st = typeof pkOffState === 'function' ? pkOffState(s) : '';
+  return st === 'ok'
+    ? `<button onclick="closeShipMenu();pkPrepOffline('${id}')" style="color:#15803d"><i class="ti ti-cloud-check" aria-hidden="true"></i> Готова без интернета · обновить</button>`
+    : `<button onclick="closeShipMenu();pkPrepOffline('${id}')"><i class="ti ti-cloud-download" aria-hidden="true"></i> Подготовить к складу без интернета</button>`;
 }
 // Полоса прогресса скачивания фото (внизу экрана)
 function pkCacheBar(state, done, total) {
@@ -1737,7 +1721,7 @@ function pkCacheBar(state, done, total) {
 
 async function cacheShipmentImages(shipId) {
   const btn = document.getElementById('btnCacheImages') || document.createElement('button');
-  const urls = [...new Set(TABLE.map(r => r[2]).filter(Boolean))];
+  const urls = [...new Set(TABLE.map(r => r[2]).filter(u => u && !/^data:/.test(u)))];   // фото, добавленные вручную, уже лежат в самой закупке
   if (urls.length === 0) {
     showToast('В этой закупке нет картинок');
     return;
@@ -1749,7 +1733,7 @@ async function cacheShipmentImages(shipId) {
 
   btn.classList.add('caching');
   btn.classList.remove('cached');
-  pkCacheBar('run', 0, urls.length);
+  if (!window.__pkPrepImg) pkCacheBar('run', 0, urls.length);
 
   const cache = await caches.open('piksta-images-v1');
 
@@ -1789,7 +1773,7 @@ async function cacheShipmentImages(shipId) {
       }
     }));
     btn.title = `Загружаю картинки: ${loaded}/${urls.length}`;
-    pkCacheBar('run', loaded, urls.length);
+    if (window.__pkPrepImg) window.__pkPrepImg(loaded, urls.length); else pkCacheBar('run', loaded, urls.length);
   }
 
   btn.classList.remove('caching');
@@ -1799,11 +1783,11 @@ async function cacheShipmentImages(shipId) {
   if (finalCount >= urls.length * 0.9) {
     btn.classList.add('cached');
     btn.title = `Картинки загружены (${finalCount} из ${urls.length}) — работают без интернета`;
-    pkCacheBar('done', finalCount, urls.length);
+    if (!window.__pkPrepImg) pkCacheBar('done', finalCount, urls.length);
     try { const sid = shipId || editingShipmentId || activeShipmentId; Object.keys(localStorage).filter(k => k.startsWith('pk_off_')).forEach(k => localStorage.removeItem(k)); if (sid) localStorage.setItem('pk_off_' + sid, String(finalCount)); } catch (e) {} // в кэше только один приход — флаг только у него
   } else {
     btn.title = `Загружено ${finalCount} из ${urls.length}. Нажмите ещё раз чтобы догрузить`;
-    pkCacheBar('part', finalCount, urls.length);
+    if (!window.__pkPrepImg) pkCacheBar('part', finalCount, urls.length);
   }
 }
 
@@ -1987,16 +1971,7 @@ async function editWarehouse(idx, newWh) {
   if (!activeShipmentId || idx < 0 || idx >= TABLE.length) return;
   const clean = resolveClientName(capitalizeWh(newWh.trim()));  // авто-заглавная, союзы маленькими; без учёта регистра — к существующему
   TABLE[idx][1] = clean;
-  // Update in Firestore
-  const doc = await shipmentsRef().doc(activeShipmentId).get();
-  if (doc.exists) {
-    const data = doc.data().data;
-    if (data[idx]) {
-      if (Array.isArray(data[idx])) data[idx][1] = clean;
-      else data[idx].w = clean;
-      await shipmentsRef().doc(activeShipmentId).update({ data });
-    }
-  }
+  await pkRowWrite(activeShipmentId, idx);   // через очередь (js/pkoff.js): без интернета тоже сохранится
   renderFullList();  // перерисуем чтобы показать склад с заглавной
 }
 
@@ -2248,19 +2223,19 @@ function syncIsTyping() {
 function isShownEl(id) { const e = document.getElementById(id); return !!e && e.classList.contains('show'); }
 function startShipmentsSync() {
   if (shipSyncUnsub || !currentUser) return;
-  let first = true;
+  let first = !(typeof pkNet !== 'undefined' && pkNet.fromSnap);   // открылись без интернета с копии — первый снимок из базы применяем
   try {
     shipSyncUnsub = shipmentsRef().onSnapshot(snap => {
       if (first) { first = false; return; }               // первый снимок = то, что уже загружено
       if (snap.metadata.hasPendingWrites) return;          // наше собственное изменение — уже на экране
-      const list = snap.docs.map(d => ({ id: d.id, ...snapDocToObj(d) }));
+      const list = snap.docs.map(d => ({ id: d.id, ...(typeof pkOverlay === 'function' ? pkOverlay(shipPath(d.id), snapDocToObj(d)) : snapDocToObj(d)) }));   // поверх — то, что ещё не отправлено
       list.sort((a, b) => (b.created ? new Date(b.created).getTime() : 0) - (a.created ? new Date(a.created).getTime() : 0));
       allShipments = list;
       const sel = document.getElementById('shipmentSelect');
       if (sel) { const v = sel.value; sel.innerHTML = list.map(x => `<option value="${x.id}">${x.name} (${(x.data || []).length})</option>`).join(''); sel.value = v; }
       if (typeof cabShipmentsCache !== 'undefined') cabShipmentsCache = list.map(x => ({ ...x }));
       const openId = editingShipmentId || activeShipmentId;
-      const changedOpen = snap.docChanges().some(c => c.doc.id === openId && c.type === 'modified');
+      const changedOpen = snap.docChanges().some(c => c.doc.id === openId && (c.type === 'modified' || c.type === 'added'));
       if (changedOpen) { const cur = list.find(x => x.id === openId); if (cur) applyShipDoc(cur); }
       syncRefreshScreens();
     }, err => console.warn('shipments sync:', err.message));
