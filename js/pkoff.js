@@ -267,6 +267,7 @@ async function pkPrepOffline(id) {
   const s = (allShipments || []).find(x => x.id === id); if (!s) return;
   if (navigator.onLine === false) { showToast('Нет интернета. Подготовьте закупку, когда будет Wi-Fi'); return; }
   pkPrepBusy = true;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}   // просим браузер не стирать сохранённое
   const step = (k, st, sub, pct) => {
     const el = document.getElementById('pkPrep-' + k); if (!el) return;
     el.className = 'ck ' + st;
