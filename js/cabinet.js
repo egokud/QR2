@@ -456,10 +456,20 @@ function cabTipClick(ev, k) {
 }
 addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cabTipHide(); }, { passive: true, capture: true });
 
-// ── НОВОСТЬ НА ОБЗОРЕ (06.11.2026): «3 маркетплейса одной кнопкой» ──
-// Временно стоит на месте «Деньги в обороте». Крестик прячет её в этом аккаунте (в этом браузере), сама пропадает после CAB_NEWS_UNTIL —
-// тогда «Деньги в обороте» возвращаются на место. Следующую новость — сменить CAB_NEWS_ID и текст.
-const CAB_NEWS_ID = 'mk3-2026-11', CAB_NEWS_UNTIL = '2026-11-30';
+// ── БАННЕРЫ (07.11.2026): Кабинет → Обзор (большие слайды) и Телефон → Закупки (узкая строка) ──
+// Маршрутизация: список PK_BANNERS — ОДНО место для обоих видов. Кабинет рисует cabBnBlock() на месте «Деньги в обороте»,
+// телефон — pkBnStrip() в js/mobile.js (вкладка «Закупки», над фильтрами). Тексты свои: Кабинет — cabBnSlide() здесь, телефон — короче, в pkBnStrip().
+// Правило Егора: новый баннер — всегда первым, дальше по убыванию даты (поле date), после последнего — снова первый.
+// Автосмена: Кабинет — 8 с (≈30 слов, спокойное чтение), телефон — 6 с (≈8 слов). Пауза, пока мышь над баннером
+// или палец на нём, и пока вкладка свёрнута. Точки и свайп — листать вручную.
+// Крестик прячет только этот баннер, в этом аккаунте (ключ с uid). Все спрятаны или истекли — в Кабинете снова «Деньги в обороте».
+const PK_BANNERS = [
+  { id: 'idea-2026-11', date: '2026-11-07', until: '', kind: 'idea' },
+  { id: 'mk3-2026-11', date: '2026-11-06', until: '2026-11-30', kind: 'mk3' }
+];
+const PK_BN_SEC = { cab: 8, phone: 6 };
+const PK_SUPPORT_TG = 'https://t.me/piksta_support_bot';
+const PK_IDEA_MAIL = 'mailto:support@piksta.online?subject=' + encodeURIComponent('Идея для Piksta');
 // Актуальная версия расширения — ОДНО место: кнопка «Расширение» в меню и баннер Обзора берут её отсюда.
 // Выложили новое расширение на сайт (piksta-extension.zip) — поменять здесь.
 const PK_EXT_VER = '1.10.5';
@@ -503,17 +513,69 @@ function cabExtRepaint() { if (cabExtKey(cabExtState()) === cabExtLastKey) retur
 window.addEventListener('pk-ext', cabExtRepaint);
 // Ждём отклик расширения PK_EXT_WAIT — потом перерисовать, если что-то поменялось (cabExtRepaint сам проверит).
 setTimeout(() => { try { if (cabInCabinet()) cabExtRepaint(); } catch (e) {} }, PK_EXT_WAIT + 200);
-// Крестик запоминается для каждого аккаунта отдельно (ключ с uid): закрыл в своём Кабинете — в другом аккаунте
-// на этом же компьютере новость всё равно видна, пока там тоже не нажмут крестик.
-const cabNewsKey = () => 'pk_news_off_' + (typeof savedUid !== 'undefined' && savedUid ? savedUid : 'anon');
-function cabNewsOn() {
-  if (new Date().toISOString().slice(0, 10) > CAB_NEWS_UNTIL) return false;
-  try { return localStorage.getItem(cabNewsKey()) !== CAB_NEWS_ID; } catch (e) { return true; }
+const pkBnUid = () => (typeof savedUid !== 'undefined' && savedUid ? savedUid : 'anon');
+function pkBnHidden(b) {
+  try {
+    if (localStorage.getItem('pk_bn_off_' + pkBnUid() + '_' + b.id)) return true;
+    if (b.id === 'mk3-2026-11' && localStorage.getItem('pk_news_off_' + pkBnUid()) === b.id) return true;   // крестик старой версии (06.11)
+  } catch (e) {}
+  return false;
 }
-function cabNewsOff() { try { localStorage.setItem(cabNewsKey(), CAB_NEWS_ID); } catch (e) {} cabNav('overview'); }
-function cabNewsCard() {
-  return `<div class="cab-card cab-news">
-      <button type="button" class="cab-news-x" onclick="cabNewsOff()" title="Скрыть — вернуть «Деньги в обороте»"><i class="ti ti-x"></i></button>
+function pkBnList() {
+  const today = new Date().toISOString().slice(0, 10);
+  return PK_BANNERS.filter(b => !(b.until && today > b.until) && !pkBnHidden(b)).sort((a, b) => b.date.localeCompare(a.date));
+}
+let pkBnIdx = 0, pkBnT = 0, pkBnHold = false;
+function pkBnOff(id) {
+  try { localStorage.setItem('pk_bn_off_' + pkBnUid() + '_' + id, '1'); } catch (e) {}
+  pkBnIdx = 0; pkBnT = 0; pkBnHold = false;
+  if (typeof cabInCabinet === 'function' && cabInCabinet()) cabNav('overview');
+  else if (typeof pkRender === 'function') pkRender();
+}
+// Видимый блок баннеров (в Кабинете и на телефоне разметка может лежать одновременно — берём тот, что на экране)
+function pkBnWrap() { return [...document.querySelectorAll('[data-bn-wrap]')].find(w => w.offsetParent !== null) || null; }
+function pkBnGo(i) {
+  const w = pkBnWrap(); if (!w) return;
+  const sl = w.querySelectorAll('[data-bn]'), n = sl.length; if (!n) return;
+  pkBnIdx = ((i % n) + n) % n; pkBnT = 0;
+  sl.forEach((el, k) => el.classList.toggle('on', k === pkBnIdx));
+  w.querySelectorAll('[data-bn-dot]').forEach((el, k) => el.classList.toggle('on', k === pkBnIdx));
+}
+function pkBnDots(n) { return n > 1 ? `<div class="pk-bn-dots">${Array.from({ length: n }, (_, k) => `<button type="button" data-bn-dot class="${k === pkBnIdx ? 'on' : ''}" onclick="event.stopPropagation();pkBnGo(${k})" aria-label="Баннер ${k + 1}"></button>`).join('')}</div>` : ''; }
+// Общие обработчики: пауза под мышью / пальцем, свайп
+function pkBnAttrs(sec) { return `data-bn-wrap data-sec="${sec}" onmouseenter="pkBnHold=true" onmouseleave="pkBnHold=false" ontouchstart="pkBnTouch(event,0)" ontouchend="pkBnTouch(event,1)"`; }
+let pkBnX = null;
+function pkBnTouch(e, end) {
+  const x = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : null;
+  if (!end) { pkBnHold = true; pkBnX = x; return; }
+  pkBnHold = false; pkBnT = 0;
+  if (pkBnX != null && x != null && Math.abs(x - pkBnX) > 40) pkBnGo(pkBnIdx + (x < pkBnX ? 1 : -1));
+  pkBnX = null;
+}
+setInterval(() => {
+  const w = pkBnWrap();
+  if (!w || document.hidden || pkBnHold || w.querySelectorAll('[data-bn]').length < 2) return;
+  if (++pkBnT >= (+w.dataset.sec || 8)) pkBnGo(pkBnIdx + 1);
+}, 1000);
+function cabBnSlide(b, on) {
+  const x = `<button type="button" class="cab-news-x" onclick="pkBnOff('${b.id}')" title="Скрыть этот баннер"><i class="ti ti-x"></i></button>`;
+  if (b.kind === 'idea') return `<div class="cab-card cab-news idea ${on ? 'on' : ''}" data-bn>${x}
+      <div class="cab-news-l">
+        <span class="cab-news-tag">💡 Ваши идеи</span>
+        <div class="cab-news-h">Не хватает функции?<br>Напишите нам</div>
+        <div class="cab-news-p">Расскажите, чего не хватает в Piksta. Мы читаем каждое сообщение — возможно, ваша идея появится в Кабинете уже завтра.</div>
+        <div class="cab-news-bt">
+          <a class="cab-news-b1" href="${PK_SUPPORT_TG}" target="_blank" rel="noopener"><i class="ti ti-send"></i>Предложить идею</a>
+          <span class="cab-news-v">в Telegram или <a href="${PK_IDEA_MAIL}">на почту</a></span>
+        </div>
+      </div>
+      <div class="cab-idea-art" aria-hidden="true">
+        <div class="cab-idea-bub a"><b>Вы</b>Хочу, чтобы долги клиентов приходили в Telegram</div>
+        <div class="cab-idea-bub b"><b>Piksta</b>Спасибо! Уже делаем 🙌</div>
+        <div class="cab-idea-box"><img src="/icons/icon-192x192.png" alt=""></div>
+      </div>
+    </div>`;
+  return `<div class="cab-card cab-news ${on ? 'on' : ''}" data-bn>${x}
       <div class="cab-news-l">
         <span class="cab-news-tag"><i class="ti ti-sparkles"></i> Новое</span>
         <div class="cab-news-h">3 маркетплейса —<br>одной кнопкой</div>
@@ -529,6 +591,11 @@ function cabNewsCard() {
         <div class="cab-news-box"><img src="/icons/icon-192x192.png" alt=""><b>Piksta</b><small>1 закупка</small></div>
       </div>
     </div>`;
+}
+function cabBnBlock() {
+  const L = pkBnList(); if (!L.length) return '';
+  if (pkBnIdx >= L.length) pkBnIdx = 0;
+  return `<div class="cab-bn" ${pkBnAttrs(PK_BN_SEC.cab)}>${L.map((b, k) => cabBnSlide(b, k === pkBnIdx)).join('')}${pkBnDots(L.length)}</div>`;
 }
 function renderCabOverview(container) {
   if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyOverview(); return; }
@@ -598,7 +665,7 @@ function renderCabOverview(container) {
     </div>
 
     <div class="cab-ov-top">
-      ${cabNewsOn() ? cabNewsCard() : `<div class="cab-card cab-money">
+      ${cabBnBlock() || `<div class="cab-card cab-money">
         <div class="cab-card-l"><i class="ti ti-coins"></i> Деньги в обороте${cabHelpBtn('money')}</div>
         <div class="cab-money-v">${cabFmt(money.turnover)} <small>BYN</small></div>
         <div class="cab-money-bar"><span style="width:${frozenPct}%;background:#6C4DB8"></span>${realPct ? `<span style="width:${realPct}%;background:#16a34a"></span>` : ''}</div>
