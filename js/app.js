@@ -118,6 +118,19 @@ async function loadUserProfile() {
   }
 }
 
+// Метка браузера (07.11.2026): случайный номер в localStorage, пишется в профиль (devs).
+// Пользователь ничего не видит; админка помечает аккаунты, зашедшие с того же браузера, что и более ранний аккаунт.
+function pkDevMark() {
+  try {
+    if (!currentUser || !userProfile || !savedUid) return;
+    let id = localStorage.getItem('pk_dev');
+    if (!id) { id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 12); localStorage.setItem('pk_dev', id); }
+    const ds = Array.isArray(userProfile.devs) ? userProfile.devs : [];
+    if (ds.includes(id) || ds.length >= 30) return;
+    db.collection('users').doc(savedUid).update({ devs: firebase.firestore.FieldValue.arrayUnion(id) }).then(() => { userProfile.devs = ds.concat(id); }).catch(() => {});
+  } catch (e) {}
+}
+
 // ============ SHOW APP ============
 // Выбор режима на экране выбора
 function chooseMode(mode) {
@@ -153,6 +166,7 @@ async function showApp() {
   if (pkUrlShip()) remembered = 'cabinet';   // импорт делают на компьютере — сразу в Кабинет, в нужную закупку
   enterMode(remembered);
   setTimeout(() => { try { if (typeof pkCountryCheck === 'function') pkCountryCheck(); } catch (e) {} }, 2500);  // страна по IP (04.11)
+  setTimeout(pkDevMark, 3000);  // метка браузера — админ видит повторные регистрации (07.11)
   document.getElementById('userBadgeName').textContent = userProfile.name || currentUser.email;
   if (userProfile.role === 'admin') { const cb = document.querySelector('.contact-banner'); if (cb) cb.style.display = 'none'; }
 

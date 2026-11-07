@@ -2922,7 +2922,7 @@ let cabAdminUsers = [], cabAdminQ = '', cabAdminF = 'all';
 const cabAdminSel = new Set();
 const CAB_ADMIN_FILTERS = [
   ['all', 'Все'], ['trial', 'Пробный'], ['sub', 'Подписка'], ['soon', 'Скоро конец (≤7 дн.)'],
-  ['grace', '5 дней на оплату'], ['readonly', 'Только просмотр'], ['unpaid', 'Не оплатили'], ['blocked', 'Заблокированы'], ['pilot', 'Пилот']
+  ['grace', '5 дней на оплату'], ['readonly', 'Только просмотр'], ['unpaid', 'Не оплатили'], ['blocked', 'Заблокированы'], ['pilot', 'Пилот'], ['repeat', 'Повторные регистрации']
 ];
 
 async function cabLoadAdminUsers(box) {
@@ -2982,7 +2982,7 @@ const CAB_ADMIN_CSS = `
 .cab-ac-mail{font-weight:600;font-size:15px;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cab-ac-sub{display:flex;align-items:center;gap:8px;margin-top:3px;min-width:0}
 .cab-ac-pill{padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
-.cab-ac-unv{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;font-weight:600;color:#a16207;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cab-ac-unv i{font-size:14px;flex:none}.cab-ac-unv.late{color:#b91c1c}
+.cab-ac-unv{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;font-weight:600;color:#a16207;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cab-ac-unv i{font-size:14px;flex:none}.cab-ac-unv.late{color:#b91c1c}.cab-ac-unv.cab-ac-rep{color:#7c3aed}
 .cab-ac-vbtn{color:#92400e;border-color:#f6d58a}.cab-ac-vbtn.late{background:#facc15;border-color:#eab308;color:#422006;font-weight:700;box-shadow:0 0 0 3px rgba(250,204,21,.35)}
 .cab-ac-name{font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cab-ac-m{display:flex;flex-direction:column;gap:2px;font-size:12px;color:#6b7280;white-space:nowrap;min-width:0}
@@ -3011,7 +3011,7 @@ body.dark .cab-ac .cab-uopt{color:#cfc9e6}
 body.dark .cab-ac-cty small{color:#8f89aa}
 body.dark .cab-ac-lim{background:#302a48}
 body.dark .cab-ac-bot{border-color:#302a48}
-body.dark .cab-ac-unv{color:#f2c879}body.dark .cab-ac-unv.late{color:#f08282}
+body.dark .cab-ac-unv{color:#f2c879}body.dark .cab-ac-unv.late{color:#f08282}body.dark .cab-ac-unv.cab-ac-rep{color:#c4b5fd}
 body.dark .cab-ac-vbtn{color:#f2c879;border-color:#5a4318}
 body.dark .cab-sub-box{background:#1d1a2e;color:#e6e2f3}
 body.dark .cab-sub-l{color:#aaa4c2}
@@ -3050,6 +3050,7 @@ function cabAdminMatch(u, f) {
   if (f === 'soon') return (k === 'trial' || k === 'sub') && left <= 7;
   if (f === 'unpaid') return k === 'grace' || k === 'readonly';
   if (f === 'pilot') return !!u.founder;
+  if (f === 'repeat') return !!u._rep;
   return k === f;
 }
 
@@ -3074,8 +3075,17 @@ function cabAdminRenderBar() {
     <button class="cab-filter-btn" ${n ? '' : 'disabled'} style="color:#fff;background:#6C4DB8;border-color:#6C4DB8" onclick="cabAdminMailOpen()"><i class="ti ti-mail"></i> Написать письмо</button>`;
 }
 
+// Повторные регистрации (07.11.2026): аккаунт зашёл с того же браузера (метка devs), что и более ранний аккаунт. Только пометка для админа.
+function cabAdminMarkRepeats() {
+  const first = {};
+  const us = cabAdminUsers.filter(u => u.role !== 'admin' && u.email !== 'bot@piksta.online').slice().sort((a, b) => (cabToDate(a.created) || 0) - (cabToDate(b.created) || 0));
+  for (const u of cabAdminUsers) u._rep = null;
+  for (const u of us) for (const d of (Array.isArray(u.devs) ? u.devs : [])) { if (first[d] && first[d] !== u) { if (!u._rep) u._rep = first[d]; } else if (!first[d]) first[d] = u; }
+}
+
 function cabAdminRenderList() {
   const list = document.getElementById('cabUList'); if (!list) return;
+  cabAdminMarkRepeats();
   const cnt = k => cabAdminUsers.filter(u => cabAdminMatch(u, k)).length;
   const sel = document.getElementById('cabAdminF');
   if (sel) sel.innerHTML = CAB_ADMIN_FILTERS.map(([k, t]) => `<option value="${k}" ${cabAdminF === k ? 'selected' : ''}>${t} — ${cnt(k)}</option>`).join('');
@@ -3121,12 +3131,13 @@ function cabAdminRenderList() {
     const nudged = cabToDate(u.verifyNudge);
     const vPill = unver ? `<div class="cab-ac-unv${late ? ' late' : ''}" title="${cabEsc(vmTxt)}"><i class="ti ti-mail-exclamation"></i>Не подтверждена · ${hrs < 48 ? hrs + ' ч' : Math.floor(hrs / 24) + ' дн.'}${VM.n && !VM.ok ? ' · ошибка отправки' : ''}</div>` : '';
     const vBtn = unver ? `<button class="cab-filter-btn cab-ac-vbtn${late ? ' late' : ''}" onclick="cabAdminVerifyNudge('${u.id}')" title="${cabEsc('Попросить Piksta отправить новое письмо подтверждения при следующем входе и открыть письмо человеку в Gmail. ' + vmTxt + (nudged ? '. Уже просили: ' + nudged.toLocaleString('ru-RU') : ''))}"><i class="ti ti-mail-forward"></i><span class="t"> Подтверждение</span></button>` : '';
+    const rPill = u._rep ? `<div class="cab-ac-unv cab-ac-rep" title="${cabEsc('Тот же браузер, что у ' + (u._rep.email || u._rep.id) + ' (регистрация ' + ((cabToDate(u._rep.created) || now).toLocaleDateString('ru-RU')) + ')')}"><i class="ti ti-copy"></i>Повторная регистрация · как ${cabEsc(u._rep.email || u._rep.id)}</div>` : '';
     return `<div class="cab-ac${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}"><div class="cab-ac-row">
       <div class="cab-ac-top">
         <input type="checkbox" class="cab-ac-cb" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма">
         <div class="cab-ac-who"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0">
           <div class="cab-ac-mail" title="${cabEsc(u.email || u.id)}">${cabEsc(u.email || u.id)}</div>
-          <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>${vPill}
+          <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>${vPill}${rPill}
         </div></div>
         <div class="cab-ac-m cab-ac-m1"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
         <div class="cab-ac-m"><span>${useLbl}</span>${useHtml}</div>
