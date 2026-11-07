@@ -1135,7 +1135,11 @@ let currentDueOverride = {};
 function pkImg(u) {
   u = String(u || '');
   if (!u) return '';
-  return u.replace(/^(https?:)?\/\/cbu0\d\.alicdn\.com\//i, 'https://img.alicdn.com/').replace(/^http:\/\//i, 'https://');
+  u = u.replace(/^(https?:)?\/\/cbu0\d\.alicdn\.com\//i, 'https://img.alicdn.com/').replace(/^http:\/\//i, 'https://');
+  // 07.11.2026: фото Pinduoduo — уменьшенная копия с их же сервера (480 px, webp): ~10 КБ вместо 50–200 КБ.
+  // Быстрее грузится везде и быстро скачивается для работы без интернета.
+  if (/^https:\/\/[^/]*(pddpic|pddugc)\.com\//i.test(u) && u.indexOf('?') < 0) u += '?imageView2/2/w/480/q/75/format/webp';
+  return u;
 }
 function applyShipDoc(d) {
   d = d || {};
@@ -1746,32 +1750,30 @@ async function cacheShipmentImages(shipId) {
     }
   } catch(e) {}
 
-  let loaded = 0;
-
-  // Загружаем параллельно батчами по 8, каждую картинку кладём в Cache API.
-  // 07.11.2026: сначала обычный (CORS) запрос — картинка весит как есть (Pinduoduo и Alicdn это разрешают);
-  // «непрозрачный» no-cors браузер считает за ~7 МБ каждую, из-за этого кэш раньше переполнялся и стирался целиком.
-  // На каждую картинку — не дольше 15 секунд: одна зависшая не останавливает всё скачивание.
+  // 07.11.2026: сначала считаем, что уже лежит на телефоне (повторное нажатие не качает заново — только недостающие),
+  // потом качаем недостающие по 6 одновременно; каждая — не дольше 12 секунд, зависшая не держит остальные.
+  // Сначала обычный (CORS) запрос — фото весит как есть; «непрозрачный» no-cors браузер считает за ~7 МБ каждое.
   const T = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
-  const batchSize = 8;
-  for (let i = 0; i < urls.length; i += batchSize) {
-    const batch = urls.slice(i, i + batchSize);
-    await Promise.all(batch.map(async (url) => {
+  let loaded = 0;
+  const todo = [];
+  for (const url of urls) { try { if (await cache.match(url)) loaded++; else todo.push(url); } catch (e) { todo.push(url); } }
+  const tick = () => { btn.title = `Загружаю картинки: ${loaded}/${urls.length}`; if (window.__pkPrepImg) window.__pkPrepImg(loaded, urls.length); else pkCacheBar('run', loaded, urls.length); };
+  tick();
+  let next = 0;
+  const worker = async () => {
+    while (next < todo.length) {
+      const url = todo[next++];
       try {
-        if (await cache.match(url)) { loaded++; return; }   // уже на телефоне
         let resp = null;
-        try { resp = await T(fetch(url, { mode: 'cors', credentials: 'omit' }), 15000); if (!resp.ok) resp = null; }
+        try { resp = await T(fetch(url, { mode: 'cors', credentials: 'omit' }), 12000); if (!resp.ok) resp = null; }
         catch (e) { if (e.message === 'timeout') throw e; resp = null; }   // зависла — не ждём второй раз; запрещён CORS — пробуем по-старому
-        if (!resp) resp = await T(fetch(url, { mode: 'no-cors', cache: 'force-cache' }), 15000);
+        if (!resp) resp = await T(fetch(url, { mode: 'no-cors', cache: 'force-cache' }), 12000);
         await cache.put(url, resp);
-        loaded++;
-      } catch(e) {
-        // одна картинка не загрузилась — не страшно, продолжаем
-      }
-    }));
-    btn.title = `Загружаю картинки: ${loaded}/${urls.length}`;
-    if (window.__pkPrepImg) window.__pkPrepImg(loaded, urls.length); else pkCacheBar('run', loaded, urls.length);
-  }
+        loaded++; tick();
+      } catch (e) { /* одна картинка не загрузилась — не страшно, продолжаем */ }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, todo.length) }, worker));
 
   btn.classList.remove('caching');
 
