@@ -280,7 +280,7 @@ async function pkPrepOffline(id) {
     <p class="pk-muted" style="font-size:14px;line-height:1.45;margin:6px 0 12px">Делайте дома, пока есть Wi-Fi. На складе Piksta откроется и без связи: сканер, клиенты и взвешивание работают, всё отправится само, когда появится интернет.</p>
     <div class="pk-prep">${row('app', 'Приложение')}${row('data', 'Позиции и клиенты')}${row('img', 'Фото товаров')}</div>
     <div id="pkPrepRes" style="margin-top:12px"></div>`);
-  let bad = '';
+  let bad = '', miss = 0;
   try {
     // 1. приложение
     try { const n = await pkCacheShell((d, t) => step('app', 'run', `${d} из ${t}`, Math.round(d / t * 100))); step('app', 'ok', 'готово', 100); }
@@ -303,8 +303,8 @@ async function pkPrepOffline(id) {
       window.__pkPrepImg = (d, t) => step('img', 'run', `${d} из ${t}`, Math.round(d / t * 100));
       try { await cacheShipmentImages(id); } finally { window.__pkPrepImg = null; }
       got = await countCachedForShipment(urls);
-      step('img', got >= urls.length * 0.9 ? 'ok' : 'bad', `${got} из ${urls.length}`, Math.round(got / urls.length * 100));
-      if (got < urls.length * 0.9) bad = bad || 'img';
+      step('img', got >= urls.length ? 'ok' : 'bad', `${got} из ${urls.length}`, Math.round(got / urls.length * 100));
+      if (got < urls.length) miss = urls.length - got;   // без части фото работать можно — сканер покажет клиента, просто без картинки
     } else step('img', 'ok', 'фото нет', 100);
     // готово
     try {
@@ -313,8 +313,8 @@ async function pkPrepOffline(id) {
     } catch (e) {}
     const res = document.getElementById('pkPrepRes');
     if (res) res.innerHTML = !bad
-      ? `<div class="pk-prepdone"><i class="ti ti-circle-check" aria-hidden="true"></i>Можно ехать на склад: всё скачано на телефон</div><button class="pk-btn" style="width:100%;margin-top:10px" onclick="pkSheetClose()">Готово</button>`
-      : `<div class="pk-prepdone bad"><i class="ti ti-alert-triangle" aria-hidden="true"></i>${bad === 'img' ? 'Не все фото скачались. Проверьте интернет и нажмите ещё раз.' : 'Не всё скачалось. Проверьте интернет и нажмите ещё раз.'}</div><button class="pk-btn" style="width:100%;margin-top:10px" onclick="pkPrepOffline('${id}')">Ещё раз</button>`;
+      ? `<div class="pk-prepdone"><i class="ti ti-circle-check" aria-hidden="true"></i>${miss ? `Можно ехать на склад. Не скачалось фото: ${miss} — у этих посылок будет только клиент, без картинки` : 'Можно ехать на склад: всё скачано на телефон'}</div>${miss ? `<button class="pk-btn ghost" style="width:100%;margin-top:10px" onclick="pkPrepOffline('${id}')">Докачать фото</button>` : ''}<button class="pk-btn" style="width:100%;margin-top:10px" onclick="pkSheetClose()">Готово</button>`
+      : `<div class="pk-prepdone bad"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Не всё скачалось. Проверьте интернет и нажмите ещё раз.</div><button class="pk-btn" style="width:100%;margin-top:10px" onclick="pkPrepOffline('${id}')">Ещё раз</button>`;
   } catch (e) {
     const res = document.getElementById('pkPrepRes');
     if (res) res.innerHTML = `<div class="pk-prepdone bad"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Не получилось: ${pkEsc(e.message || 'нет связи')}. Нажмите ещё раз.</div><button class="pk-btn" style="width:100%;margin-top:10px" onclick="pkPrepOffline('${id}')">Ещё раз</button>`;
