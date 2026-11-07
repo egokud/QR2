@@ -325,6 +325,7 @@ function pkRenderShips() {
     ${typeof pkLimitBanner === 'function' ? pkLimitBanner() : ''}
     <label class="pk-search"><i class="ti ti-search" aria-hidden="true"></i><input id="pkShipQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку по трек-коду" value="${pkEsc(pkShipQuery)}" oninput="pkShipQuery=this.value;pkShipSearch()"></label>
     <div id="pkShipRes"></div>
+    ${typeof pkBnStrip === 'function' ? pkBnStrip() : ''}
     <div class="pk-chips">${chip('all', 'Все ' + all.length)}${chip('forming', 'Собираются ' + cnt('forming'), '#4a90d9')}${chip('road', 'В дороге ' + cnt('road'), '#f5c518')}${chip('wh', 'На складе ' + cnt('wh'), '#3cb371')}${chip('done', 'Готовы ' + cnt('done'), '#8b7fd4')}</div>
     ${list.map(s => {
       const st = pkSt(s.status || 'forming'), n = (s.data || []).length, cur = s.id === activeShipmentId;
@@ -336,10 +337,24 @@ function pkRenderShips() {
       }
       if ((s.status || 'forming') === 'forming') extra = `<button class="pk-btn ghost sm" onclick="event.stopPropagation();pkSetStatus('${s.id}','transit')">Закупка отправлена → «В дороге»</button>`;
       if (typeof cabShipPayState === 'function') { cabShipmentsCache = allShipments || []; const ps = cabShipPayState(s); if (ps.text) line += ` · <b style="color:${ps.kind === 'ok' ? 'var(--pk-ok)' : ps.kind === 'due' ? 'var(--pk-due)' : 'var(--pk-acc)'}">${ps.text}</b>`; }
-      return `<div class="pk-ship ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><span class="pk-pill" style="background:${st.color}22;color:${st.text}">● ${st.label}${cur && (s.status || 'forming') !== 'forming' ? ' · сканирую' : ''}</span>${typeof pkOffPill === 'function' ? pkOffPill(s) : ''}<div class="nm">${pkEsc(s.name)}</div><div class="ln"><span>${line}</span><i class="ti ti-chevron-right" aria-hidden="true"></i></div>${extra}</div>`;
+      // 07.11.2026: компактная карточка — название и строка слева, статус и стрелка справа (было 3–4 строки)
+      return `<div class="pk-ship c ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><div class="pk-ship-r"><div class="mid"><div class="nm">${pkEsc(s.name)}</div><div class="ln">${line}</div>${typeof pkOffPill === 'function' ? pkOffPill(s) : ''}</div><span class="pk-pill" style="background:${st.color}22;color:${st.text}">${st.label}</span><i class="ti ti-chevron-right pk-chev" aria-hidden="true"></i></div>${extra}</div>`;
     }).join('') || '<div class="pk-card pk-empty">Закупок пока нет.<br>Создайте первую: вручную — прямо здесь, или импортом с Pinduoduo, Taobao и 1688 через расширение на компьютере.<button type="button" class="pk-btn" style="width:100%;margin-top:12px" onclick="pkNewShip()"><i class="ti ti-plus"></i> Создать закупку</button></div>'}`;
   pkShipSearch();
   if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
+}
+// Узкий баннер над фильтрами «Закупок». Маршрутизация: список баннеров, порядок, автосмена и крестик — общие с Кабинетом
+// (PK_BANNERS, pkBnList, pkBnOff в js/cabinet.js). Здесь — только короткий текст для телефона.
+function pkBnStrip() {
+  if (typeof pkBnList !== 'function') return '';
+  const L = pkBnList(); if (!L.length) return '';
+  if (pkBnIdx >= L.length) pkBnIdx = 0;
+  const one = (b, on) => {
+    const x = `<button type="button" class="xx" onclick="event.stopPropagation();pkBnOff('${b.id}')" aria-label="Скрыть баннер"><i class="ti ti-x"></i></button>`;
+    if (b.kind === 'idea') return `<div class="pk-bn idea ${on ? 'on' : ''}" data-bn><span class="ic">💡</span><span class="tx"><b>Не хватает функции?</b>Напишите нам — сделаем</span><a class="go" href="${PK_SUPPORT_TG}" target="_blank" rel="noopener">Написать</a>${x}</div>`;
+    return `<div class="pk-bn mk3 ${on ? 'on' : ''}" data-bn><span class="ic box"><img src="/icons/icon-192x192.png" alt=""></span><span class="tx"><b>Импорт с 3 площадок</b>PDD, Taobao, 1688 — с&nbsp;компьютера</span><a class="go" href="/extension" onclick="if(!pkIsPhone()){event.preventDefault();window.open('/extension','_blank')}">Подробнее</a>${x}</div>`;
+  };
+  return `<div class="pk-bnw" ${pkBnAttrs(PK_BN_SEC.phone)}>${L.map((b, k) => one(b, k === pkBnIdx)).join('')}${pkBnDots(L.length)}</div>`;
 }
 // Телефон или компьютер: расширение Chrome ставится только на компьютере
 function pkIsPhone() { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''); }
