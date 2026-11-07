@@ -678,10 +678,12 @@ details p{margin:12px 0 0;color:#4b4760;max-width:820px}
         cur = c;
         var p = prices(SYM[c] ? c : 'RUB');
         ['start', 'main', 'pro'].forEach(function (k) {
-          var m = p[k][0], y = p[k][1], save = m * 12 - y;
+          // (07.11.2026, Егор) Крупно — сколько выходит в месяц при оплате за год (как в приложении: pkMo в js/mtariff.js),
+          // ниже — сумма за год, выгода и цена помесячно
+          var m = p[k][0], y = p[k][1], save = m * 12 - y, mo = c === 'BYN' ? Math.round(y / 12) : Math.round(y / 120) * 10;
           var a = document.querySelector('[data-pm="' + k + '"]'), b = document.querySelector('[data-py="' + k + '"]');
-          if (a) a.textContent = f(m) + ' ' + p.s;
-          if (b) b.innerHTML = 'за год — <b style="font-family: Inter, sans-serif; color: #17142a; font-size: 17px">' + f(y) + ' ' + p.s + '</b>' + (save > 0 ? ' · выгода ' + f(save) + ' ' + p.s : '');
+          if (a) a.textContent = f(mo) + ' ' + p.s;
+          if (b) b.innerHTML = 'при оплате за год — <b style="font-family: Inter, sans-serif; color: #17142a; font-size: 17px">' + f(y) + '\u00a0' + p.s + '</b><br>' + (save > 0 ? 'выгода ' + f(save) + '\u00a0' + p.s + ' · ' : '') + 'помесячно — ' + f(m) + '\u00a0' + p.s;
         });
         document.querySelectorAll('#curSw button').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.cur === c)); });
       }
