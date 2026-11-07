@@ -885,7 +885,34 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-news-box img{width:44px;height:44px;border-radius:11px}
 .cab-news-box b{font-size:13px;margin-top:2px}
 .cab-news-box small{font-size:11px;color:#8a84a3}
-@media (max-width:1100px){.cab-news-art{display:none}}
+@media (max-width:1100px){.cab-news-art,.cab-idea-art{display:none}}
+/* Баннеры-карусель (07.11.2026): слайды лежат друг на друге в одной клетке, высота — по самому высокому */
+.cab-bn{position:relative;display:grid;container-type:inline-size}
+.cab-bn>.cab-news{grid-area:1/1;margin:0;opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s}
+.cab-bn>.cab-news.on{opacity:1;visibility:visible}
+.cab-bn .pk-bn-dots{position:absolute;left:26px;bottom:10px;z-index:3;display:flex;gap:6px}
+.pk-bn-dots button{width:8px;height:8px;padding:0;border:none;border-radius:4px;background:rgba(255,255,255,.45);cursor:pointer;transition:width .3s,background .3s}
+.pk-bn-dots button.on{width:20px;background:#fff}
+.cab-bn>.cab-news{padding-bottom:30px}
+.cab-news.idea{background:linear-gradient(135deg,#1f7a52 0%,#2f9e6a 55%,#7fd3a7 100%)}
+.cab-news.idea .cab-news-b1{color:#1f7a52}
+.cab-news.idea .cab-news-b1:hover{background:#effbf4}
+.cab-news-v a{color:#fff;text-decoration:underline;text-underline-offset:2px}
+.cab-idea-art{position:relative;z-index:1;flex:none;width:250px;height:170px}
+.cab-idea-bub{position:absolute;background:#fff;color:#17142a;border-radius:14px 14px 14px 4px;padding:9px 12px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 20px rgba(10,40,25,.25);width:190px}
+.cab-idea-bub b{display:block;font-size:11px;color:#1f7a52;margin-bottom:2px}
+.cab-idea-bub.a{left:0;top:4px}
+.cab-idea-bub.b{right:0;top:92px;border-radius:14px 14px 4px 14px;background:#eafff3;width:170px}
+.cab-idea-box{position:absolute;left:10px;bottom:0;width:54px;height:54px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(10,40,25,.25)}
+.cab-idea-box img{width:38px;height:38px;border-radius:9px}
+/* Широкий экран: текст шире и крупнее, картинка — по центру свободного места, а не у края */
+@container (min-width:900px){
+  .cab-bn .cab-news-l{flex:0 1 560px}
+  .cab-bn .cab-news-h{font-size:30px}
+  .cab-bn .cab-news-p{max-width:520px;font-size:15px}
+  .cab-bn .cab-news-art,.cab-bn .cab-idea-art{margin:0 auto}
+  .cab-bn .cab-idea-art{width:330px;height:190px}
+}
 
 /* Меню Кабинета: кнопка «Расширение» (06.11.2026) */
 .cab-nav-ext{display:flex;align-items:flex-start;gap:10px;margin:10px 0 4px;padding:12px 10px 12px 11px;border-radius:12px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#6C4DB8,#9b7be8);box-shadow:0 4px 12px rgba(108,77,184,.25);transition:transform .15s,box-shadow .15s}
