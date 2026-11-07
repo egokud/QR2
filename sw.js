@@ -15,7 +15,7 @@ self.addEventListener('activate', e => {
     // 03.11.2026: в кэш картинок по ошибке попадали файлы самого сайта — чистим такие записи
     try {
       const cache = await caches.open(IMAGE_CACHE);
-      for (const req of await cache.keys()) if (new URL(req.url).origin === self.location.origin) await cache.delete(req);
+      for (const req of await cache.keys()) { const x = new URL(req.url); if (x.origin === self.location.origin && x.pathname !== '/api/img') await cache.delete(req); }   // /api/img — фото Taobao/1688 через наш сервер, их не трогаем
     } catch (err) {}
     try { for (const k of await caches.keys()) if (k === 'piksta-v1') await caches.delete(k); } catch (err) {}   // старый пустой кэш
     await clients.claim();
@@ -26,7 +26,7 @@ self.addEventListener('activate', e => {
 function isMarketImage(url) {
   try {
     const u = new URL(url);
-    if (u.origin === self.location.origin) return false;
+    if (u.origin === self.location.origin) return u.pathname === '/api/img';   // фото Taobao/1688 через наш сервер (pkImg в app.js)
     return /(^|\.)pddpic\.com$|pinduoduo|yangkeduo|(^|\.)alicdn\.com$|(^|\.)taobaocdn\.com$|(^|\.)tbcdn\.cn$/.test(u.hostname);
   } catch (e) { return false; }
 }
