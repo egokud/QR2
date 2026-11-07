@@ -512,7 +512,12 @@ body.pk-net-on :is(.weigh-screen,.calc-screen,.pk-res-full){top:var(--pk-net-h,0
 .pk-ship-r .mid{flex:1;min-width:0}
 .pk-ship.c .nm{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pk-ship.c .ln{display:block;margin-top:2px;font-size:12.5px;color:var(--pk-muted)}
-.pk-ship.c .pk-pill{align-self:center;flex:none;white-space:nowrap;font-size:11.5px;padding:4px 9px}
+/* Статус в карточке — крупные буквы на светлой плашке (вариант A, 07.11.2026). Цвета — те же статусы, что SHIP_STATUSES в app.js */
+.pk-stp{flex:none;white-space:nowrap;font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:8px;padding:6px 9px}
+.pk-stp.st-forming{background:#dbeafe;color:#1d4ed8}.pk-stp.st-transit{background:#fef08a;color:#713f12}.pk-stp.st-delayed{background:#fed7aa;color:#9a3412}
+.pk-stp.st-warehouse{background:#bbf7d0;color:#166534}.pk-stp.st-sorted{background:#e4dcfb;color:#5b3fa8}.pk-stp.st-done{background:#e5e7eb;color:#374151}
+body.dark .pk-stp.st-forming{background:#1e3a8a;color:#bfdbfe}body.dark .pk-stp.st-transit{background:#5b4708;color:#fde68a}body.dark .pk-stp.st-delayed{background:#7c2d12;color:#fed7aa}
+body.dark .pk-stp.st-warehouse{background:#14532d;color:#bbf7d0}body.dark .pk-stp.st-sorted{background:#3b2a6e;color:#ddd6fe}body.dark .pk-stp.st-done{background:#374151;color:#e5e7eb}
 .pk-ship.c .pk-offpill{margin-top:5px}
 .pk-chev{flex:none;font-size:20px;color:var(--pk-acc);margin-right:-4px}
 /* Узкий баннер-карусель над фильтрами (слайды друг на друге, общие с Кабинетом) */
