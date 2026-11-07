@@ -336,9 +336,9 @@ function pkRenderShips() {
         extra = `<div class="ln"><span>сканирую · ${d} / ${TABLE.length}</span></div><div class="pk-bar"><span style="width:${TABLE.length ? Math.round(d / TABLE.length * 100) : 0}%"></span></div>`;
       }
       if ((s.status || 'forming') === 'forming') extra = `<button class="pk-btn ghost sm" onclick="event.stopPropagation();pkSetStatus('${s.id}','transit')">Закупка отправлена → «В дороге»</button>`;
-      if (typeof cabShipPayState === 'function') { cabShipmentsCache = allShipments || []; const ps = cabShipPayState(s); if (ps.text) line += ` · <b style="color:${ps.kind === 'ok' ? 'var(--pk-ok)' : ps.kind === 'due' ? 'var(--pk-due)' : 'var(--pk-acc)'}">${ps.text}</b>`; }
+      // 07.11.2026: строку про оплаты («27 не оплатили», «внёс предоплату») убрали — долги видны в «Деньгах» и у клиентов
       // 07.11.2026: компактная карточка — название и строка слева, статус и стрелка справа (было 3–4 строки)
-      return `<div class="pk-ship c ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><div class="pk-ship-r"><div class="mid"><div class="nm">${pkEsc(s.name)}</div><div class="ln">${line}</div>${typeof pkOffPill === 'function' ? pkOffPill(s) : ''}</div><span class="pk-pill" style="background:${st.color}22;color:${st.text}">${st.label}</span><i class="ti ti-chevron-right pk-chev" aria-hidden="true"></i></div>${extra}</div>`;
+      return `<div class="pk-ship c ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><div class="pk-ship-r"><div class="mid"><div class="nm">${pkEsc(s.name)}</div><div class="ln">${line}</div>${typeof pkOffPill === 'function' ? pkOffPill(s) : ''}</div><span class="pk-stp st-${pkEsc(s.status || 'forming')}">${st.label}</span><i class="ti ti-chevron-right pk-chev" aria-hidden="true"></i></div>${extra}</div>`;
     }).join('') || '<div class="pk-card pk-empty">Закупок пока нет.<br>Создайте первую: вручную — прямо здесь, или импортом с Pinduoduo, Taobao и 1688 через расширение на компьютере.<button type="button" class="pk-btn" style="width:100%;margin-top:12px" onclick="pkNewShip()"><i class="ti ti-plus"></i> Создать закупку</button></div>'}`;
   pkShipSearch();
   if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
@@ -379,8 +379,7 @@ function pkShipSheet(id) {
   const n = (s.data || []).length;
   const cl = new Set();
   for (const row of (s.data || [])) { const w = Array.isArray(row) ? row[1] : row.w; for (const p of (typeof splitWarehouses === 'function' ? splitWarehouses(w || '') : [w])) if (p && p.trim()) cl.add(p.trim().toLowerCase()); }
-  const order = ['forming', 'transit', 'warehouse', 'sorted', 'done'];
-  if (cur === 'delayed') order.splice(2, 0, 'delayed');
+  const order = ['forming', 'transit', 'delayed', 'warehouse', 'sorted', 'done'];   // 07.11.2026: «Задерживается» — всегда в списке (как в Кабинете)
   const offSt = typeof pkOffState === 'function' ? pkOffState(s) : '';   // «Подготовить к складу» — js/pkoff.js
   const act = (fn) => `pkSheetClose();loadForAction('${id}').then(()=>${fn})`;
   const st = pkSt(cur);
