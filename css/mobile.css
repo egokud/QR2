@@ -102,7 +102,7 @@ body.pk-m:not(.pk-on-scan) #trialBanner{display:none!important}
 .pk-chips button.on{background:var(--pk-ink);color:var(--pk-bg);border-color:var(--pk-ink)}
 .pk-chips i.d{width:7px;height:7px;border-radius:50%;display:inline-block}
 .pk-ship{background:var(--pk-card);border:1px solid var(--pk-line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:8px;cursor:pointer}
-.pk-ship.cur{border:2px solid var(--pk-acc)}
+.pk-ship.cur{border:2px solid var(--pk-acc);opacity:1;font-size:inherit;font-weight:inherit;margin-left:0}   /* .cur из main.css (подпись валюты) делал текущую закупку бледной */
 .pk-ship .nm{font-size:17px;font-weight:700}
 .pk-pill{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px}
 .pk-ship .ln{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--pk-muted)}
@@ -505,3 +505,29 @@ body.pk-net-on :is(.weigh-screen,.calc-screen,.pk-res-full){top:var(--pk-net-h,0
 .pk-prepdone.bad{background:var(--pk-warn-soft);color:var(--pk-warn)}
 .pk-prepdone i{font-size:19px}
 @keyframes pkspin{to{transform:rotate(360deg)}}
+
+/* 07.11.2026: компактная карточка закупки — статус справа, стрелка заметнее (в цвет Piksta) */
+.pk-ship.c{padding:11px 12px 11px 14px;gap:8px}
+.pk-ship-r{display:flex;align-items:center;gap:8px}
+.pk-ship-r .mid{flex:1;min-width:0}
+.pk-ship.c .nm{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-ship.c .ln{display:block;margin-top:2px;font-size:12.5px;color:var(--pk-muted)}
+.pk-ship.c .pk-pill{align-self:center;flex:none;white-space:nowrap;font-size:11.5px;padding:4px 9px}
+.pk-ship.c .pk-offpill{margin-top:5px}
+.pk-chev{flex:none;font-size:20px;color:var(--pk-acc);margin-right:-4px}
+/* Узкий баннер-карусель над фильтрами (слайды друг на друге, общие с Кабинетом) */
+.pk-bnw{position:relative;display:grid;margin:0 0 10px}
+.pk-bn{grid-area:1/1;display:flex;align-items:center;gap:10px;border-radius:14px;padding:10px 32px 14px 12px;color:#fff;opacity:0;visibility:hidden;transition:opacity .45s,visibility .45s}
+.pk-bn.on{opacity:1;visibility:visible}
+.pk-bn.idea{background:linear-gradient(135deg,#1f7a52,#2f9e6a)}
+.pk-bn.mk3{background:linear-gradient(135deg,#6C4DB8,#8b6be0)}
+.pk-bn .ic{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:17px;flex:none}
+.pk-bn .ic.box{background:#fff}.pk-bn .ic.box img{width:26px;height:26px;border-radius:7px}
+.pk-bn .tx{flex:1;min-width:0;font-size:12px;line-height:1.35}.pk-bn .tx b{display:block;font-size:13px}
+.pk-bn .go{flex:none;background:#fff;border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700;white-space:nowrap;text-decoration:none}
+.pk-bn.idea .go{color:#1f7a52}.pk-bn.mk3 .go{color:#5b3fa8}
+.pk-bn .xx{position:absolute;top:0;right:0;width:30px;height:30px;border:none;background:none;color:#fff;opacity:.8;font-size:14px;display:flex;align-items:center;justify-content:center;padding:0}
+.pk-bnw .pk-bn-dots{position:absolute;left:56px;bottom:5px;display:flex;gap:4px;z-index:2}
+.pk-bnw .pk-bn-dots button{width:5px;height:5px;padding:0;border:none;border-radius:3px;background:rgba(255,255,255,.5)}
+.pk-bnw .pk-bn-dots button.on{width:12px;background:#fff}
+#pkShipRes:empty{display:none}
