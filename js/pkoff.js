@@ -251,9 +251,12 @@ async function pkCacheShell(onStep) {
     await Promise.all(list.slice(i, i + 6).map(async u => {
       try {
         const x = new URL(u, location.href), same = x.origin === location.origin;
-        const r = await pkTimeout(fetch(x.href, same ? { cache: 'reload' } : { mode: 'cors', credentials: 'omit', cache: 'reload' }), 20000);
-        if (!r.ok) throw new Error(r.status);
-        await c.put(same && x.pathname === '/app' ? location.origin + '/app' : x.href, r);
+        // весь файл целиком (запрос + запись на телефон) — не дольше 25 секунд: зависший не останавливает подготовку
+        await pkTimeout((async () => {
+          const r = await fetch(x.href, same ? { cache: 'reload' } : { mode: 'cors', credentials: 'omit', cache: 'reload' });
+          if (!r.ok) throw new Error(r.status);
+          await c.put(same && x.pathname === '/app' ? location.origin + '/app' : x.href, r);
+        })(), 25000);
       } catch (e) { failed++; }
       done++; onStep && onStep(done, list.length);
     }));
@@ -276,10 +279,10 @@ async function pkPrepOffline(id) {
     if (pct != null) { const b = document.getElementById('pkPrepBar-' + k); if (b) b.style.width = pct + '%'; }
   };
   const row = (k, t) => `<div class="ck run" id="pkPrep-${k}"><i class="ti ti-loader-2" aria-hidden="true"></i><span>${t}</span><small>ждём</small></div><div class="pk-prepbar"><span id="pkPrepBar-${k}"></span></div>`;
-  pkSheet(`<h3>${pkEsc(s.name)} — на склад без интернета</h3>
+  try { pkSheet(`<h3>${pkEsc(s.name)} — на склад без интернета</h3>
     <p class="pk-muted" style="font-size:14px;line-height:1.45;margin:6px 0 12px">Делайте дома, пока есть Wi-Fi. На складе Piksta откроется и без связи: сканер, клиенты и взвешивание работают, всё отправится само, когда появится интернет.</p>
     <div class="pk-prep">${row('app', 'Приложение')}${row('data', 'Позиции и клиенты')}${row('img', 'Фото товаров')}</div>
-    <div id="pkPrepRes" style="margin-top:12px"></div>`);
+    <div id="pkPrepRes" style="margin-top:12px"></div>`); } catch (e) {}   // окно — только в мобильной версии; без него подготовка всё равно идёт и не «залипает»
   let bad = '', miss = 0;
   try {
     // 1. приложение
