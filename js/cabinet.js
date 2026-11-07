@@ -3002,6 +3002,20 @@ const CAB_ADMIN_CSS = `
 .cab-ac-bot .cab-uopt{font-size:13px;white-space:nowrap}
 .cab-ac-act{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .cab-ac-act .cab-filter-btn{padding:6px 10px;font-size:13px;display:inline-flex;align-items:center;gap:5px}
+/* Тёмная тема (07.11.2026): карточки пользователей тёмные, всё читается */
+body.dark .cab-ac{background:#1d1a2e;border-color:#342d4d}
+body.dark .cab-ac.off{background:#2a1820;border-color:#5a2a35}
+body.dark .cab-ac-mail,body.dark .cab-ac-m b,body.dark .cab-ac-hist b{color:#f1eef9}
+body.dark .cab-ac-name,body.dark .cab-ac-m,body.dark .cab-ac-hist{color:#aaa4c2}
+body.dark .cab-ac .cab-uopt{color:#cfc9e6}
+body.dark .cab-ac-cty small{color:#8f89aa}
+body.dark .cab-ac-lim{background:#302a48}
+body.dark .cab-ac-bot{border-color:#302a48}
+body.dark .cab-ac-unv{color:#f2c879}body.dark .cab-ac-unv.late{color:#f08282}
+body.dark .cab-ac-vbtn{color:#f2c879;border-color:#5a4318}
+body.dark .cab-sub-box{background:#1d1a2e;color:#e6e2f3}
+body.dark .cab-sub-l{color:#aaa4c2}
+body.dark .cab-sub-seg{background:#15121f}body.dark .cab-sub-seg button{color:#aaa4c2}body.dark .cab-sub-seg button.on{background:#2c2446;color:#c8b8ff;box-shadow:none}
 /* Широкий экран: всё в одну строку; уже — настройки и кнопки переносятся во вторую строку */
 @container (min-width: 1600px){
   .cab-ac-row{display:flex;align-items:center;gap:18px}
