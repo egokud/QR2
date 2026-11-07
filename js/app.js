@@ -1785,7 +1785,7 @@ async function cacheShipmentImages(shipId) {
         try { resp = await T(fetch(url, { mode: 'cors', credentials: 'omit' }), 12000); if (!resp.ok) resp = null; }
         catch (e) { if (e.message === 'timeout') throw e; resp = null; }   // зависла — не ждём второй раз; запрещён CORS — пробуем по-старому
         if (!resp) resp = await T(fetch(url, { mode: 'no-cors', cache: 'force-cache' }), 12000);
-        await cache.put(url, resp);
+        await T(cache.put(url, resp), 12000);   // запись тоже с тайм-аутом: зависшая докачка не держит остальные
         loaded++; tick();
       } catch (e) { /* одна картинка не загрузилась — не страшно, продолжаем */ }
     }
