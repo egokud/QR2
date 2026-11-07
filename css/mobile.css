@@ -477,3 +477,31 @@ body.pk-m #pkCtyBar{padding:10px}body.pk-m #pkCtyBar button{padding:6px 9px;font
 /* Инструкция временно недоступна (05.11.2026) */
 .pk-menu button.soon{opacity:.6;cursor:default;filter:grayscale(.4)}
 .pk-menu button.soon em{margin-left:auto;font-style:normal;font-size:11.5px;font-weight:600;background:var(--pk-soft,#f1eefa);color:var(--pk-acc,#6C4DB8);border-radius:7px;padding:2px 8px;white-space:nowrap;flex:none}
+/* ---- Работа без интернета (07.11.2026, js/pkoff.js) ---- */
+.pk-net{position:fixed;top:0;left:0;right:0;z-index:1200;margin:0;box-sizing:border-box;padding:9px 14px;display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.38;border-bottom:1px solid transparent}
+.pk-net i{font-size:18px;line-height:1.1;flex:none}
+.pk-net b{font-weight:700}
+.pk-net.off{background:#fff6dd;color:#7a5200;border-color:#f3d27a}
+.pk-net.sync{background:#eef3ff;color:#1d4fa8;border-color:#b9cdf6}
+.pk-net.ok{background:var(--pk-ok-soft);color:var(--pk-ok);border-color:#9fd8b4}
+body.dark .pk-net.off{background:#3a2c12;color:#f2c879;border-color:#5a4318}
+body.dark .pk-net.sync{background:#1b2440;color:#9db8f2;border-color:#2c3a66}
+body.pk-net-on #appScreen{padding-top:var(--pk-net-h,0px)!important}
+body.pk-net-on .pk-top{top:var(--pk-net-h,0px)}
+body.pk-net-on :is(.weigh-screen,.calc-screen,.pk-res-full){top:var(--pk-net-h,0px)}
+.pk-offpill{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px;margin:6px 0 0;background:var(--pk-ok-soft);color:var(--pk-ok)}
+.pk-offpill.stale{background:var(--pk-line);color:var(--pk-muted)}
+.pk-offpill i{font-size:14px}
+.pk-prep{display:flex;flex-direction:column;gap:4px}
+.pk-prep .ck{display:flex;align-items:center;gap:10px;font-size:15px;margin-top:6px}
+.pk-prep .ck i{width:24px;height:24px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;background:var(--pk-acc-soft);color:var(--pk-acc)}
+.pk-prep .ck.run i{animation:pkspin 1s linear infinite}
+.pk-prep .ck.ok i{background:var(--pk-ok);color:#fff}
+.pk-prep .ck.bad i{background:var(--pk-warn-soft);color:var(--pk-warn)}
+.pk-prep .ck small{margin-left:auto;color:var(--pk-muted);font-size:13px}
+.pk-prepbar{height:5px;border-radius:3px;background:var(--pk-acc-soft);overflow:hidden;margin-left:34px}
+.pk-prepbar span{display:block;height:100%;width:0;background:var(--pk-acc);transition:width .3s}
+.pk-prepdone{display:flex;gap:8px;align-items:center;border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600;background:var(--pk-ok-soft);color:var(--pk-ok)}
+.pk-prepdone.bad{background:var(--pk-warn-soft);color:var(--pk-warn)}
+.pk-prepdone i{font-size:19px}
+@keyframes pkspin{to{transform:rotate(360deg)}}
