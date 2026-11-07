@@ -1748,25 +1748,21 @@ async function cacheShipmentImages(shipId) {
 
   let loaded = 0;
 
-  // Загружаем параллельно батчами по 8, каждую картинку кладём в Cache API
+  // Загружаем параллельно батчами по 8, каждую картинку кладём в Cache API.
+  // 07.11.2026: сначала обычный (CORS) запрос — картинка весит как есть (Pinduoduo и Alicdn это разрешают);
+  // «непрозрачный» no-cors браузер считает за ~7 МБ каждую, из-за этого кэш раньше переполнялся и стирался целиком.
+  // На каждую картинку — не дольше 20 секунд: одна зависшая не останавливает всё скачивание.
+  const T = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
   const batchSize = 8;
   for (let i = 0; i < urls.length; i += batchSize) {
     const batch = urls.slice(i, i + batchSize);
     await Promise.all(batch.map(async (url) => {
       try {
-        // Проверяем — может уже в кэше
-        const existing = await cache.match(url);
-        if (existing) { loaded++; return; }
-        // Загружаем и кладём в кэш (opaque response нормально кэшируется)
-        const resp = await fetch(url, { mode: 'no-cors', cache: 'force-cache' });
-        try {
-          await cache.put(url, resp);
-        } catch(quotaErr) {
-          const allKeys = await cache.keys();
-          for (const k of allKeys) await cache.delete(k);
-          const resp2 = await fetch(url, { mode: 'no-cors', cache: 'force-cache' });
-          await cache.put(url, resp2);
-        }
+        if (await cache.match(url)) { loaded++; return; }   // уже на телефоне
+        let resp = null;
+        try { resp = await T(fetch(url, { mode: 'cors', credentials: 'omit' }), 20000); if (!resp.ok) resp = null; } catch (e) { resp = null; }
+        if (!resp) resp = await T(fetch(url, { mode: 'no-cors', cache: 'force-cache' }), 20000);
+        await cache.put(url, resp);
         loaded++;
       } catch(e) {
         // одна картинка не загрузилась — не страшно, продолжаем
