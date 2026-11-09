@@ -322,7 +322,7 @@ function renderPriceEditor() {
   let items = TABLE.map((r, i) => ({
     idx: i, track: r[0], wh: r[1]||'', img: r[2]||'',
     buy: r[3]||'', client: r[4]||'', qty: parseInt(r[5])||1, name: r[6]||'', mv: parseInt(r[7])||0, row: r
-  }));
+  })).filter(r => !pkDelPending.has(String(r.track)));
   if (peExactWh) {
     // Точное совпадение склада (выбран из подсказки)
     items = items.filter(r => r.wh === peExactWh);
@@ -2095,6 +2095,9 @@ async function pkMoveUnscanned(target) {   // target: { newName } или { id }
 // пригодится для «Корзины», пока вернуть можно только вручную. Отметки сканирования остальных товаров
 // переносятся на новые номера строк (отметки хранятся по номеру строки).
 const pkRowTrack = r => String((Array.isArray(r) ? r[0] : r && r.t) || '');
+// Треки, которые прямо сейчас удаляются: экраны их не рисуют, а выбор галочками уже сброшен —
+// иначе при перерисовке во время удаления галочка на секунду «перескакивала» на соседний товар (09.11.2026)
+const pkDelPending = new Set();
 async function pkDeleteRows(shipId, idxs, tracks) {
   if (!shipId || !idxs || !idxs.length) return 0;
   if (typeof pkNet !== 'undefined' && pkNet.down) throw new Error('нет интернета — удалять позиции можно только онлайн');
@@ -2150,12 +2153,14 @@ function peSelClear() { peSel.clear(); renderPriceEditor(); }
 async function peDeleteSel() {
   const idxs = [...peSel].sort((a, b) => a - b), tracks = idxs.map(i => (TABLE[i] || [])[0] || '');
   if (!idxs.length || !confirm(pkDelConfirmText(idxs.length, tracks))) return;
-  const bar = document.getElementById('peSelBar'); if (bar) bar.innerHTML = '<b style="flex:1;text-align:center">Удаляю…</b>';
+  peSel.clear(); tracks.forEach(t => pkDelPending.add(String(t)));   // сразу: выбор сброшен, строки исчезли
+  renderPriceEditor();
   try {
     const n = await pkDeleteRows(editingShipmentId || activeShipmentId, idxs, tracks);
-    peSel.clear(); renderPriceEditor();
     if (typeof showToast === 'function') showToast('Удалено: ' + n);
-  } catch (e) { alert('Не удалось удалить: ' + e.message); peSelBar(); }
+  } catch (e) { alert('Не удалось удалить: ' + e.message); }
+  tracks.forEach(t => pkDelPending.delete(String(t)));
+  renderPriceEditor();
 }
 
 // ============ RESET / EXPORT ============
