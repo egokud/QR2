@@ -3582,7 +3582,7 @@ function cabPreClientsHtml(S) {
   const L = cabPreClients(S); if (!L.length) return '';
   pkBalEnsure();
   return `<div class="cab-pre"><div class="cab-pre-h"><i class="ti ti-user-check"></i> Добавлены заранее — ещё без закупок <span>${L.length}</span></div>
-    <div class="cab-pre-list">${L.map(x => `<span class="cab-pre-it"><b>${cabEsc(x.n)}${x.ln ? ' ' + cabEsc(x.ln) : ''}</b>${x.ph ? `<small>${cabEsc(x.ph)}</small>` : ''}${x.tg ? `<small>@${cabEsc(x.tg)}</small>` : ''}${pkBalAmt(x.n) > 0.004 ? `<small class="pk-balpre">аванс ${cabFmt2(pkBalAmt(x.n))}</small>` : ''}<button type="button" class="pk-balpre-b" onclick="pkBalInOpen('${encodeURIComponent(x.n)}')" title="Внести на баланс (аванс)" aria-label="Внести аванс: ${cabEsc(x.n)}"><i class="ti ti-coin"></i></button><button type="button" onclick="cabClPreDel('${encodeURIComponent(x.k)}')" title="Убрать" aria-label="Убрать ${cabEsc(x.n)}"><i class="ti ti-x"></i></button></span>`).join('')}</div>
+    <div class="cab-pre-list">${L.map(x => `<span class="cab-pre-it"><b>${cabEsc(x.n)}${x.ln ? ' ' + cabEsc(x.ln) : ''}</b>${x.ph ? `<small>${cabEsc(x.ph)}</small>` : ''}${x.tg ? `<small>@${cabEsc(x.tg)}</small>` : ''}${pkBalAmt(x.n) > 0.004 ? `<small class="pk-balpre">аванс ${cabFmt2(pkBalAmt(x.n))}</small>` : ''}${PK_BAL_ON ? `<button type="button" class="pk-balpre-b" onclick="pkBalInOpen('${encodeURIComponent(x.n)}')" title="Внести на баланс (аванс)" aria-label="Внести аванс: ${cabEsc(x.n)}"><i class="ti ti-coin"></i></button>` : ''}<button type="button" onclick="cabClPreDel('${encodeURIComponent(x.k)}')" title="Убрать" aria-label="Убрать ${cabEsc(x.n)}"><i class="ti ti-x"></i></button></span>`).join('')}</div>
     <div class="cab-pre-note">Как только впишете имя в закупке — клиент переедет в общий список со всеми данными.</div></div>`;
 }
 function cabClAddOpen() {
@@ -3849,6 +3849,9 @@ function cabFifoRowsHtml(debts, amount, fmt) {
 //   Списывают / возвращают: «Расчёт» закупки (Кабинет cabShipCalcHtml — строка клиента, телефон pkPayOpen — шторка оплаты).
 // Хранение: users/{uid}/balances/{имя маленькими буквами} = { name, bal, used: {закупка: сколько списано туда}, ops: [движение] }.
 // Списание пишет в ту же ship.payments[имя].paid, что и обычная оплата, — одной транзакцией с балансом.
+// 09.11.2026: ВЫКЛЮЧЕНО по решению Егора — усложняет продукт, делаем функции под запросы пользователей.
+// Код оставлен: вернуть — поставить PK_BAL_ON = true. Пока false: нигде нет кнопок и значков баланса, оплата как раньше (галочка).
+const PK_BAL_ON = false;
 let pkBal = {}, pkBalSt = '', pkBalUid = '';
 const pkR2 = v => Math.round((+v || 0) * 100) / 100;
 const pkBalCur = () => (typeof pkCur === 'function' && !(typeof cabInCabinet === 'function' && cabInCabinet())) ? pkCur() : 'BYN';
@@ -3858,6 +3861,7 @@ const pkBalOf = n => pkBal[String(n || '').trim().toLowerCase()] || null;
 const pkBalAmt = n => { const o = pkBalOf(n); return o ? pkR2(o.bal) : 0; };
 function pkBalShips() { return (typeof cabInCabinet === 'function' && cabInCabinet()) ? cabShipmentsCache : (allShipments || []); }
 function pkBalEnsure() {
+  if (!PK_BAL_ON) return;
   if (pkBalUid !== (savedUid || '')) { pkBal = {}; pkBalSt = ''; pkBalUid = savedUid || ''; }
   if (pkBalSt || !savedUid) return;
   pkBalSt = 'loading';
@@ -3926,7 +3930,7 @@ async function pkBalBack(name, shipId, key) {
 }
 // --- кусочки разметки ---
 function pkBalChip(ship, key, rest) {
-  if (!ship) return ''; pkBalEnsure();
+  if (!ship || !PK_BAL_ON) return ''; pkBalEnsure();
   const o = pkBalOf(key), b = pkBalAmt(key), u = o ? pkR2((o.used || {})[ship.id] || 0) : 0;
   const sid = ship.id, enc = encodeURIComponent(key);
   let h = '';
@@ -3940,6 +3944,7 @@ function pkBalHist(o) {
   return `<div class="pk-balhist">${L.map(x => `<div><span>${d(x.at)} · ${x.k === 'in' ? 'внёс на баланс' : x.k === 'out' ? 'списано в «' + cabEsc(x.sn || 'закупку') + '»' : 'возврат из «' + cabEsc(x.sn || 'закупки') + '»'}</span><b class="${x.k === 'out' ? 'o' : 'i'}">${x.k === 'out' ? '−' : '+'}${cabFmt2(x.a)}</b></div>`).join('')}</div>`;
 }
 function pkBalBlock(name) {
+  if (!PK_BAL_ON) return '';
   pkBalEnsure();
   const o = pkBalOf(name), b = pkBalAmt(name), enc = encodeURIComponent(name);
   return `<div class="pk-balblk ${b > 0.004 ? 'has' : ''}">
@@ -3949,6 +3954,7 @@ function pkBalBlock(name) {
   </div>`;
 }
 function pkBalMoney() {
+  if (!PK_BAL_ON) return '';
   pkBalEnsure();
   const L = Object.values(pkBal).filter(o => (o.bal || 0) > 0.004).sort((a, b) => b.bal - a.bal);
   const tot = pkR2(L.reduce((n, o) => n + o.bal, 0));
