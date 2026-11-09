@@ -2043,6 +2043,7 @@ function cabRenderClientCard(container, name) {
           return `<tr><td style="width:52px">${img}</td><td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${shared}</td><td>${price ? cabFmt2(price) + ' ¥' : '—'}${(parseInt(r[5]) || 1) > 1 ? ' ×' + r[5] : ''}</td></tr>`;
         }).join('');
       items = `<div style="padding:4px 0 6px">
+        ${ship.status === 'done' ? '' : `<button type="button" class="cab-filter-btn cab-cship-add" onclick="event.stopPropagation();cabAddItemsOpen('${ship.id}','${enc}')" title="Добавить товар в эту закупку — клиент уже будет вписан"><i class="ti ti-plus"></i> Добавить позицию</button>`}
         <div style="font-size:13px;color:#6b7280;margin:6px 0 8px">Вес клиента в закупке: <b style="color:#1a1a2e">${c.weight > 0 ? c.weight.toFixed(2) + ' кг' : 'не взвешен'}</b>${c.shipWeight > 0 ? ' · с тарой ' + c.shipWeight.toFixed(2) + ' кг' : ''} (вес вводится на клиента целиком, не по товарам)</div>
         <table class="cab-table"><thead><tr><th></th><th>Трек-код</th><th>Цена клиента</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="color:#6b7280">Нет товаров</td></tr>'}</tbody></table>
       </div>`;
@@ -3679,18 +3680,23 @@ function cabManualOpen() {
 }
 // «+ Добавить позицию» в открытую закупку (06.11.2026): форма как в «Закупке вручную» (mobile.js → pkAddItems),
 // после сохранения перечитываем закупку и остаёмся на «Товарах и ценах».
-function cabAddItemsOpen() {
-  if (typeof pkAddItems !== 'function' || !cabShipId) { alert('Обновите страницу'); return; }
+// Маршруты «Добавить позицию» (одна форма pkAddItems из js/mobile.js):
+//   1) Закупки → закупка → «Товары и цены» → «+ Добавить позицию» — cabAddItemsOpen();
+//   2) Клиенты → клиент → раскрыть закупку → «+ Добавить позицию» — cabAddItemsOpen(закупка, клиент), клиент уже вписан (09.11.2026, запрос Дарьи);
+//   3) телефон: шторка закупки → «Добавить позицию».
+function cabAddItemsOpen(shipId, clientEnc) {
+  const id = shipId || cabShipId, client = clientEnc ? decodeURIComponent(clientEnc) : '';
+  if (typeof pkAddItems !== 'function' || !id) { alert('Обновите страницу'); return; }
   cabEnsureSheet();
   document.body.classList.add('pk-cabman');
   let bk = document.getElementById('cabManBk');
   if (!bk) { bk = document.createElement('div'); bk.id = 'cabManBk'; bk.className = 'cab-manbk'; bk.onclick = () => { if (typeof pkManBack === 'function') pkManBack(); }; document.body.appendChild(bk); }
-  const id = cabShipId;
   pkAddItems(id, async () => {
     document.body.classList.remove('pk-cabman');
     await loadCabinetData();
+    if (client) { cabClientShipOpen.add(id); cabRerender(); return; }   // остались в карточке клиента, закупка раскрыта
     if (cabShipId === id) { await loadShipmentData(id, true); cabShipTab = 'items'; cabRenderShip(); }
-  });
+  }, client);
   // закрыли без добавления — снять затемнение
   const t = setInterval(() => { if (typeof pkMan !== 'undefined' && pkMan) return; clearInterval(t); document.body.classList.remove('pk-cabman'); }, 400);
 }
