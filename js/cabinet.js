@@ -1288,7 +1288,7 @@ function cabShipCalcHtml(calc) {
     const dueCell = c.isOwner ? '—'
       : `<a href="#" onclick="cabEditDue('${encodeURIComponent(c.name)}');return false" title="${c.dueEdited ? 'Исправлено вручную. По расчёту: ' + cabFmt2(c.dueCalc) + '. Нажмите, чтобы изменить' : 'Нажмите, чтобы изменить задолженность'}" style="color:#6C4DB8;text-decoration:none;border-bottom:1px dashed #b9a8e3">${cabFmt2(c.due)}</a>${c.dueEdited ? ' <i class="ti ti-pencil" style="font-size:14px;color:#f59e0b" title="Исправлено вручную"></i>' : ''}`;
     return `<tr style="${c.isOwner ? 'background:#fef2f2' : ''}">
-      <td style="font-weight:500"><span class="cab-cl-nm cab-cl-link" onclick="cabGoClient('${encodeURIComponent(c.name)}')" title="Открыть карточку клиента"><span class="cab-cl-av">${String(c.name).trim().charAt(0).toUpperCase()}</span>${c.name}</span>${c.noWeight ? ' <span class="cab-nw" title="Вес не указан — доставка этому клиенту пока не посчитана">не взвешен</span>' : ''}</td>
+      <td style="font-weight:500"><span class="cab-cl-nm cab-cl-link" onclick="cabGoClient('${encodeURIComponent(c.name)}')" title="Открыть карточку клиента"><span class="cab-cl-av">${String(c.name).trim().charAt(0).toUpperCase()}</span>${c.name}</span>${c.isOwner ? '' : pkBalChip(shipC, c.name, pi.rest)}${c.noWeight ? ' <span class="cab-nw" title="Вес не указан — доставка этому клиенту пока не посчитана">не взвешен</span>' : ''}</td>
       <td style="white-space:nowrap">${c.count}</td>
       <td style="white-space:nowrap">${cabFmt2(c.shipWeight)}</td>
       <td style="white-space:nowrap">${cabCalcGoodsCell(c)}</td>
@@ -2080,6 +2080,7 @@ function cabRenderClientCard(container, name) {
       </div>
       <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют в закупках, которые формируются, и во всех следующих. Для закупок в дороге и на складе — галочки в колонке «Условия» на вкладке «Расчёт» конкретной закупки.</div>
     </div>
+    ${m.isOwner ? '' : pkBalBlock(m.name)}
     <div class="cab-stats" style="grid-template-columns:repeat(4,1fr)">
       <div class="cab-stat-card"><div class="cab-stat-val">${m.totalItems}</div><div class="cab-stat-label">Позиций всего</div></div>
       <div class="cab-stat-card"><div class="cab-stat-val">${m.ships.length}</div><div class="cab-stat-label">Закупок</div></div>
@@ -2525,6 +2526,7 @@ function renderCabCalc(container) {
       <div class="cab-main-title" style="margin:0">Деньги</div>
       <span style="color:#6b7280;font-size:14px">сбор оплат по всем закупкам · нажмите на закупку — откроется её расчёт</span>
     </div>
+    ${pkBalMoney()}
     <div class="cab-cc-top">
       <div class="cab-seg">${seg('all', 'Все', rows.length)}${seg('wait', 'Ждут оплаты', nWait)}${seg('work', 'До сортировки', nWork)}${seg('done', 'Архив', nDone)}</div>
       <div class="cab-cc-sum"><span>По рассортированным собрано <b>${cabFmt(sumPaid)}</b> из ${cabFmt(sumBilled)} BYN</span><div class="cab-cc-bar"><span style="width:${Math.max(totPct, sumPaid > 0 ? 2 : 0)}%"></span></div><b>${totPct}%</b></div>
@@ -3578,8 +3580,9 @@ function cabPreClients(S) {
 }
 function cabPreClientsHtml(S) {
   const L = cabPreClients(S); if (!L.length) return '';
+  pkBalEnsure();
   return `<div class="cab-pre"><div class="cab-pre-h"><i class="ti ti-user-check"></i> Добавлены заранее — ещё без закупок <span>${L.length}</span></div>
-    <div class="cab-pre-list">${L.map(x => `<span class="cab-pre-it"><b>${cabEsc(x.n)}${x.ln ? ' ' + cabEsc(x.ln) : ''}</b>${x.ph ? `<small>${cabEsc(x.ph)}</small>` : ''}${x.tg ? `<small>@${cabEsc(x.tg)}</small>` : ''}<button type="button" onclick="cabClPreDel('${encodeURIComponent(x.k)}')" title="Убрать" aria-label="Убрать ${cabEsc(x.n)}"><i class="ti ti-x"></i></button></span>`).join('')}</div>
+    <div class="cab-pre-list">${L.map(x => `<span class="cab-pre-it"><b>${cabEsc(x.n)}${x.ln ? ' ' + cabEsc(x.ln) : ''}</b>${x.ph ? `<small>${cabEsc(x.ph)}</small>` : ''}${x.tg ? `<small>@${cabEsc(x.tg)}</small>` : ''}${pkBalAmt(x.n) > 0.004 ? `<small class="pk-balpre">аванс ${cabFmt2(pkBalAmt(x.n))}</small>` : ''}<button type="button" class="pk-balpre-b" onclick="pkBalInOpen('${encodeURIComponent(x.n)}')" title="Внести на баланс (аванс)" aria-label="Внести аванс: ${cabEsc(x.n)}"><i class="ti ti-coin"></i></button><button type="button" onclick="cabClPreDel('${encodeURIComponent(x.k)}')" title="Убрать" aria-label="Убрать ${cabEsc(x.n)}"><i class="ti ti-x"></i></button></span>`).join('')}</div>
     <div class="cab-pre-note">Как только впишете имя в закупке — клиент переедет в общий список со всеми данными.</div></div>`;
 }
 function cabClAddOpen() {
@@ -3835,6 +3838,215 @@ function cabFifoRowsHtml(debts, amount, fmt) {
   const rows = P.rows.map(r => `<div class="r"><span>${cabEsc(r.ship.name || 'Закупка')}<small>${r.add > 0.004 ? fmt(r.paid + r.add) + ' из ' + fmt(r.due) : 'не трогаем'}</small></span>${!(r.add > 0.004) ? `<span class="no">долг ${fmt(r.rest)}</span>` : r.after < 0.005 ? '<span class="ok"><i class="ti ti-circle-check"></i> закрыта</span>' : `<span class="pt">останется ${fmt(r.after)}</span>`}</div>`).join('');
   const ex = P.extra > 0.004 ? `<div class="r"><span>Переплата ${fmt(P.extra)}<small>на «${cabEsc(P.rows[P.rows.length - 1].ship.name || 'Закупка')}» — засчитаем в прибыль</small></span><span class="ov"><i class="ti ti-trending-up"></i></span></div>` : '';
   return `<span class="h">Куда пойдут деньги — от старой к новой</span>${rows}${ex}`;
+}
+
+// ============ БАЛАНС КЛИЕНТА (аванс) — 09.11.2026 ============
+// Клиент даёт деньги заранее, когда его треков ещё нет. Деньги лежат у клиента на балансе, в «Расчёте» закупки
+// их списывают в оплату («Списать»), лишнее остаётся до следующей закупки; «Вернуть» — обратно на баланс (так и переносится в другую закупку).
+// Маршрутизация: одно место для Кабинета и телефона — эти функции.
+//   Вносят: карточка клиента (Кабинет cabRenderClientCard, телефон pkRenderClientCard) · «Добавлены заранее» в Клиентах Кабинета ·
+//           «Деньги» (Кабинет renderCabCalc, телефон pkRenderMoney) — кнопка «Внести аванс» с выбором клиента.
+//   Списывают / возвращают: «Расчёт» закупки (Кабинет cabShipCalcHtml — строка клиента, телефон pkPayOpen — шторка оплаты).
+// Хранение: users/{uid}/balances/{имя маленькими буквами} = { name, bal, used: {закупка: сколько списано туда}, ops: [движение] }.
+// Списание пишет в ту же ship.payments[имя].paid, что и обычная оплата, — одной транзакцией с балансом.
+let pkBal = {}, pkBalSt = '', pkBalUid = '';
+const pkR2 = v => Math.round((+v || 0) * 100) / 100;
+const pkBalCur = () => (typeof pkCur === 'function' && !(typeof cabInCabinet === 'function' && cabInCabinet())) ? pkCur() : 'BYN';
+const pkBalId = n => encodeURIComponent(String(n || '').trim().toLowerCase()).slice(0, 700);
+const pkBalRef = n => db.collection('users').doc(currentUser.uid).collection('balances').doc(pkBalId(n));
+const pkBalOf = n => pkBal[String(n || '').trim().toLowerCase()] || null;
+const pkBalAmt = n => { const o = pkBalOf(n); return o ? pkR2(o.bal) : 0; };
+function pkBalShips() { return (typeof cabInCabinet === 'function' && cabInCabinet()) ? cabShipmentsCache : (allShipments || []); }
+function pkBalEnsure() {
+  if (pkBalUid !== (savedUid || '')) { pkBal = {}; pkBalSt = ''; pkBalUid = savedUid || ''; }
+  if (pkBalSt || !savedUid) return;
+  pkBalSt = 'loading';
+  fsList('users/' + savedUid + '/balances').then(docs => {
+    const m = {}; for (const d of docs) { const o = d.data(); if (o && o.name) m[o.name.trim().toLowerCase()] = o; }
+    pkBal = m; pkBalSt = 'ok';
+    if (Object.keys(m).length) pkBalRefresh();
+  }).catch(() => { pkBalSt = ''; });
+}
+function pkBalRefresh() {
+  if (document.querySelector('.cab-ovl')) return;   // открыт диалог — не мешаем
+  try { if (typeof cabInCabinet === 'function' && cabInCabinet()) cabRerender(); else if (typeof pkRender === 'function') pkRender(); } catch (e) {}
+}
+// локально поправить оплату в кэше закупок (живая синхронизация потом подтвердит)
+function pkBalLocalPay(shipId, key, val) {
+  for (const L of [cabShipmentsCache, (typeof allShipments !== 'undefined' ? allShipments : [])]) {
+    const sh = (L || []).find(x => x.id === shipId); if (sh) sh.payments = { ...(sh.payments || {}), [key]: val };
+  }
+}
+async function pkBalIn(name, a) {
+  a = pkR2(a); if (!(a > 0)) throw new Error('сумма');
+  const ref = pkBalRef(name), at = new Date().toISOString(); let out;
+  await db.runTransaction(async t => {
+    const d = await t.get(ref);
+    const o = d.exists ? d.data() : { name: name.trim(), bal: 0, used: {}, ops: [] };
+    o.bal = pkR2((o.bal || 0) + a); o.ops = (o.ops || []).concat({ k: 'in', a, at }).slice(-200);
+    t.set(ref, o); out = o;
+  });
+  pkBal[name.trim().toLowerCase()] = out;
+}
+async function pkBalSpend(name, shipId, key, a) {
+  a = pkR2(a); if (!(a > 0)) throw new Error('сумма');
+  const bref = pkBalRef(name), sref = shipmentsRef().doc(shipId), at = new Date().toISOString();
+  let out, pay;
+  await db.runTransaction(async t => {
+    const d = await t.get(bref), s = await t.get(sref);
+    if (!s.exists) throw new Error('закупка не найдена');
+    const o = d.exists ? d.data() : null;
+    if (!o || (o.bal || 0) < a - 0.004) throw new Error('на балансе меньше — обновите страницу');
+    const p = ((s.data().payments || {})[key]) || {};
+    pay = { ...p, paid: pkR2((typeof p.paid === 'number' ? p.paid : 0) + a), at };
+    t.update(sref, new firebase.firestore.FieldPath('payments', key), pay);
+    o.bal = pkR2(o.bal - a); o.used = { ...(o.used || {}) }; o.used[shipId] = pkR2((o.used[shipId] || 0) + a);
+    o.ops = (o.ops || []).concat({ k: 'out', a, at, ship: shipId, sn: s.data().name || '' }).slice(-200);
+    t.set(bref, o); out = o;
+  });
+  pkBal[name.trim().toLowerCase()] = out; pkBalLocalPay(shipId, key, pay);
+}
+async function pkBalBack(name, shipId, key) {
+  const bref = pkBalRef(name), sref = shipmentsRef().doc(shipId), at = new Date().toISOString();
+  let out, pay, x = 0;
+  await db.runTransaction(async t => {
+    const d = await t.get(bref), s = await t.get(sref);
+    if (!d.exists || !s.exists) throw new Error('нет данных');
+    const o = d.data(), p = ((s.data().payments || {})[key]) || {};
+    const paid = typeof p.paid === 'number' ? p.paid : 0;
+    x = pkR2(Math.min((o.used || {})[shipId] || 0, paid)); if (!(x > 0)) throw new Error('из этой закупки нечего возвращать');
+    pay = { ...p, paid: pkR2(paid - x), at }; delete pay.closed;
+    t.update(sref, new firebase.firestore.FieldPath('payments', key), pay);
+    o.bal = pkR2((o.bal || 0) + x); o.used = { ...(o.used || {}) }; o.used[shipId] = pkR2(o.used[shipId] - x); if (o.used[shipId] <= 0.004) delete o.used[shipId];
+    o.ops = (o.ops || []).concat({ k: 'back', a: x, at, ship: shipId, sn: s.data().name || '' }).slice(-200);
+    t.set(bref, o); out = o;
+  });
+  pkBal[name.trim().toLowerCase()] = out; pkBalLocalPay(shipId, key, pay);
+  return x;
+}
+// --- кусочки разметки ---
+function pkBalChip(ship, key, rest) {
+  if (!ship) return ''; pkBalEnsure();
+  const o = pkBalOf(key), b = pkBalAmt(key), u = o ? pkR2((o.used || {})[ship.id] || 0) : 0;
+  const sid = ship.id, enc = encodeURIComponent(key);
+  let h = '';
+  if (b > 0.004) h += `<span class="pk-balchip" title="Аванс клиента — можно списать в оплату этой закупки">На балансе ${cabFmt2(b)}${rest > 0.004 ? `<button type="button" onclick="event.stopPropagation();pkBalSpendOpen('${sid}','${enc}')">Списать</button>` : ''}</span>`;
+  if (u > 0.004) h += `<span class="pk-balused" title="Сколько оплаты этой закупки пришло с баланса">с баланса ${cabFmt2(u)}<button type="button" onclick="event.stopPropagation();pkBalBackAsk('${sid}','${enc}')">Вернуть</button></span>`;
+  return h ? `<div class="pk-balrow">${h}</div>` : '';
+}
+function pkBalHist(o) {
+  const L = ((o && o.ops) || []).slice(-8).reverse(); if (!L.length) return '';
+  const d = s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) : '';
+  return `<div class="pk-balhist">${L.map(x => `<div><span>${d(x.at)} · ${x.k === 'in' ? 'внёс на баланс' : x.k === 'out' ? 'списано в «' + cabEsc(x.sn || 'закупку') + '»' : 'возврат из «' + cabEsc(x.sn || 'закупки') + '»'}</span><b class="${x.k === 'out' ? 'o' : 'i'}">${x.k === 'out' ? '−' : '+'}${cabFmt2(x.a)}</b></div>`).join('')}</div>`;
+}
+function pkBalBlock(name) {
+  pkBalEnsure();
+  const o = pkBalOf(name), b = pkBalAmt(name), enc = encodeURIComponent(name);
+  return `<div class="pk-balblk ${b > 0.004 ? 'has' : ''}">
+    <div class="pk-balblk-t"><div><small>Баланс (аванс)</small><b>${cabFmt2(b)} <span>${pkBalCur()}</span></b></div><button type="button" class="pk-balbtn" onclick="pkBalInOpen('${enc}')"><i class="ti ti-plus"></i>Внести на баланс</button></div>
+    ${b > 0.004 ? '<div class="pk-balblk-n">Спишите в «Расчёте» закупки, когда появятся его товары — кнопка «Списать» в строке клиента</div>' : ''}
+    ${pkBalHist(o)}
+  </div>`;
+}
+function pkBalMoney() {
+  pkBalEnsure();
+  const L = Object.values(pkBal).filter(o => (o.bal || 0) > 0.004).sort((a, b) => b.bal - a.bal);
+  const tot = pkR2(L.reduce((n, o) => n + o.bal, 0));
+  return `<div class="pk-balmoney"><div class="pk-balmoney-t"><div><small>Авансы клиентов</small><b>${cabFmt2(tot)} <span>${pkBalCur()}</span></b><em>деньги клиентов, ещё не списанные в закупки — это не прибыль</em></div><button type="button" class="pk-balbtn" onclick="pkBalInOpen('')"><i class="ti ti-plus"></i>Внести аванс</button></div>
+    ${L.length ? `<div class="pk-balmoney-l">${L.slice(0, 8).map(o => `<span><b>${cabEsc(o.name)}</b>${cabFmt2(o.bal)}</span>`).join('')}${L.length > 8 ? `<span>и ещё ${L.length - 8}</span>` : ''}</div>` : ''}</div>`;
+}
+// --- диалоги ---
+function pkBalClose() { const o = document.getElementById('pkBalOvl'); if (o) o.remove(); }
+function pkBalDlg(inner) {
+  pkBalClose();
+  const ov = document.createElement('div'); ov.className = 'cab-ovl'; ov.id = 'pkBalOvl';
+  ov.onclick = e => { if (e.target === ov) pkBalClose(); };
+  ov.innerHTML = `<div class="cab-dlg pk-baldlg">${inner}</div>`;
+  document.body.appendChild(ov);
+  setTimeout(() => { const i = ov.querySelector('input[data-f]'); if (i) { i.focus(); i.select && i.select(); } }, 60);
+}
+function pkBalKnownNames() {
+  const set = new Map();
+  for (const sh of pkBalShips()) for (const c of cabGetClientsFromShipment(sh).clients) if (!c.isOwner) set.set(c.name.toLowerCase(), c.name);
+  const ci = (typeof userProfile !== 'undefined' && userProfile && userProfile.clientInfo) || {};
+  for (const k in ci) if (ci[k] && ci[k].n && !set.has(k)) set.set(k, ci[k].n);
+  for (const o of Object.values(pkBal)) if (o.name && !set.has(o.name.toLowerCase())) set.set(o.name.toLowerCase(), o.name);
+  return [...set.values()].sort((a, b) => a.localeCompare(b, 'ru'));
+}
+function pkBalShipsOf(name) {
+  const low = String(name || '').trim().toLowerCase(); if (!low) return [];
+  return pkBalShips().filter(sh => sh.status !== 'done' && cabGetClientsFromShipment(sh).clients.some(c => c.name.toLowerCase() === low));
+}
+function pkBalInOpen(enc) {
+  if (typeof pkNet !== 'undefined' && pkNet.down) { alert('Нет интернета — аванс можно внести, когда связь появится'); return; }
+  pkBalEnsure();
+  const name = decodeURIComponent(enc || '');
+  pkBalDlg(`<div class="cab-dlg-h">${name ? 'Внести на баланс · ' + cabEsc(name) : 'Внести аванс'}<button class="cab-dlg-x" onclick="pkBalClose()" aria-label="Закрыть"><i class="ti ti-x"></i></button></div>
+    ${name ? `<input type="hidden" id="pkBalName" value="${cabEsc(name)}">` : `<label class="pk-ball">Клиент<input id="pkBalName" list="pkBalNames" autocomplete="off" placeholder="Имя, как в закупках" oninput="pkBalInShips()"><datalist id="pkBalNames">${pkBalKnownNames().map(n => `<option value="${cabEsc(n)}">`).join('')}</datalist></label>`}
+    <label class="pk-ball">Сколько дал, ${pkBalCur()}<input id="pkBalAmt" data-f inputmode="decimal" autocomplete="off" placeholder="0.00"></label>
+    <label class="pk-balopt on"><input type="radio" name="pkBalTo" value="" checked onchange="pkBalOpt()"><span><b>На баланс — в будущую закупку</b><small>Лежит у клиента. Спишете в «Расчёте» закупки, когда появятся его товары</small></span></label>
+    <label class="pk-balopt" id="pkBalOptShip"><input type="radio" name="pkBalTo" value="ship" onchange="pkBalOpt()"><span><b>Сразу в закупку</b><small>Если его товары уже есть в закупке</small><select id="pkBalShip" onfocus="document.querySelector('input[name=pkBalTo][value=ship]').checked=true;pkBalOpt()"></select></span></label>
+    <div class="cab-dlg-f"><button class="cab-filter-btn" onclick="pkBalClose()">Отмена</button><button class="cab-filter-btn active" id="pkBalGo" onclick="pkBalInSave()">Записать</button></div>`);
+  pkBalInShips();
+}
+function pkBalOpt() { document.querySelectorAll('#pkBalOvl .pk-balopt').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)); }
+function pkBalInShips() {
+  const n = (document.getElementById('pkBalName') || {}).value || '', sel = document.getElementById('pkBalShip'), box = document.getElementById('pkBalOptShip'); if (!sel) return;
+  const L = pkBalShipsOf(n);
+  sel.innerHTML = L.length ? L.map(sh => `<option value="${sh.id}">${cabEsc(sh.name || 'Закупка')}</option>`).join('') : '<option value="">нет закупок с его товарами</option>';
+  sel.disabled = !L.length; box.classList.toggle('dis', !L.length);
+  if (!L.length) { const r = box.querySelector('input'); r.disabled = true; if (r.checked) { document.querySelector('#pkBalOvl input[name=pkBalTo][value=""]').checked = true; pkBalOpt(); } } else box.querySelector('input').disabled = false;
+}
+async function pkBalInSave() {
+  const name = String((document.getElementById('pkBalName') || {}).value || '').trim();
+  const a = pkR2(String((document.getElementById('pkBalAmt') || {}).value || '').replace(',', '.').replace(/\s/g, ''));
+  if (!name) { alert('Укажите клиента'); return; }
+  if (!(a > 0)) { alert('Укажите сумму'); return; }
+  const toShip = (document.querySelector('#pkBalOvl input[name=pkBalTo]:checked') || {}).value === 'ship' ? (document.getElementById('pkBalShip') || {}).value : '';
+  const b = document.getElementById('pkBalGo'); b.disabled = true; b.textContent = 'Сохраняю…';
+  try {
+    await pkBalIn(name, a);
+    if (toShip) { const sh = pkBalShips().find(x => x.id === toShip); await pkBalSpend(name, toShip, cabClientKey(sh, name), a); }
+  } catch (e) { b.disabled = false; b.textContent = 'Записать'; alert('Не удалось сохранить: ' + (e.message || e)); return; }
+  pkBalClose(); pkBalRefresh();
+  if (typeof showToast === 'function') showToast(toShip ? 'Оплата записана в закупку' : `На балансе ${cabFmt2(pkBalAmt(name))} ${pkBalCur()}`);
+}
+function pkBalSpendOpen(shipId, enc) {
+  if (typeof pkNet !== 'undefined' && pkNet.down) { alert('Нет интернета — списать можно, когда связь появится'); return; }
+  const key = decodeURIComponent(enc), sh = pkBalShips().find(x => x.id === shipId); if (!sh) return;
+  const c = cabGetClientsFromShipment(sh).clients.find(x => x.name === key); if (!c) return;
+  const due = pkR2(c.settle ? c.dueBeforeSettle : c.due), pi = cabPayInfo(sh.payments, sh.paid, key, due, c.isOwner);
+  const rest = pkR2(Math.max(0, due - (pi.paid || 0))), b = pkBalAmt(key), def = pkR2(Math.min(b, rest || b));
+  if (typeof pkSheetClose === 'function') { try { pkSheetClose(); } catch (e) {} }
+  pkBalDlg(`<div class="cab-dlg-h">Списать с баланса · ${cabEsc(key)}<button class="cab-dlg-x" onclick="pkBalClose()" aria-label="Закрыть"><i class="ti ti-x"></i></button></div>
+    <div class="pk-ballines"><div><span>Закупка</span><b>${cabEsc(sh.name || '')}</b></div><div><span>На балансе</span><b>${cabFmt2(b)}</b></div><div><span>Долг по закупке</span><b>${cabFmt2(rest)}</b></div></div>
+    ${cabIsBilled(sh) ? '' : '<div class="pk-balwarn">Закупка ещё не рассортирована — сумма к оплате может измениться после взвешивания</div>'}
+    <label class="pk-ball">Списать, ${pkBalCur()}<input id="pkBalAmt" data-f inputmode="decimal" autocomplete="off" value="${def.toFixed(2)}" oninput="pkBalSpendHint(${b},${rest})"></label>
+    <div class="pk-ballines" id="pkBalAfter"></div>
+    <div class="cab-dlg-f"><button class="cab-filter-btn" onclick="pkBalClose()">Отмена</button><button class="cab-filter-btn active" id="pkBalGo" onclick="pkBalSpendSave('${shipId}','${enc}')">Списать</button></div>`);
+  pkBalSpendHint(b, rest);
+}
+function pkBalSpendHint(b, rest) {
+  const a = pkR2(String((document.getElementById('pkBalAmt') || {}).value || '').replace(',', '.').replace(/\s/g, ''));
+  const el = document.getElementById('pkBalAfter'), go = document.getElementById('pkBalGo'); if (!el) return;
+  const bad = !(a > 0) || a > b + 0.004;
+  el.innerHTML = `<div><span>Останется долг</span><b style="color:${rest - a > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(Math.max(0, rest - a))}</b></div><div><span>Останется на балансе</span><b>${cabFmt2(Math.max(0, b - a))}</b></div>${a > rest + 0.004 && rest > 0 ? `<div><span style="color:#b45309">Больше долга на ${cabFmt2(a - rest)} — это будет переплата</span><b></b></div>` : ''}`;
+  go.disabled = bad; go.textContent = bad ? (a > b + 0.004 ? 'На балансе меньше' : 'Списать') : 'Списать ' + cabFmt2(a);
+}
+async function pkBalSpendSave(shipId, enc) {
+  const key = decodeURIComponent(enc), a = pkR2(String((document.getElementById('pkBalAmt') || {}).value || '').replace(',', '.').replace(/\s/g, ''));
+  const go = document.getElementById('pkBalGo'); go.disabled = true; go.textContent = 'Сохраняю…';
+  try { await pkBalSpend(key, shipId, key, a); }
+  catch (e) { go.disabled = false; go.textContent = 'Списать'; alert('Не удалось списать: ' + (e.message || e)); return; }
+  pkBalClose(); pkBalRefresh();
+  if (typeof showToast === 'function') showToast(`Списано ${cabFmt2(a)} с баланса`);
+}
+async function pkBalBackAsk(shipId, enc) {
+  const key = decodeURIComponent(enc), o = pkBalOf(key), u = o ? pkR2((o.used || {})[shipId] || 0) : 0;
+  const sh = pkBalShips().find(x => x.id === shipId);
+  if (!(u > 0) || !confirm(`Вернуть ${cabFmt2(u)} ${pkBalCur()} из «${(sh && sh.name) || 'закупки'}» на баланс клиента ${key}?\n\nОплата по этой закупке уменьшится на эту сумму, а деньги можно будет списать в другую закупку.`)) return;
+  try { const x = await pkBalBack(key, shipId, key); pkBalRefresh(); if (typeof showToast === 'function') showToast(`Вернули ${cabFmt2(x)} на баланс`); }
+  catch (e) { alert('Не удалось: ' + (e.message || e)); }
 }
 
 // ---- Кабинет: карточка клиента → «Внести оплату» ----
