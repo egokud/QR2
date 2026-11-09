@@ -15,11 +15,60 @@ const pkUp = (x, step) => Math.ceil((x - 1e-6) / step) * step;
 // Сколько выходит в месяц при оплате за год (05.11.2026: так показываем «За год» — крупно в месяц, ниже сумма за год)
 const pkMo = (yr, cur) => cur === 'BYN' ? Math.round(yr / 12) : Math.round(yr / 120) * 10;
 // Цены тарифов в валюте cur: { s, start: [месяц, год], main, pro }
-function pkTP(cur) {
-  const o = { s: PK_SYM[cur] || cur };
-  for (const k in PK_BYN) o[k] = PK_BYN[k].map(v => cur === 'BYN' ? v : pkUp(v * PK_MARKUP / (PK_RATES[cur] || PK_RATES.RUB), 100));
+function pkTP(cur, p) {
+  const o = { s: PK_SYM[cur] || cur, pilot: pkPilot(p) };
+  for (const k in PK_BYN) o[k] = ['m', 'y'].map(per => { const v = pkBynPrice(k, per, p); return cur === 'BYN' ? v : pkUp(v * PK_MARKUP / (PK_RATES[cur] || PK_RATES.RUB), 100); });
   return o;
 }
+// ---------- Пилот и смена тарифа (10.11.2026, решения Егора) ----------
+// Пилот (галочка «Пилот» в админке, profile.founder): все цены −30% от белорусской, вверх до рубля; ₽/₸/¥/USDT — от неё как обычно.
+// Тариф оплачен: «Продлить» свой — с конца оплаченного срока; ВЫШЕ — с сегодня на месяц/год, неиспользованные оплаченные дни
+// засчитываются по фактически заплаченному (подарок и «продлено» без денег — 0); НИЖЕ — нельзя, только через поддержку.
+// Та же арифметика: экран оплаты (здесь), «Продлить» в админке (cabinet.js), подтверждение в боте (api/tg-admin.js).
+const PK_PILOT_OFF = 0.3, PK_RANK = { start: 1, main: 2, pro: 3 };
+const PK_SYM2CODE = { '₽': 'RUB', '₸': 'KZT', '¥': 'CNY' };
+function pkPilot(p) { p = p || (typeof userProfile !== 'undefined' && userProfile) || {}; return !!p.founder && p.role !== 'admin'; }
+function pkBynPrice(plan, per, p) { const v = PK_BYN[plan][per === 'y' ? 1 : 0]; return pkPilot(p) ? pkUp(v * (1 - PK_PILOT_OFF), 1) : v; }
+const pkRateOf = c => c === 'BYN' ? 1 : PK_RATES[c === 'USDT' || c === 'USD' ? 'USD' : c] || 0;
+// Сколько стоят неиспользованные оплаченные дни (в белорусской основе, без +10%) — вниз до рубля
+function pkCredit(p, now) {
+  p = p || userProfile || {}; now = now || new Date();
+  const H = (p.subscription && Array.isArray(p.subscription.history)) ? p.subscription.history : [];
+  let from = 0; H.forEach((h, i) => { if (h && h.upgrade) from = i; });   // всё, что до последнего перехода, уже засчитано
+  const mk = pkGeoCur() === 'BYN' ? 1 : PK_MARKUP;
+  let byn = 0, days = 0;
+  for (const h of H.slice(from)) {
+    const end = h && pkToDate(h.end); if (!end || end <= now) continue;
+    const st = new Date(end); st.setMonth(st.getMonth() - (h.months || (h.period === 'y' ? 12 : 1)));
+    const tot = end - st, left = end - Math.max(now, st); if (tot <= 0 || left <= 0) continue;
+    days += left / 864e5;
+    if (h.gift || h.method === 'gift') continue;
+    let v = Number(h.byn) || 0;
+    if (!v) { const a = Number(h.amount) || 0, c = PK_SYM2CODE[h.cur] || h.cur || 'BYN'; v = !a ? 0 : c === 'BYN' ? a : a * pkRateOf(c) / mk; }
+    byn += v * left / tot;
+  }
+  return { byn: Math.floor(byn + 1e-6), days: Math.ceil(days - 1e-6) };   // дни — как «осталось N дней» в шапке
+}
+// Переход на тариф выше: null — не переход. В валюте cur: full — цена нового, credit — зачёт, pay — к оплате
+function pkUpCalc(plan, per, cur) {
+  const { A, plan: now } = pkPlanNow();
+  if (A.kind !== 'sub' || !now || !PK_RANK[plan] || PK_RANK[plan] <= PK_RANK[now]) return null;
+  cur = cur || pkGeoCur();
+  const C = pkCredit(), fullB = pkBynPrice(plan, per), i = per === 'y' ? 1 : 0;
+  const full = pkTP(cur)[plan][i];
+  const credit = cur === 'BYN' ? C.byn : Math.floor(C.byn * PK_MARKUP / (PK_RATES[cur] || PK_RATES.RUB) / 100) * 100;
+  const pay = full - credit;
+  return { from: now, to: plan, per, cur, full, credit, pay, ok: pay > 0, days: C.days, payByn: Math.max(0, fullB - C.byn), fullByn: fullB, creditByn: C.byn };
+}
+// Что можно с тарифом k: pay — оплатить; renew — продлить свой; up — перейти выше; down — ниже (нельзя)
+function pkTfMode(k) {
+  const { A, plan } = pkPlanNow();
+  if (A.kind !== 'sub' || !plan) return 'pay';
+  return k === plan ? 'renew' : PK_RANK[k] > PK_RANK[plan] ? 'up' : 'down';
+}
+// Срок последней оплаты (месяц/год) — для шапки
+function pkSubPer(sub) { const H = (sub && sub.history) || []; const h = H[H.length - 1]; return h ? (h.period === 'y' || h.months === 12 ? 'y' : 'm') : (sub && sub.months === 12 ? 'y' : 'm'); }
+const pkRulesHtml = cls => `<div class="${cls}"><b>Как сменить тариф</b><ul><li><b>Продлить свой</b> — новый срок начнётся после окончания оплаченного.</li><li><b>Выше</b> — в любой момент: новый тариф начинается сегодня на месяц или год, неиспользованные оплаченные дни засчитываются в цену.</li><li><b>Ниже</b> — после окончания оплаченного срока, через поддержку.</li></ul></div>`;
 function pkLoadRates() {
   const today = new Date().toISOString().slice(0, 10);
   try { const c = JSON.parse(localStorage.getItem('pk_nbrb') || 'null'); if (c && c.USD && c.KZT) { PK_RATES = c; if (c.t === today) return Promise.resolve(c); } } catch (e) {}
@@ -31,9 +80,14 @@ function pkLoadRates() {
   }).catch(() => PK_RATES);
 }
 // Основа суммы в BYN: Беларусь — цена в BYN, остальные — BYN + 10%
-function pkPayBase(plan, per) { const v = PK_BYN[plan][per === 'y' ? 1 : 0]; return pkGeoCur() === 'BYN' ? v : v * PK_MARKUP; }
+function pkPayBase(plan, per) {
+  const U = pkUpCalc(plan, per), v = U ? U.payByn : pkBynPrice(plan, per);
+  return pkGeoCur() === 'BYN' ? v : v * PK_MARKUP;
+}
 // Сумма к оплате способом с валютой cur
 function pkPayAmount(cur, plan, per) {
+  const U = pkUpCalc(plan, per);
+  if (U && cur === U.cur) return U.pay;   // в валюте страны — ровно как в расчёте на экране
   const base = pkPayBase(plan, per);
   if (cur === 'BYN') return base;
   const rate = PK_RATES[cur === 'USDT' ? 'USD' : cur]; if (!rate) return 0;
@@ -130,19 +184,35 @@ function pkTariffs() {
   } catch (e) {}
 }
 function pkTfCards(cur, onPick, rec, curPlan) {
-  const P = pkTP(cur), y = pkTPer === 'y', sel = pkTfSel || rec;
+  const P = pkTP(cur), y = pkTPer === 'y';
+  let sel = pkTfSel || rec; if (pkTfMode(sel) === 'down') sel = curPlan || rec;
   return ['start', 'main', 'pro'].map(k => {
     const [m, yr] = P[k], save = m * 12 - yr, isRec = k === rec, isCur = k === curPlan;
     // (05.11.2026, Егор) «За год»: крупно — сколько выходит в месяц при оплате за год, ниже — сумма за год и выгода
     const price = y ? `<span class="pk-tf-pr">${pkN(pkMo(yr, cur))} <small>${P.s} / мес</small></span>` : `<span class="pk-tf-pr">${pkN(m)} <small>${P.s} / мес</small></span>`;
     const yl = y ? `<span class="pk-tf-y">при оплате за год — ${pkN(yr)}&nbsp;${P.s}<br>выгода ${pkN(save)}&nbsp;${P.s}</span>` : `<span class="pk-tf-y" style="color:var(--pk-muted);font-weight:500">или ${pkN(yr)} ${P.s} за год — выгода ${pkN(save)} ${P.s}</span>`;
-    // Нажатие на карточку только выделяет её (рамка + кнопка), к оплате ведёт кнопка
+    // Нажатие на карточку только выделяет её (рамка + кнопка), к оплате ведёт кнопка. Ниже оплаченного — серая, без кнопки.
+    const mode = pkTfMode(k);
+    if (mode === 'down') return `<div class="pk-tf dim" data-k="${k}" aria-disabled="true">
+      <div class="pk-tf-r"><b>${PK_PLANS[k].n}</b>${price}</div>${yl}<span class="pk-tf-d">${PK_PLANS[k].d}</span><span class="pk-tf-dn">Ниже вашего тарифа — сменить можно после окончания срока, через поддержку</span></div>`;
+    const go = pkTfBtn(k, mode, cur);
     return `<div class="pk-tf ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="pkTfPick('${k}')" role="button" tabindex="0" aria-pressed="${k === sel}">${isCur ? '<span class="pk-tf-tag cur">Ваш тариф</span>' : isRec ? '<span class="pk-tf-tag">Подходит вам</span>' : ''}
       <div class="pk-tf-r"><b>${PK_PLANS[k].n}</b>${price}</div>${yl}<span class="pk-tf-d">${PK_PLANS[k].d}</span>
-      <div class="pk-tf-go"><button type="button" class="pk-btn" tabindex="${k === sel ? 0 : -1}" onclick="event.stopPropagation();${onPick}('${k}')">${isCur ? 'Продлить' : 'Оплатить'} «${PK_PLANS[k].n}»</button></div></div>`;
+      <div class="pk-tf-go"><button type="button" class="pk-btn" tabindex="${k === sel ? 0 : -1}" onclick="event.stopPropagation();${onPick}('${k}')">${go.t}</button>${go.n ? `<div class="pk-tf-upn">${go.n}</div>` : ''}</div></div>`;
   }).join('');
 }
+// Текст кнопки тарифа (общий для телефона и Кабинета) и подпись под ней для перехода выше
+function pkTfBtn(k, mode, cur) {
+  const n = PK_PLANS[k].n;
+  if (mode === 'renew') return { t: `Продлить «${n}»` };
+  if (mode !== 'up') return { t: `Оплатить «${n}»` };
+  let U = pkUpCalc(k, pkTPer, cur); if (U && !U.ok) U = pkUpCalc(k, 'y', cur);
+  if (!U || !U.ok) return { t: `Перейти на «${n}»` };
+  const s = PK_SYM[cur] || cur;
+  return { t: `Перейти на «${n}» · ${pkN(U.pay)} ${s}`, n: U.credit > 0 ? `${pkN(U.full)} ${s} за ${U.per === 'y' ? 'год' : 'месяц'} минус ${pkN(U.credit)} ${s} за ${U.days} ${pkPl(U.days, 'неиспользованный день', 'неиспользованных дня', 'неиспользованных дней')} тарифа «${PK_PLANS[U.from].n}»` : `с сегодня на ${U.per === 'y' ? 'год' : 'месяц'}` };
+}
 function pkTfPick(k) {
+  if (pkTfMode(k) === 'down') return;
   pkTfSel = k;
   document.querySelectorAll('#pkTfList .pk-tf').forEach(el => {
     const on = el.dataset.k === k;
@@ -160,23 +230,24 @@ function pkTariffRender() {
   if (A.kind === 'admin') head = `<div class="pk-tfnow"><small>Сейчас</small><b>Администратор</b><small>Тарифы не действуют. Проверять оплату — с тестового аккаунта.</small></div>`;
   else if (A.kind === 'trial') {
     const tot = (userProfile && userProfile.founder) ? 90 : 30, pct = Math.max(4, Math.min(100, A.left / tot * 100));
-    head = `<div class="pk-tfnow"><small>Сейчас</small><b>Пробный период · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}</b><div class="pk-bar"><span style="width:${pct}%"></span></div><small>Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}</small></div>`;
+    head = `<div class="pk-tfnow"><small>${pkPilot() ? 'Пилот · бесплатно 3 месяца' : 'Сейчас'}</small><b>Пробный период · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}</b><div class="pk-bar"><span style="width:${pct}%"></span></div><small>Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}</small></div>`;
   } else if (A.kind === 'sub') {
     const U = pkUsage(), lim = U.lim, pct = lim === Infinity ? 0 : Math.min(100, U.n / lim * 100);
     const per = `${U.P.start.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}–${U.P.last.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`;
-    head = `<div class="pk-tfnow"><small>Ваш тариф</small><b>${PK_PLANS[plan].n} · до ${pkD(A.end)}</b>${lim === Infinity ? '' : `<div class="pk-bar${U.state === 'ok' ? '' : ' ' + (U.state === 'warn' ? 'warn' : 'bad')}"><span style="width:${Math.max(3, pct)}%"></span></div>`}<small>Треков за ${per}: ${pkN(U.n)}${lim === Infinity ? '' : ' из ' + pkN(lim)} · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}</small></div>`;
+    head = `<div class="pk-tfnow"><small>Ваш тариф${pkPilot() ? ' · пилот' : ''}</small><b>${PK_PLANS[plan].n} · ${pkSubPer(sub) === 'y' ? 'на год' : 'помесячно'}</b>${lim === Infinity ? '' : `<div class="pk-bar${U.state === 'ok' ? '' : ' ' + (U.state === 'warn' ? 'warn' : 'bad')}"><span style="width:${Math.max(3, pct)}%"></span></div>`}<small>Оплачен до ${pkD(A.end)} · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}<br>Треков за ${per}: ${pkN(U.n)}${lim === Infinity ? ' · без лимита' : ' из ' + pkN(lim)}</small></div>` + pkRulesHtml('pk-tfrules');
   } else if (A.kind === 'grace') head = `<div class="pk-tfnow warn"><small>${A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился'} ${pkD(A.end)}</small><b>Ещё ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')} всё работает</b><small>Потом — только просмотр. Данные никуда не денутся.</small></div>`;
   else if (A.kind === 'readonly') head = `<div class="pk-tfnow bad"><small>Сейчас</small><b>Только просмотр</b><small>Оплатите тариф — и всё снова заработает. Данные сохранены.</small></div>`;
   else head = `<div class="pk-tfnow bad"><small>Сейчас</small><b>Доступ ограничен</b><small>Напишите в поддержку.</small></div>`;
   const pend = sub.pending, rej = sub.rejected;
-  if (pend) head = `<div class="pk-tfwait"><small>Оплата на проверке</small><b>«${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}» · ${pend.period === 'y' ? 'год' : 'месяц'} · ${pkN(pend.amount)} ${pkEsc(pend.cur)}</b><small>Отправлено ${pkD(pkToDate(pend.at))}. Пока проверяем — всё работает как раньше</small></div>` + head;
+  if (pend) head = `<div class="pk-tfwait"><small>Оплата на проверке</small><b>${pend.up ? 'Переход на ' : ''}«${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}» · ${pend.period === 'y' ? 'год' : 'месяц'} · ${pkN(pend.amount)} ${pkEsc(pend.cur)}</b><small>Отправлено ${pkD(pkToDate(pend.at))}. Пока проверяем — всё работает как раньше</small></div>` + head;
   else if (rej && (!sub.history || !sub.history.length || pkToDate(rej.rejectedAt) > pkToDate(sub.history[sub.history.length - 1].at)))
     head = `<div class="pk-tfnow bad"><small>Оплата от ${pkD(pkToDate(rej.at))} не подтверждена</small><b>Напишите в поддержку</b><small><a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener" style="color:inherit">@piksta_support_bot</a> — разберёмся</small></div>` + head;
   const hist = (sub.history || []).slice().reverse().slice(0, 12);
   pkScr('Тариф и оплата', `${head}
     <div class="pk-seg" role="tablist"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkTariffRender()">Помесячно</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkTariffRender()">За год · выгоднее</button></div>
+    ${pkPilot() ? '<p class="pk-tfpilot"><i class="ti ti-discount-2" aria-hidden="true"></i> Для вас цены пилота — на 30% ниже</p>' : ''}
     <div id="pkTfList" style="display:flex;flex-direction:column;gap:10px">${pkTfCards(cur, 'pkPayStart', rec, plan)}</div>
-    ${hist.length ? `<div class="pk-lbl" style="margin-top:4px">История оплат</div><div class="pk-list">${hist.map(h => `<div class="pk-hist"><span>${pkD(pkToDate(h.at))} · ${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}, ${h.period === 'y' ? 'год' : 'месяц'}</span><b>${pkHistAmt(h)}</b></div>`).join('')}</div>` : ''}
+    ${hist.length ? `<div class="pk-lbl" style="margin-top:4px">История оплат</div><div class="pk-list">${hist.map(h => `<div class="pk-hist"><span>${pkD(pkToDate(h.at))} · ${h.upgrade ? 'переход на ' : ''}${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}, ${h.period === 'y' ? 'год' : 'месяц'}</span><b>${pkHistAmt(h)}</b></div>`).join('')}</div>` : ''}
     <p class="pk-muted" style="font-size:12.5px;text-align:center;margin:2px 0 0">Цены — в валюте вашей страны · <button type="button" class="pk-lnk" onclick="pkCurPick()">${PK_SYM[cur]}</button> · вопросы — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener" class="pk-lnk">@piksta_support_bot</a></p>`);
 }
 const pkHistAmt = h => h.gift || h.method === 'gift' ? 'подарок' : h.amount > 0 ? pkN(h.amount) + ' ' + pkEsc(h.cur || '') : 'продлено';
@@ -217,15 +288,18 @@ function pkPayMethods() {
 function pkPayStart(plan) {
   pkLoadRates().then(() => { if (pkPayS && document.querySelector('#pkScr .pk-mt')) pkPayRender1(); });
   const L = pkPayMethods();
-  pkPayS = { plan, method: (pkPayS && pkPayS.plan === plan && pkPayS.method) || L[0].id, img: '' };
+  pkPayS = { plan, method: (pkPayS && pkPayS.plan === plan && pkPayS.method) || L[0].id, img: '', up: pkTfMode(plan) === 'up' };
+  if (pkPayS.up) { const U = pkUpCalc(plan, pkTPer); if (U && !U.ok) pkTPer = 'y'; }   // зачёт больше цены месяца — только год
   pkPayRender1();
 }
 function pkPayEnd() {
-  const base = new Date(pkPaidStart());   // оплаченное начинается после пробного периода / текущей подписки
+  // переход выше — с сегодня; иначе оплаченное начинается после пробного периода / текущей подписки
+  const base = pkPayS && pkPayS.up ? new Date() : new Date(pkPaidStart());
   base.setMonth(base.getMonth() + (pkTPer === 'y' ? 12 : 1)); return base;
 }
 // Подсказка, когда начнётся оплаченный срок, если оплата раньше конца пробного периода или подписки
 function pkPayStartNote() {
+  if (pkPayS && pkPayS.up) return '';
   const st = pkPaidStart(), now = new Date();
   if (st - now < 864e5) return '';
   const sub = userProfile && userProfile.subscription && userProfile.subscription.endDate;
@@ -235,9 +309,29 @@ function pkPayRender1() {
   const S = pkPayS, cur = pkGeoCur(), P = pkTP(cur), [m, y] = P[S.plan];
   const L = pkPayMethods();
   const amt = x => x.cur ? pkN(pkPayAmount(x.cur, S.plan, pkTPer)) + ' ' + PK_SYM[x.cur] : '';
+  if (S.up) return pkPayRenderUp(S, cur, P, L, amt);
   pkScr(`Оплата «${PK_PLANS[S.plan].n}»`, `
     <div class="pk-seg"><button type="button" class="${pkTPer === 'm' ? 'on' : ''}" onclick="pkTPer='m';pkPayRender1()">Помесячно · ${pkN(m)}</button><button type="button" class="${pkTPer === 'y' ? 'on' : ''}" onclick="pkTPer='y';pkPayRender1()">За год · ${pkN(y)}</button></div>
     <p class="pk-muted" style="font-size:13px;text-align:center;margin:-2px 0 0">${pkTPer === 'y' ? `${pkN(y)} ${P.s} раз в год · выгода ${pkN(m * 12 - y)} ${P.s}` : `${pkN(m)} ${P.s} в месяц`} · до ${pkD(pkPayEnd())}</p>${pkPayStartNote()}
+    <div class="pk-lbl">Чем платите</div>
+    <div class="pk-mt">${L.map(x => `<button type="button" class="${x.id === S.method ? 'on' : ''}" onclick="pkPayS.method='${x.id}';pkPayRender1()"><i class="ti ${x.ic}" aria-hidden="true"></i><span>${x.n}<small>${x.sub}${x.cur ? ' · ' + amt(x) : ''}</small></span><i class="rd" aria-hidden="true"></i></button>`).join('')}</div>
+    <button type="button" class="pk-btn" onclick="pkPayRender2()">Далее</button>`, pkTariffs);
+}
+
+// Переход на тариф выше: срок (месяц/год), расчёт с зачётом, способ
+function pkPayRenderUp(S, cur, P, L, amt) {
+  const Um = pkUpCalc(S.plan, 'm', cur), Uy = pkUpCalc(S.plan, 'y', cur), U = pkTPer === 'y' ? Uy : Um;
+  if (!U) { S.up = false; return pkPayRender1(); }
+  const sy = P.s, n = PK_PLANS[S.plan].n, f = PK_PLANS[U.from].n;
+  const segB = (per, X) => `<button type="button" class="${pkTPer === per ? 'on' : ''}" ${X && X.ok ? `onclick="pkTPer='${per}';pkPayRender1()"` : 'disabled title="Зачёт больше цены месяца — выберите год"'}>${per === 'y' ? 'Год' : 'Месяц'}${X && X.ok ? ' · ' + pkN(X.pay) : ''}</button>`;
+  pkScr(`Переход на «${n}»`, `
+    <div class="pk-seg">${segB('m', Um)}${segB('y', Uy)}</div>
+    <div class="pk-upcalc"><b class="hd">${pkEsc(f)} → ${pkEsc(n)}</b>
+      <div class="row"><span>«${pkEsc(n)}» на ${U.per === 'y' ? 'год' : 'месяц'}${P.pilot ? ' (цена пилота)' : ''}</span><b>${pkN(U.full)} ${sy}</b></div>
+      ${U.credit > 0 ? `<div class="row minus"><span>Зачёт: ${U.days} ${pkPl(U.days, 'неиспользованный день', 'неиспользованных дня', 'неиспользованных дней')} тарифа «${pkEsc(f)}» — по тому, что вы заплатили</span><b>− ${pkN(U.credit)} ${sy}</b></div>` : `<div class="row"><span>Зачёт за «${pkEsc(f)}»</span><b>0 ${sy}</b></div>`}
+      <hr><small>К оплате</small><span class="pk-pay-big">${pkN(U.pay)} <small>${sy}</small></span>
+      <div class="row"><span>«${pkEsc(n)}» действует</span><b>с сегодня до ${pkD(pkPayEnd())}</b></div></div>
+    ${!Um || !Um.ok ? `<p class="pk-muted" style="font-size:12.5px;text-align:center;margin:-2px 0 0">Зачёт больше цены месяца, поэтому переход — сразу на год.</p>` : ''}
     <div class="pk-lbl">Чем платите</div>
     <div class="pk-mt">${L.map(x => `<button type="button" class="${x.id === S.method ? 'on' : ''}" onclick="pkPayS.method='${x.id}';pkPayRender1()"><i class="ti ${x.ic}" aria-hidden="true"></i><span>${x.n}<small>${x.sub}${x.cur ? ' · ' + amt(x) : ''}</small></span><i class="rd" aria-hidden="true"></i></button>`).join('')}</div>
     <button type="button" class="pk-btn" onclick="pkPayRender2()">Далее</button>`, pkTariffs);
@@ -251,11 +345,12 @@ function pkCopy(t, what) {
 function pkPayRender2() {
   const S = pkPayS, x = PK_PAY.find(p => p.id === S.method);
   if (!x || x.id === 'other') {
-    pkScr('Другой способ', `<div class="pk-card" style="font-size:15px;line-height:1.5">Напишите в поддержку, каким способом удобно заплатить за «${PK_PLANS[S.plan].n}» на ${pkTPer === 'y' ? 'год' : 'месяц'} — пришлём реквизиты и включим тариф вручную.</div>
+    pkScr('Другой способ', `<div class="pk-card" style="font-size:15px;line-height:1.5">Напишите в поддержку, каким способом удобно заплатить за ${S.up ? 'переход на ' : ''}«${PK_PLANS[S.plan].n}» на ${pkTPer === 'y' ? 'год' : 'месяц'} — пришлём реквизиты и включим тариф вручную.</div>
       <a class="pk-btn" href="https://t.me/piksta_support_bot" target="_blank" rel="noopener"><i class="ti ti-brand-telegram" aria-hidden="true"></i> Написать в поддержку</a>`, pkPayRender1);
     return;
   }
-  const amount = pkPayAmount(x.cur, S.plan, pkTPer), s = PK_SYM[x.cur], vc = pkGeoCur(), vp = pkTP(vc)[S.plan][pkTPer === 'y' ? 1 : 0];
+  const amount = pkPayAmount(x.cur, S.plan, pkTPer), s = PK_SYM[x.cur], vc = pkGeoCur(), Uq = S.up ? pkUpCalc(S.plan, pkTPer, vc) : null;
+  const vp = Uq ? Uq.pay : pkTP(vc)[S.plan][pkTPer === 'y' ? 1 : 0];
   S.amount = amount; S.cur = s;
   let req = `<div><small>Сумма</small><span class="pk-pay-big">${pkN(amount)} <small>${s}</small></span>${x.cur !== vc ? `<small>= ${pkN(vp)} ${PK_SYM[vc]} ${pkRateNote()}, округлено вверх</small>` : ''}</div>`;
   if (x.addr) req += `<div class="pk-qr"><img src="${x.qr}" alt="QR-код адреса ${pkEsc(x.net)}" width="200" height="200"></div>
@@ -311,13 +406,15 @@ async function pkPaySend() {
   if (!S || !S.img) return showToast('Прикрепите скрин оплаты');
   if (!o || !o.checked) return showToast('Отметьте согласие с офертой');
   b.disabled = true; b.textContent = 'Отправляю…';
+  const Uq = S.up ? pkUpCalc(S.plan, pkTPer) : null;
   try {
     const idToken = await firebase.auth().currentUser.getIdToken();
     const r = await fetch('/api/tg-admin?pay=1', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ idToken, plan: S.plan, period: pkTPer, method: S.method, amount: S.amount, cur: S.cur, img: S.img, offer: true }) });
+      body: JSON.stringify({ idToken, plan: S.plan, period: pkTPer, method: S.method, amount: S.amount, cur: S.cur, img: S.img, offer: true, byn: pkBynPrice(S.plan, pkTPer),
+        up: S.up && Uq ? { from: Uq.from, credit: Uq.credit, ccur: PK_SYM[Uq.cur] || Uq.cur, days: Uq.days, full: Uq.full } : null }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || ('ошибка ' + r.status));
-    userProfile.subscription = Object.assign({}, userProfile.subscription || {}, { pending: { plan: S.plan, period: pkTPer, amount: S.amount, cur: S.cur, method: S.method, at: new Date() } });
+    userProfile.subscription = Object.assign({}, userProfile.subscription || {}, { pending: { plan: S.plan, period: pkTPer, amount: S.amount, cur: S.cur, method: S.method, at: new Date(), up: Uq ? { from: Uq.from } : null } });
     pkPayS = null;
     showToast('Оплата отправлена на проверку');
     pkTariffRender();
