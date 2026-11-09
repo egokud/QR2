@@ -522,6 +522,7 @@ function pkRenderClientCard(pane, name) {
   pane.innerHTML = `<button class="pk-btn ghost sm" style="align-self:flex-start" onclick="pkClientOpen=null;pkRender()"><i class="ti ti-chevron-left" aria-hidden="true"></i> Клиенты</button>
     <div class="pk-me"><span class="pk-av" style="width:52px;height:52px;border-radius:26px;font-size:20px">${pkEsc(name.trim().charAt(0).toUpperCase())}</span><div><h1 class="pk-h1" style="font-size:22px">${pkEsc(pkFullName(name))}</h1><div class="pk-muted" style="font-size:14px">${pkEsc(stl)} · ${c.ships.length} ${pkPl(c.ships.length, 'закупка', 'закупки', 'закупок')}</div></div></div>
     ${pkClientContacts(name)}
+    ${c.isOwner || typeof pkBalBlock !== 'function' ? '' : pkBalBlock(name)}
     ${debts.length >= 2 ? pkDebtsAllHtml(c, encN) : debts.map(x => { const due0 = Math.round((x.c.settle ? x.c.dueBeforeSettle : x.c.due) * 100) / 100, pd = x.c.payPaid || 0, pct = due0 > 0 ? Math.min(100, Math.round(pd / due0 * 100)) : 0; const at = (((x.ship.payments || {})[x.c.name] || {}).at || '').slice(0, 10); const atS = at ? ' · ' + at.slice(8, 10) + '.' + at.slice(5, 7) : '';
       return `<div class="pk-card pk-debt"><div class="pk-row" style="align-items:flex-end"><span style="min-width:0"><small class="pk-muted" style="display:block;font-size:13px">Долг за закупку</small><b>${pkEsc(x.ship.name)}</b></span><b style="font-size:22px;color:var(--pk-due);white-space:nowrap">${pkF2(x.c.payRest)} ${pkCur()}</b></div>
       ${pd > 0.004 ? `<div class="pk-pbar"><span style="width:${pct}%"></span></div><div class="pk-muted" style="font-size:13px">Оплачено <b style="color:var(--pk-ok)">${pkF2(pd)}</b> из ${pkF2(due0)} ${pkCur()}${atS}</div>` : ''}
@@ -597,6 +598,7 @@ function pkPayOpen(shipId, enc, ext) {
   const head = ext ? `<h3>${pkEsc(key)}</h3><div class="pk-muted" style="font-size:14px;margin-top:2px">${pkEsc(ship.name)} · ${c.items} ${pkPl(c.items, 'позиция', 'позиции', 'позиций')}</div>${pkCCBreak(ship, c)}`
     : `<h3>Оплата · ${pkEsc(key)}</h3><div class="pk-muted" style="font-size:14px;margin-top:2px">${pkEsc(ship.name)}</div>`;
   pkSheet(`${head}
+    ${!c.isOwner && typeof pkBalChip === 'function' ? pkBalChip(ship, key, rest) : ''}
     <div class="pk-pay3"><div><small>К оплате</small><b>${pkF2(due)}</b></div><div><small>Уже оплачено</small><b style="color:var(--pk-ok)">${pkF2(paid)}</b></div><div><small>Долг</small><b style="color:var(--pk-due)">${pkF2(rest)}</b></div></div>
     <label class="pk-lbl" for="pkPayAmt" style="display:block;margin-top:14px">Сколько заплатила сейчас</label>
     <div class="pk-pay-amt"><input id="pkPayAmt" type="text" inputmode="decimal" autocomplete="off" value="${rest > 0 ? r2(rest) : ''}" oninput="pkPayHint()"><span>${cur}</span></div>
@@ -889,7 +891,7 @@ function pkRenderMoney() {
     for (const c of cabGetClientsFromShipment(s).clients) { if (c.isOwner) continue; turn += c.due; prof += c.profit; }
   }
   const enc = n => encodeURIComponent(n);
-  pane.innerHTML = `<h1 class="pk-h1">Деньги</h1>
+  pane.innerHTML = `<h1 class="pk-h1">Деньги</h1>${typeof pkBalMoney === 'function' ? pkBalMoney() : ''}
     <div class="pk-money"><span style="font-size:14px;opacity:.9">Вам должны сейчас · ${debtors.length} ${pkPl(debtors.length, 'клиент', 'клиента', 'клиентов')}</span><div class="v">${pkFmt(unpaid)} <small>${cur}</small></div>
       ${nB ? `<div class="pk-bar"><span style="width:${pct}%"></span></div><span class="s">Собрано <b>${pkFmt(paidB)}</b> из ${pkFmt(dueB)} ${cur} · ${pct}%</span><span style="font-size:12.5px;opacity:.85;margin-top:-4px">по ${nB} ${pkPl(nB, 'рассортированной закупке', 'рассортированным закупкам', 'рассортированным закупкам')}</span>` : '<span class="s" style="opacity:.85">Долги появятся, когда закупка будет рассортирована</span>'}</div>
     ${way.length ? `<div class="pk-way"><div class="hd"><b>Товар в пути</b><span>${pkFmt(waySum)} ${cur}</span></div><div class="sub">Вы уже заплатили за товар, клиенты будут должны после раскладки</div>
