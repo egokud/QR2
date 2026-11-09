@@ -570,3 +570,17 @@ body.dark .pe-selbar{background:#2d2650}
 .pk-cs-meta b{color:var(--pk-ink)}
 .pk-cs-add{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:6px;width:calc(100% - 28px);margin:10px 14px 14px;padding:12px;border:1.5px dashed var(--pk-acc);border-radius:14px;color:var(--pk-acc);font-weight:700;font-size:15px;background:var(--pk-acc-soft);cursor:pointer}
 .pk-cs-note{font-size:13px;color:var(--pk-muted);padding:10px 14px 14px}
+/* 10.11.2026: смена тарифа — ниже оплаченного серым, переход выше с зачётом, цены пилота */
+.pk-tf.dim{opacity:.5;filter:grayscale(1);cursor:default}
+.pk-tf-dn{font-size:12.5px;color:var(--pk-muted);font-weight:600;margin-top:4px}
+.pk-tf-upn{font-size:12.5px;color:var(--pk-muted);text-align:center;margin-top:6px;line-height:1.35}
+.pk-tf:not(.sel) .pk-tf-upn{display:none}
+.pk-tfrules{background:var(--pk-acc-soft);border-radius:16px;padding:12px 14px;font-size:13.5px;line-height:1.45;color:var(--pk-ink)}
+.pk-tfrules>b{display:block;margin-bottom:4px;font-size:14.5px}.pk-tfrules ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.pk-tfpilot{margin:0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13.5px;font-weight:700;color:var(--pk-ok)}.pk-tfpilot i{font-size:18px}
+.pk-upcalc{background:var(--pk-card);border:1px solid var(--pk-line);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.pk-upcalc .hd{font-size:16px}
+.pk-upcalc .row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;font-size:14px;color:var(--pk-muted)}.pk-upcalc .row b{color:var(--pk-ink);white-space:nowrap}
+.pk-upcalc .row.minus b{color:var(--pk-ok)}.pk-upcalc hr{border:0;border-top:1px solid var(--pk-line);margin:2px 0;width:100%}
+.pk-upcalc>small{font-size:13px;color:var(--pk-muted)}
+.pk-seg button:disabled{opacity:.45;cursor:not-allowed}
