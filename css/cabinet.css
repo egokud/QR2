@@ -1000,3 +1000,6 @@ body.dark .pk-balmoney-l span{background:#1e1b35;border-color:#2f6b4a}
 body.dark .pk-ball input,body.dark .pk-balopt select{background:#15132a;color:#eee;border-color:#3a3360}
 body.dark .pk-balopt{border-color:#342d4d}body.dark .pk-balopt.on{background:#2a2442;border-color:#8b6be0}
 body.dark .pk-balhist div{border-color:#2d2848}
+
+/* Клиенты → клиент → раскрытая закупка: «+ Добавить позицию» (09.11.2026) */
+.cab-cship-add{float:right;margin:4px 0 0 12px;display:inline-flex;align-items:center;gap:6px;color:#6C4DB8;font-weight:600}
