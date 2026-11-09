@@ -549,3 +549,24 @@ body.dark .pe-item.sel{background:#2a2442;border-color:#4b3d80}
 .pe-selbar b{flex:1;font-size:14px}
 .pe-selbar .del{display:inline-flex;align-items:center;gap:5px;background:#e5484d;border:none;color:#fff;border-radius:9px;padding:8px 12px;font-size:13.5px;font-weight:700}
 body.dark .pe-selbar{background:#2d2650}
+/* 09.11.2026: закупки в карточке клиента (телефон) */
+.pk-csl{display:flex;flex-direction:column;gap:10px}
+.pk-cs{background:var(--pk-card);border:1px solid var(--pk-line);border-radius:18px;overflow:hidden}
+.pk-cs-hd{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;cursor:pointer;color:var(--pk-ink);-webkit-tap-highlight-color:transparent}
+.pk-cs-hd .ch{flex:none;font-size:20px;color:var(--pk-acc);margin-top:1px;transition:transform .2s}
+.pk-cs.open .pk-cs-hd .ch{transform:rotate(90deg)}
+.pk-cs-hd .t{min-width:0;flex:1;display:block}
+.pk-cs-hd .t b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-cs-hd .ln{display:flex;align-items:center;gap:8px;margin-top:5px}
+.pk-cs-hd .ln .pk-stp{font-size:10.5px;padding:4px 7px}
+.pk-cs-hd .ln small{font-size:13px;color:var(--pk-muted);white-space:nowrap}
+.pk-cs-hd .sum{flex:none;text-align:right;white-space:nowrap}
+.pk-cs-hd .sum b{display:block;font-size:15px}
+.pk-cs-hd .sum small{display:block;font-size:12px;font-weight:600;color:var(--pk-muted);margin-top:3px}
+.pk-cs-hd .sum small.due{color:var(--pk-due)}.pk-cs-hd .sum small.okk{color:var(--pk-ok)}
+.pk-cs-body{border-top:1px solid var(--pk-line)}
+.pk-cs-body .pk-li{padding:9px 14px;cursor:default}
+.pk-cs-meta{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--pk-muted);padding:10px 14px 2px}
+.pk-cs-meta b{color:var(--pk-ink)}
+.pk-cs-add{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:6px;width:calc(100% - 28px);margin:10px 14px 14px;padding:12px;border:1.5px dashed var(--pk-acc);border-radius:14px;color:var(--pk-acc);font-weight:700;font-size:15px;background:var(--pk-acc-soft);cursor:pointer}
+.pk-cs-note{font-size:13px;color:var(--pk-muted);padding:10px 14px 14px}
