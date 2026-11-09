@@ -201,11 +201,19 @@ async function payIn(req, res) {
   const prev = u.subscription || null, p0 = prev && prev.pending;
   if (p0 && p0.at instanceof Date && Date.now() - p0.at.getTime() < 60e3) return res.status(429).json({ ok: false, error: 'подождите минуту' });
   const pending = { plan, period, months: period === 'y' ? 12 : 1, method, amount, cur, at: new Date(), offerAcceptedAt: new Date() };
+  // (10.11.2026) цена в белорусской основе (для будущего зачёта) и переход на тариф выше: с сегодня, с зачётом неиспользованных дней
+  const byn = Number(b.byn); if (byn > 0 && byn < 1e5) pending.byn = Math.round(byn * 100) / 100;
+  const RANK = { start: 1, main: 2, pro: 3 }, up0 = b.up && typeof b.up === 'object' ? b.up : null, curPl = curPlan(u);
+  if (up0 && PLANS[up0.from] && up0.from === curPl && RANK[plan] > RANK[up0.from] && access(u).kind === 'sub')
+    pending.up = { from: up0.from, credit: Math.max(0, Math.round(Number(up0.credit) || 0)), ccur: String(up0.ccur || '').slice(0, 6), days: Math.max(0, Math.round(Number(up0.days) || 0)), full: Math.max(0, Math.round(Number(up0.full) || 0)) };
   await patchUser(u.id, { subscription: Object.assign({}, prev || {}, { pending }) });
   const A = access(u);
-  const caption = [`💳 <b>Новая оплата</b>`, esc(u.email || acc.email || ''), `«${PLANS[plan]}» · ${period === 'y' ? 'год' : 'месяц'} · <b>${nf(amount)} ${esc(cur)}</b>`,
+  const P = pending.up;
+  const caption = [P ? `⬆️ <b>Переход на тариф выше</b>` : `💳 <b>Новая оплата</b>`, esc(u.email || acc.email || '') + (u.founder ? ' · пилот −30%' : ''),
+    P ? `«${PLANS[P.from]}» → «${PLANS[plan]}» · ${period === 'y' ? 'год' : 'месяц'} · <b>${nf(amount)} ${esc(cur)}</b>` : `«${PLANS[plan]}» · ${period === 'y' ? 'год' : 'месяц'} · <b>${nf(amount)} ${esc(cur)}</b>`,
+    P ? `${nf(P.full)} ${esc(P.ccur)} − зачёт ${nf(P.credit)} ${esc(P.ccur)} за ${P.days} дн. · с сегодня` : '',
     `${METHODS[method]} · ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`,
-    `Сейчас: ${STATUS[A.kind] || A.kind}${A.end ? ' до ' + d(A.end) : ''}`].join('\n');
+    `Сейчас: ${STATUS[A.kind] || A.kind}${A.end ? ' до ' + d(A.end) : ''}`].filter(Boolean).join('\n');
   const fd = new FormData();
   fd.append('chat_id', String(ADMIN_TG_ID)); fd.append('caption', caption); fd.append('parse_mode', 'HTML');
   fd.append('reply_markup', JSON.stringify({ inline_keyboard: [[{ text: '✅ Подтвердить', callback_data: `po:${u.id}` }, { text: '❌ Отклонить', callback_data: `pn:${u.id}` }]] }));
@@ -217,14 +225,18 @@ async function payIn(req, res) {
 async function payOk(u) {
   const prev = u.subscription || {}, p = prev.pending;
   if (!p) return send(`${esc(u.email)}: оплата уже обработана.`);
-  const now = new Date(), cur = paidStart(u);
+  // (10.11.2026) переход на тариф выше — новый срок с сегодня (неиспользованные дни уже засчитаны в сумму)
+  const now = new Date(), cur = p.up ? now : paidStart(u);
   const end = new Date(cur); end.setMonth(end.getMonth() + (p.months || 1));
-  const history = (Array.isArray(prev.history) ? prev.history : []).concat([{ at: now, plan: p.plan, period: p.period, months: p.months, amount: p.amount, cur: p.cur, method: p.method, end }]).slice(-40);
+  const h = { at: now, plan: p.plan, period: p.period, months: p.months, amount: p.amount, cur: p.cur, method: p.method, end };
+  if (p.byn) h.byn = p.byn;
+  if (p.up) Object.assign(h, { upgrade: true, from: p.up.from, credit: p.up.credit, ccur: p.up.ccur });
+  const history = (Array.isArray(prev.history) ? prev.history : []).concat([h]).slice(-40);
   const next = Object.assign({}, prev, { endDate: end, months: p.months, activatedAt: now, by: 'pay', plan: p.plan, history });
   delete next.pending; delete next.rejected;
   await patchUser(u.id, { subscription: next });
   const logId = await log('pay', u, prev, next);
-  return send(`✅ ${esc(u.email)}: «${PLANS[p.plan] || p.plan}» до <b>${d(end)}</b> · ${nf(p.amount)} ${esc(p.cur)}. Клиент увидит это в приложении.`, [[{ text: 'Отменить', callback_data: `z:${logId}` }]]);
+  return send(`✅ ${esc(u.email)}: ${p.up ? 'переход на ' : ''}«${PLANS[p.plan] || p.plan}» ${p.up ? 'с сегодня ' : ''}до <b>${d(end)}</b> · ${nf(p.amount)} ${esc(p.cur)}. Клиент увидит это в приложении.`, [[{ text: 'Отменить', callback_data: `z:${logId}` }]]);
 }
 async function payNo(u) {
   const prev = u.subscription || {}, p = prev.pending;
