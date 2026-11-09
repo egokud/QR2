@@ -41,10 +41,11 @@ function pkCredit(p, now) {
     const end = h && pkToDate(h.end); if (!end || end <= now) continue;
     const st = new Date(end); st.setMonth(st.getMonth() - (h.months || (h.period === 'y' ? 12 : 1)));
     const tot = end - st, left = end - Math.max(now, st); if (tot <= 0 || left <= 0) continue;
-    days += left / 864e5;
-    if (h.gift || h.method === 'gift') continue;
+    if (h.gift || h.method === 'gift') continue;   // подаренные дни не засчитываются и в «N дней» не входят
     let v = Number(h.byn) || 0;
     if (!v) { const a = Number(h.amount) || 0, c = PK_SYM2CODE[h.cur] || h.cur || 'BYN'; v = !a ? 0 : c === 'BYN' ? a : a * pkRateOf(c) / mk; }
+    if (!v) continue;
+    days += left / 864e5;
     byn += v * left / tot;
   }
   return { byn: Math.floor(byn + 1e-6), days: Math.ceil(days - 1e-6) };   // дни — как «осталось N дней» в шапке
