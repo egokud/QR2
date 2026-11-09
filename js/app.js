@@ -266,6 +266,7 @@ function toggleCostShip(name) {
 // ============ РЕДАКТОР ЦЕН ============
 function openPriceEditor() {
   if (!TABLE.length) { alert('Нет товаров в закупке'); return; }
+  peSel.clear();   // 09.11.2026: выбор галочками — заново при каждом открытии
   document.getElementById('peSearch').value = '';
   peExactWh = null;
   document.getElementById('peHints').innerHTML = '';
@@ -354,7 +355,8 @@ function renderPriceEditor() {
       }
     }
     return header + `
-    <div class="pe-item ${r.qty>1?'multi':''} ${r.mv>=2?'mv2':''}">
+    <div class="pe-item ${r.qty>1?'multi':''} ${r.mv>=2?'mv2':''} ${peSel.has(r.idx)?'sel':''}">
+      <label class="pe-chk" onclick="event.stopPropagation()"><input type="checkbox" ${peSel.has(r.idx)?'checked':''} onchange="peToggleSel(${r.idx},this.checked,this)" aria-label="Выбрать позицию"></label>
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
         <input class="pe-name" data-idx="${r.idx}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="+ название" maxlength="40" onchange="onEditName(this)" onclick="event.stopPropagation()" autocomplete="off">
@@ -367,6 +369,7 @@ function renderPriceEditor() {
     </div>`;
   }).join('');
 
+  peSelBar();
   // картинки
   list.querySelectorAll('.pe-img-wrap').forEach(wrap => {
     const url = wrap.dataset.img;
@@ -2083,6 +2086,76 @@ async function pkMoveUnscanned(target) {   // target: { newName } или { id }
   await loadShipmentData(fromId);
   try { await loadShipments(); } catch (e) {}
   return { moved: move.length, again: move.filter(m => m.mv >= 2).length, toId, toName };
+}
+
+// ============ УДАЛЕНИЕ ПОЗИЦИЙ ИЗ ЗАКУПКИ (09.11.2026) ============
+// Маршрутизация: ОДНА функция для Кабинета (закупка → «Товары и цены», галочки слева от фото — js/cabinet.js)
+// и телефона (закупка → «Позиции закупки», галочки слева от фото — renderPriceEditor ниже).
+// Удалённые строки не пропадают бесследно: складываются в поле закупки removed [{row, at}] (последние 300) —
+// пригодится для «Корзины», пока вернуть можно только вручную. Отметки сканирования остальных товаров
+// переносятся на новые номера строк (отметки хранятся по номеру строки).
+const pkRowTrack = r => String((Array.isArray(r) ? r[0] : r && r.t) || '');
+async function pkDeleteRows(shipId, idxs, tracks) {
+  if (!shipId || !idxs || !idxs.length) return 0;
+  if (typeof pkNet !== 'undefined' && pkNet.down) throw new Error('нет интернета — удалять позиции можно только онлайн');
+  const del = new Set(idxs.map(Number));
+  const ref = shipmentsRef().doc(shipId);
+  const scDoc = await scannedRef(shipId).get();
+  const sc = scDoc.exists ? (scDoc.data().items || {}) : {};
+  let newScanned = {}, gone = 0;
+  await db.runTransaction(async t => {
+    const doc = await t.get(ref); if (!doc.exists) throw new Error('закупка не найдена');
+    const data = doc.data().data || [];
+    // защита: на экране могли быть старые данные (закупку поменяли с другого устройства) — тогда ничего не удаляем
+    idxs.forEach((i, k) => { if (!data[i] || (tracks && tracks[k] != null && pkRowTrack(data[i]) !== String(tracks[k]))) throw new Error('закупка изменилась на другом устройстве — откройте её заново и повторите'); });
+    const keep = [], removed = (doc.data().removed || []).slice();
+    newScanned = {}; gone = 0;
+    data.forEach((r, i) => {
+      if (del.has(i)) { removed.push({ row: r, at: Date.now() }); gone++; }
+      else { if (sc[i]) newScanned[keep.length] = sc[i]; keep.push(r); }
+    });
+    t.update(ref, { data: keep, removed: removed.slice(-300) });
+  });
+  await scannedRef(shipId).set({ items: newScanned });
+  try { await loadShipments(); } catch (e) {}   // список закупок (число позиций) — до загрузки данных: он перечитывает активную закупку
+  try { await updateShipmentStats(); } catch (e) {}
+  await loadShipmentData(shipId, shipId !== activeShipmentId);   // в конце — на экране снова та закупка, где удаляли
+  return gone;
+}
+const pkPosWord = n => n % 10 === 1 && n % 100 !== 11 ? 'позицию' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? 'позиции' : 'позиций';
+function pkDelConfirmText(n, tracks) {
+  const list = tracks.slice(0, 8).join('\n') + (tracks.length > 8 ? '\n… и ещё ' + (tracks.length - 8) : '');
+  return 'Удалить ' + n + ' ' + pkPosWord(n) + ' из закупки?\n\n' + list + '\n\nТовары исчезнут из закупки, расчёта и сканера. Отметки сканирования остальных товаров сохранятся.';
+}
+
+// Телефон: выбор позиций галочками
+const peSel = new Set();
+function peSelBar() {
+  let bar = document.getElementById('peSelBar');
+  if (!bar) {
+    // панель ложится поверх шапки «Позиции закупки» — список не сдвигается, когда ставишь первую галочку
+    const head = document.querySelector('#priceEditScreen .weigh-header'); if (!head) return;
+    bar = document.createElement('div'); bar.id = 'peSelBar'; bar.className = 'pe-selbar'; head.appendChild(bar);
+  }
+  const n = peSel.size;
+  bar.style.display = n ? '' : 'none';
+  if (n) bar.innerHTML = `<button type="button" class="x" onclick="peSelClear()" aria-label="Снять выбор"><i class="ti ti-x"></i></button><b>Выбрано: ${n}</b><button type="button" class="del" onclick="peDeleteSel()"><i class="ti ti-trash"></i> Удалить ${n === 1 ? 'позицию' : 'позиции'}</button>`;
+}
+function peToggleSel(idx, on, el) {
+  if (on) peSel.add(idx); else peSel.delete(idx);
+  const it = el && el.closest('.pe-item'); if (it) it.classList.toggle('sel', on);
+  peSelBar();
+}
+function peSelClear() { peSel.clear(); renderPriceEditor(); }
+async function peDeleteSel() {
+  const idxs = [...peSel].sort((a, b) => a - b), tracks = idxs.map(i => (TABLE[i] || [])[0] || '');
+  if (!idxs.length || !confirm(pkDelConfirmText(idxs.length, tracks))) return;
+  const bar = document.getElementById('peSelBar'); if (bar) bar.innerHTML = '<b style="flex:1;text-align:center">Удаляю…</b>';
+  try {
+    const n = await pkDeleteRows(editingShipmentId || activeShipmentId, idxs, tracks);
+    peSel.clear(); renderPriceEditor();
+    if (typeof showToast === 'function') showToast('Удалено: ' + n);
+  } catch (e) { alert('Не удалось удалить: ' + e.message); peSelBar(); }
 }
 
 // ============ RESET / EXPORT ============
