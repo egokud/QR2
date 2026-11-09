@@ -1207,9 +1207,28 @@ function pkManScanStop() {
 
 // ---------- шторка ----------
 let pkSheetRaf = 0;
+// 09.11.2026: пока открыта шторка, страница позади не прокручивается (на iPhone фон «ездил» под пальцем).
+// Фиксируем body на текущей прокрутке, при закрытии возвращаем на то же место. Только телефон/планшет.
+let pkSheetY = null;
+function pkScrollLock(on) {
+  const b = document.body;
+  if (on) {
+    if (pkSheetY !== null || !(window.matchMedia && matchMedia('(pointer: coarse)').matches)) return;
+    pkSheetY = window.scrollY || 0;
+    Object.assign(b.style, { position: 'fixed', top: -pkSheetY + 'px', left: '0', right: '0', width: '100%' });
+  } else {
+    if (pkSheetY === null) return;
+    const y = pkSheetY; pkSheetY = null;
+    Object.assign(b.style, { position: '', top: '', left: '', right: '', width: '' });
+    window.scrollTo(0, y);
+  }
+}
 function pkSheet(html) {
   const sh = document.getElementById('pkSheet');
   sh.innerHTML = '<div class="grab"></div>' + html;
+  sh.scrollTop = 0;
+  pkSheetSwipe(sh);
+  pkScrollLock(true);
   document.getElementById('pkSheetBg').classList.add('on');
   cancelAnimationFrame(pkSheetRaf); pkSheetRaf = requestAnimationFrame(() => sh.classList.add('on'));
 }
@@ -1217,6 +1236,36 @@ function pkSheetClose() {
   cancelAnimationFrame(pkSheetRaf);
   const sh = document.getElementById('pkSheet'), bg = document.getElementById('pkSheetBg');
   if (sh) sh.classList.remove('on'); if (bg) bg.classList.remove('on');
+  pkScrollLock(false);
+}
+// 09.11.2026: шторку можно смахнуть вниз пальцем (как в iOS). Тянется, только если её содержимое
+// прокручено до верха и жест вертикальный вниз; отпустили ниже 100 px (или резко) — закрываем, иначе возвращаем.
+function pkSheetSwipe(sh) {
+  if (sh._pkSw) return; sh._pkSw = true;
+  let st = null;
+  sh.addEventListener('touchstart', e => {
+    st = (e.touches.length === 1 && sh.classList.contains('on')) ? { y: e.touches[0].clientY, x: e.touches[0].clientX, t: Date.now(), dy: 0, drag: false } : null;
+  }, { passive: true });
+  sh.addEventListener('touchmove', e => {
+    if (!st) return;
+    const dy = e.touches[0].clientY - st.y, dx = e.touches[0].clientX - st.x;
+    if (!st.drag) {
+      if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return;
+      if (dy > 0 && dy > Math.abs(dx) && sh.scrollTop <= 0) { st.drag = true; st.y += dy; st.t = Date.now(); sh.style.transition = 'none'; }
+      else { st = null; return; }
+    }
+    e.preventDefault();
+    st.dy = Math.max(0, e.touches[0].clientY - st.y);
+    sh.style.transform = 'translateY(' + st.dy + 'px)';
+  }, { passive: false });
+  const end = () => {
+    if (!st || !st.drag) { st = null; return; }
+    const v = st.dy / Math.max(1, Date.now() - st.t);
+    sh.style.transition = ''; sh.style.transform = '';
+    if (st.dy > 100 || (st.dy > 40 && v > 0.5)) pkSheetClose();
+    st = null;
+  };
+  sh.addEventListener('touchend', end); sh.addEventListener('touchcancel', end);
 }
 
 // ---------- подключение к app.js ----------
