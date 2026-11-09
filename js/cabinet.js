@@ -1003,8 +1003,49 @@ const cabMkOf = r => (r && r[9]) || '';
 function cabSetItemSort(m) { cabItemSort = m; if (m !== 'mk') cabItemMk = 'all'; cabRenderShip(); }
 function cabSetItemMk(k) { cabItemMk = cabItemMk === k ? 'all' : k; cabRenderShip(); }
 
+// Выбор позиций галочками и удаление (09.11.2026). Маршрутизация: само удаление — pkDeleteRows() в js/app.js,
+// общая с телефоном («Позиции закупки»). Панель «Выбрано: N · Удалить» появляется над таблицей, пока что-то выбрано.
+const cabPos = new Set(); let cabPosShip = null;
+function cabPosBar() {
+  const bar = document.getElementById('cabPosBar'); if (!bar) return;
+  const n = cabPos.size;
+  bar.style.display = n ? '' : 'none';
+  // панель висит вверху экрана над таблицей (position:fixed) — видна при любой прокрутке, таблица не сдвигается
+  const m = document.getElementById('cabMain'), r = m ? m.getBoundingClientRect() : null;
+  if (n && r) { bar.style.left = (r.left + 20) + 'px'; bar.style.width = Math.max(320, r.width - 40) + 'px'; }
+  if (n) bar.innerHTML = `<b>Выбрано: ${n}</b><button type="button" class="cab-posbar-x" onclick="cabPosAll(false)">Снять выбор</button><button type="button" class="cab-posbar-del" onclick="cabPosDelete()"><i class="ti ti-trash"></i>Удалить ${n === 1 ? 'позицию' : 'позиции'}</button>`;
+  const all = document.getElementById('cabPosChkAll');
+  if (all) { const vis = [...document.querySelectorAll('.cab-item-row')].filter(tr => tr.style.display !== 'none'); all.checked = vis.length > 0 && vis.every(tr => cabPos.has(+tr.dataset.idx)); }
+}
+function cabPosToggle(i, on, el) {
+  if (on) cabPos.add(i); else cabPos.delete(i);
+  const tr = el && el.closest('tr'); if (tr) tr.classList.toggle('sel', on);
+  cabPosBar();
+}
+function cabPosAll(on) {
+  document.querySelectorAll('.cab-item-row').forEach(tr => {
+    if (on && tr.style.display === 'none') return;   // «выбрать все» — только видимые (с учётом поиска и площадки)
+    const i = +tr.dataset.idx; if (on) cabPos.add(i); else cabPos.delete(i);
+    tr.classList.toggle('sel', on); const c = tr.querySelector('.cab-chk'); if (c) c.checked = on;
+  });
+  if (!on) cabPos.clear();
+  cabPosBar();
+}
+async function cabPosDelete() {
+  const idxs = [...cabPos].sort((a, b) => a - b), tracks = idxs.map(i => (TABLE[i] || [])[0] || '');
+  if (!idxs.length || !confirm(pkDelConfirmText(idxs.length, tracks))) return;
+  const bar = document.getElementById('cabPosBar'); if (bar) bar.innerHTML = '<b>Удаляю…</b>';
+  try {
+    const n = await pkDeleteRows(cabShipId, idxs, tracks);
+    cabPos.clear(); cabRenderShip();
+    if (typeof showToast === 'function') showToast('Удалено: ' + n);
+  } catch (e) { alert('Не удалось удалить: ' + e.message); cabPosBar(); }
+}
+
 const CAB_NOPDD_TIP = 'Трек есть только в файле карго — в ваших заказах Pinduoduo за даты импорта его не нашли. Причины: заказ раньше даты «С», продавец отправил поздно или заказано с другого аккаунта. Фото нет, цену впишите вручную.';
 function cabShipItemsHtml() {
+  if (cabPosShip !== cabShipId) { cabPos.clear(); cabPosShip = cabShipId; }   // другая закупка — выбор сначала
+  for (const i of [...cabPos]) if (!TABLE[i]) cabPos.delete(i);
   let order = TABLE.map((r, i) => i);
   if (cabItemSort === 'wh') {
     const key = i => (TABLE[i][1] || '').trim().toLowerCase();
@@ -1030,14 +1071,14 @@ function cabShipItemsHtml() {
     if (cabItemSort === 'mk' && cabMkOf(r) !== lastMk) {
       lastMk = cabMkOf(r);
       const m = CAB_MK.find(x => x[0] === lastMk) || [lastMk, lastMk, ''];
-      var mkHead = `<tr class="cab-item-grp"><td colspan="6" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <span style="font-weight:400;color:#6b7280">· ${mkCount[lastMk] || 0}</span></td></tr>`;
+      var mkHead = `<tr class="cab-item-grp"><td colspan="7" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <span style="font-weight:400;color:#6b7280">· ${mkCount[lastMk] || 0}</span></td></tr>`;
     } else var mkHead = '';
     let head = '';
     if (cabItemSort === 'wh') {
       const k = (r[1] || '').trim().toLowerCase();
       if (k !== lastWh) {
         lastWh = k;
-        head = `<tr class="cab-item-grp"><td colspan="6" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без клиента'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
+        head = `<tr class="cab-item-grp"><td colspan="7" style="background:#f0ecf9;color:#6C4DB8;font-weight:600;padding:8px 10px">${(r[1] || '').trim() || 'Без клиента'} <span style="font-weight:400;color:#6b7280">· ${whCount[k]}</span></td></tr>`;
       }
     }
     const qty = parseInt(r[5]) || 1;
@@ -1046,7 +1087,9 @@ function cabShipItemsHtml() {
     const mvNote = !mv ? '' : mv >= 2
       ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:600;color:#b42318;margin-top:3px;white-space:normal"><i class="ti ti-alert-triangle"></i> Не пришёл ${mv} раза — обратитесь в карго, возможно, посылка потерялась</div>`
       : `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;color:#6b7280;margin-top:3px;white-space:normal"><i class="ti ti-arrow-forward-up"></i> Перенесён из «${cabEsc(r[8] || 'прошлой закупки')}» — в том грузе не пришёл</div>`;
-    return mkHead + head + `<tr class="cab-item-row" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
+    const sel = cabPos.has(i);
+    return mkHead + head + `<tr class="cab-item-row ${sel ? 'sel' : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
+      <td class="cab-chk-td"><input type="checkbox" class="cab-chk" ${sel ? 'checked' : ''} onchange="cabPosToggle(${i},this.checked,this)" aria-label="Выбрать позицию"></td>
       <td style="width:52px">${img}</td>
       <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] || r[9] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note" title="Из одного магазина, товары могут быть разными"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком</div>` : ''}</td>
       <td class="cab-mk-cell">${typeof pkMkBadge === 'function' ? pkMkBadge(r) : ''}</td>
@@ -1073,10 +1116,11 @@ function cabShipItemsHtml() {
         <button class="cab-mk-chip ${cabItemMk === 'all' ? 'on' : ''}" onclick="cabSetItemMk('all')">Все <small>${TABLE.length}</small></button>
         ${CAB_MK.filter(m => m[0] !== 'pz' || mkCount.pz).filter(m => m[0] || mkCount['']).map(m => `<button class="cab-mk-chip ${cabItemMk === m[0] ? 'on' : ''}" ${mkCount[m[0]] ? '' : 'disabled'} onclick="cabSetItemMk('${m[0]}')">${m[2] ? `<span class="pk-mk ${m[2]}" style="margin-left:0">${m[1]}</span>` : m[1]} <small>${mkCount[m[0]] || 0}</small></button>`).join('')}
       </div>` : ''}
+    <div id="cabPosBar" class="cab-posbar" style="display:none"></div>
     <table class="cab-table cab-items-t">
-      <colgroup><col style="width:56px"><col style="width:28%"><col style="width:84px"><col><col style="width:24%"><col style="width:96px"></colgroup>
-      <thead><tr><th></th><th>Трек</th><th title="Где куплено: Pinduoduo, Taobao, 1688">Площадка</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px">Нет товаров · <a href="#" onclick="cabAddItemsOpen();return false">добавить позицию</a></td></tr>'}</tbody>
+      <colgroup><col style="width:34px"><col style="width:56px"><col style="width:28%"><col style="width:84px"><col><col style="width:24%"><col style="width:96px"></colgroup>
+      <thead><tr><th class="cab-chk-td"><input type="checkbox" class="cab-chk" id="cabPosChkAll" onchange="cabPosAll(this.checked)" title="Выбрать все видимые" aria-label="Выбрать все"></th><th></th><th>Трек</th><th title="Где куплено: Pinduoduo, Taobao, 1688">Площадка</th><th>Название</th><th>Клиент</th><th>Выкуп ¥</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:20px">Нет товаров · <a href="#" onclick="cabAddItemsOpen();return false">добавить позицию</a></td></tr>'}</tbody>
     </table>
   </div>`;
 }
@@ -1107,6 +1151,7 @@ function cabFilterItems(q) {
     tr.style.display = (!s || tr.dataset.q.includes(s)) ? '' : 'none';
   });
   document.querySelectorAll('.cab-item-grp').forEach(tr => { tr.style.display = s ? 'none' : ''; });
+  cabPosBar();
 }
 
 async function cabEditCell(inp, col) {
