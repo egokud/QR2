@@ -4,6 +4,9 @@
 //    сохраняются на телефон; нет связи или сеть «висит» — отдаём сохранённые. Так Piksta открывается и без интернета.
 // 3. Всё остальное (база Firestore, вход, /api) — только сеть, не трогаем.
 // Маршрутизация: «Подготовить к складу» (js/pkoff.js) заранее кладёт файлы приложения в тот же кэш piksta-app-v2.
+// 09.11.2026: если сеть «висела» и страница получила сохранённую копию, а с сервера потом пришла ДРУГАЯ версия файла —
+// сообщаем странице (pk-upd), она сама перезагружается на свежую (pkUpdGot в js/pkoff.js). Раньше новая версия появлялась
+// только при следующем открытии, и человек видел старый сайт («кнопку не нашёл»).
 const APP_CACHE = 'piksta-app-v2';
 const IMAGE_CACHE = 'piksta-images-v1';
 const CDN = /^(www\.gstatic\.com|cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)$/;
@@ -38,7 +41,14 @@ function isAppFile(u) {
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // Сеть с запасом: успели — сохранили и отдали; сеть упала или «висит» дольше ms — отдаём сохранённое (если есть)
-async function netFirst(req, key, ms, cors) {
+async function pkNotify(clientId) {
+  try {
+    let L = clientId ? [await self.clients.get(clientId)].filter(Boolean) : [];
+    if (!L.length) L = await self.clients.matchAll({ type: 'window' });   // вкладку не нашли по номеру — скажем всем открытым
+    for (const c of L) if (c) c.postMessage({ type: 'pk-upd' });
+  } catch (e) {}
+}
+async function netFirst(req, key, ms, cors, clientId) {
   const cache = await caches.open(APP_CACHE);
   const net = fetch(cors ? new Request(req.url, { mode: 'cors', credentials: 'omit' }) : req).then(r => {
     if (r && (r.ok || r.type === 'opaque')) cache.put(key, r.clone()).catch(() => {});
@@ -49,7 +59,12 @@ async function netFirst(req, key, ms, cors) {
     return await Promise.race([net, wait(ms).then(() => { throw new Error('slow'); })]);
   } catch (e) {
     const c = await fromCache();
-    if (c) return c;
+    if (c) {
+      // отдали сохранённую копию; пришла с сервера другая — пусть страница обновится
+      const old = c.headers.get('etag') || c.headers.get('last-modified') || '';
+      net.then(r => { const nw = r && r.ok ? (r.headers.get('etag') || r.headers.get('last-modified') || '') : ''; if (nw && old && nw !== old) pkNotify(clientId); }).catch(() => {});
+      return c;
+    }
     if (cors) { try { return await fetch(req); } catch (e2) {} }   // CDN без CORS — обычный запрос
     return net;
   }
@@ -71,7 +86,7 @@ self.addEventListener('fetch', e => {
     const appPage = u.pathname === '/app' || u.pathname === '/app.html';
     const key = appPage ? self.location.origin + '/app' : self.location.origin + u.pathname;
     e.respondWith((async () => {
-      try { return await netFirst(req, key, 5000); }
+      try { return await netFirst(req, key, 5000, false, e.resultingClientId || e.clientId); }
       catch (err) {
         const c = await caches.open(APP_CACHE);
         return (await c.match(self.location.origin + '/app')) || Response.error();   // без связи любая страница → приложение
@@ -82,6 +97,6 @@ self.addEventListener('fetch', e => {
 
   if (isAppFile(u)) {
     const cors = u.origin !== self.location.origin && req.mode === 'no-cors';
-    e.respondWith(netFirst(req, req.url, 6000, cors).catch(() => caches.match(req.url, { ignoreSearch: true }).then(r => r || Response.error())));
+    e.respondWith(netFirst(req, req.url, 6000, cors, e.clientId).catch(() => caches.match(req.url, { ignoreSearch: true }).then(r => r || Response.error())));
   }
 });
