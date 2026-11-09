@@ -2851,7 +2851,7 @@ const CAB_TF_FEATS = [
   ['Telegram-бот и общение с клиентами', ['pro']]
 ];
 const cabInCabinet = () => { const c = document.getElementById('cabinetScreen'); return !!(c && c.classList.contains('show')); };
-function cabTfPick(k) { pkTfSel = k; document.querySelectorAll('.ctf-card').forEach(el => el.classList.toggle('sel', el.dataset.k === k)); }
+function cabTfPick(k) { if (typeof pkTfMode === 'function' && pkTfMode(k) === 'down') return; pkTfSel = k; document.querySelectorAll('.ctf-card').forEach(el => el.classList.toggle('sel', el.dataset.k === k)); }
 function cabTfPer(p) { pkTPer = p; renderCabTariffs(document.getElementById('cabMain')); }
 function cabTfPay(k) {
   document.body.classList.add('pk-cabpay');
@@ -2871,26 +2871,27 @@ function renderCabTariffs(container) {
   if (!cabTfLoaded) { cabTfLoaded = true; Promise.all([pkLoadGeo(), pkLoadRates()]).then(() => { if (cabCurrentSection === 'tariffs' && !cabShipId) renderCabTariffs(document.getElementById('cabMain')); }); }
   const { A, sub, plan } = pkPlanNow();
   const T = pkTracks(), vol = Math.max(T.cur, T.prev), cur = pkGeoCur(), P = pkTP(cur), y = pkTPer === 'y';
-  const rec = plan && PK_PLANS[plan].lim >= vol ? plan : pkFitPlan(vol), sel = pkTfSel || rec;
+  const rec = plan && PK_PLANS[plan].lim >= vol ? plan : pkFitPlan(vol);
+  let sel = pkTfSel || rec; if (pkTfMode(sel) === 'down') sel = plan || rec;
   const d = x => x ? x.toLocaleDateString('ru-RU') : '';
   // шапка: что сейчас
   let ic = 'ti-hourglass', tone = 'acc', title = '', text = '', bar = '';
   if (A.kind === 'admin') { ic = 'ti-shield-check'; title = 'Администратор'; text = 'Тарифы не действуют. Проверять оплату — с тестового аккаунта.'; }
   else if (A.kind === 'trial') {
     const tot = (userProfile && userProfile.founder) ? 90 : 30, pct = Math.max(4, Math.min(100, A.left / tot * 100));
-    title = `Пробный период · осталось ${A.left} ${cabDaysWord(A.left)}`; text = `До ${d(A.end)}. Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}`;
+    title = `${pkPilot() ? 'Пилот · ' : ''}Пробный период · осталось ${A.left} ${cabDaysWord(A.left)}`; text = `До ${d(A.end)}. Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}`;
     bar = `<div class="ctf-bar"><span style="width:${pct}%"></span></div>`;
   } else if (A.kind === 'sub') {
     const U = pkUsage(), lim = U.lim, pct = lim === Infinity ? 0 : Math.min(100, U.n / lim * 100);
-    ic = 'ti-circle-check'; tone = 'ok'; title = `${PK_PLANS[plan].n} · до ${d(A.end)}`;
-    text = `Треков с ${d(U.P.start)} по ${d(U.P.last)}: ${pkN(U.n)}${lim === Infinity ? ' · без лимита' : ' из ' + pkN(lim)} · осталось ${A.left} ${cabDaysWord(A.left)}`;
+    ic = 'ti-circle-check'; tone = 'ok'; title = `${PK_PLANS[plan].n} · ${pkSubPer(sub) === 'y' ? 'на год' : 'помесячно'}${pkPilot() ? ' · пилот' : ''}`;
+    text = `Оплачен до ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}. Треков с ${d(U.P.start)} по ${d(U.P.last)}: ${pkN(U.n)}${lim === Infinity ? ' · без лимита' : ' из ' + pkN(lim)}`;
     if (lim !== Infinity) bar = `<div class="ctf-bar ${U.state === 'ok' ? '' : U.state === 'warn' ? 'warn' : 'bad'}"><span style="width:${Math.max(3, pct)}%"></span></div>`;
   } else if (A.kind === 'grace') { ic = 'ti-alert-triangle'; tone = 'bad'; title = `${A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился'} ${d(A.end)}`; text = `Ещё ${A.left} ${cabDaysWord(A.left)} всё работает, потом — только просмотр. Данные никуда не денутся.`; }
   else if (A.kind === 'readonly') { ic = 'ti-lock'; tone = 'mut'; title = 'Только просмотр'; text = 'Оплатите тариф — и всё снова заработает. Данные сохранены.'; }
   else { ic = 'ti-lock'; tone = 'mut'; title = 'Доступ ограничен'; text = 'Напишите в поддержку.'; }
   let note = '';
   const pend = sub.pending, rej = sub.rejected;
-  if (pend) note = `<div class="ctf-note wait"><i class="ti ti-clock"></i><div><b>Оплата на проверке: «${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}» · ${pend.period === 'y' ? 'год' : 'месяц'} · ${pkN(pend.amount)} ${pkEsc(pend.cur)}</b><span>Отправлено ${d(pkToDate(pend.at))}. Пока проверяем — всё работает как раньше.</span></div></div>`;
+  if (pend) note = `<div class="ctf-note wait"><i class="ti ti-clock"></i><div><b>Оплата на проверке: ${pend.up ? 'переход на ' : ''}«${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}» · ${pend.period === 'y' ? 'год' : 'месяц'} · ${pkN(pend.amount)} ${pkEsc(pend.cur)}</b><span>Отправлено ${d(pkToDate(pend.at))}. Пока проверяем — всё работает как раньше.</span></div></div>`;
   else if (rej && (!sub.history || !sub.history.length || pkToDate(rej.rejectedAt) > pkToDate(sub.history[sub.history.length - 1].at)))
     note = `<div class="ctf-note bad"><i class="ti ti-alert-circle"></i><div><b>Оплата от ${d(pkToDate(rej.at))} не подтверждена</b><span>Напишите в поддержку — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener">@piksta_support_bot</a>, разберёмся.</span></div></div>`;
   // карточки тарифов
@@ -2901,24 +2902,30 @@ function renderCabTariffs(container) {
     const line = y ? `<div class="ctf-y ok">при оплате за год — ${pkN(yr)}&nbsp;${P.s}<br>выгода ${pkN(save)}&nbsp;${P.s}</div>` : `<div class="ctf-y">или ${pkN(yr)} ${P.s} за год — выгода ${pkN(save)} ${P.s}</div>`;
     const feats = CAB_TF_FEATS.map(([f, on]) => on.includes(k) ? `<li><i class="ti ti-check"></i>${f}</li>` : `<li class="off"><i class="ti ti-minus"></i>${f}</li>`).join('');
     const lim = PK_PLANS[k].lim === Infinity ? 'Без лимита по трекам' : `До ${pkN(PK_PLANS[k].lim)} треков в месяц`;
-    return `<div class="ctf-card ${k === sel ? 'sel' : ''}" data-k="${k}" onclick="cabTfPick('${k}')">
+    const mode = pkTfMode(k), go = pkTfBtn(k, mode, cur);
+    // (10.11.2026) ниже оплаченного — серая карточка без кнопки; выше — «Перейти · сумма» с зачётом
+    const btn = mode === 'down' ? '<div class="ctf-dn">Ниже вашего тарифа — сменить можно после окончания срока, через поддержку</div>'
+      : `<button type="button" class="ctf-btn" onclick="event.stopPropagation();cabTfPay('${k}')">${go.t}</button>${go.n ? `<div class="ctf-upn">${go.n}</div>` : ''}`;
+    return `<div class="ctf-card ${k === sel ? 'sel' : ''}${mode === 'down' ? ' dim' : ''}" data-k="${k}" onclick="cabTfPick('${k}')">
       ${isCur ? '<span class="ctf-tag cur">Ваш тариф</span>' : isRec ? '<span class="ctf-tag">Подходит вам</span>' : ''}
       <div class="ctf-name">${PK_PLANS[k].n}</div>
       <div class="ctf-lim">${lim}</div>
       ${big}${line}
       <ul class="ctf-feats">${feats}</ul>
-      <button type="button" class="ctf-btn" onclick="event.stopPropagation();cabTfPay('${k}')">${isCur ? 'Продлить' : 'Оплатить'} «${PK_PLANS[k].n}»</button>
+      ${btn}
     </div>`;
   }).join('');
   const hist = (sub.history || []).slice().reverse().slice(0, 12);
-  const histHtml = hist.length ? `<div class="cab-table-wrap ctf-hist"><div class="cab-table-title">История оплат</div><table class="cab-table"><thead><tr><th>Дата</th><th>Тариф</th><th>Срок</th><th style="text-align:right">Сумма</th></tr></thead><tbody>${hist.map(h => `<tr><td>${d(pkToDate(h.at))}</td><td>${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}</td><td>${h.period === 'y' ? 'год' : 'месяц'}${h.end ? ' · до ' + d(pkToDate(h.end)) : ''}</td><td style="text-align:right;font-weight:600">${pkHistAmt(h)}</td></tr>`).join('')}</tbody></table></div>` : '';
+  const histHtml = hist.length ? `<div class="cab-table-wrap ctf-hist"><div class="cab-table-title">История оплат</div><table class="cab-table"><thead><tr><th>Дата</th><th>Тариф</th><th>Срок</th><th style="text-align:right">Сумма</th></tr></thead><tbody>${hist.map(h => `<tr><td>${d(pkToDate(h.at))}</td><td>${h.upgrade ? 'переход на ' : ''}${PK_PLANS[h.plan] ? PK_PLANS[h.plan].n : ''}</td><td>${h.period === 'y' ? 'год' : 'месяц'}${h.end ? ' · до ' + d(pkToDate(h.end)) : ''}</td><td style="text-align:right;font-weight:600">${pkHistAmt(h)}</td></tr>`).join('')}</tbody></table></div>` : '';
   container.innerHTML = `<div class="ctf">
     <div class="cab-main-title">Тариф и оплата</div>
     <div class="ctf-now ${tone}"><i class="ti ${ic}"></i><div class="ctf-now-b"><b>${title}</b><span>${text}</span>${bar}</div>
       <div class="ctf-vol"><div><span>Треков в этом месяце</span><b>${pkN(T.cur)}</b></div><div><span>в прошлом</span><b>${pkN(T.prev)}</b></div></div></div>
     ${note}
+    ${A.kind === 'sub' ? pkRulesHtml('ctf-rules') : ''}
     <div class="ctf-seg-row"><div class="ctf-seg"><button type="button" class="${!y ? 'on' : ''}" onclick="cabTfPer('m')">Помесячно</button><button type="button" class="${y ? 'on' : ''}" onclick="cabTfPer('y')">За год · выгоднее</button></div>
       <span class="ctf-cur">Цены в валюте вашей страны · <button type="button" onclick="cabTfCur()">${PK_SYM[cur]} <i class="ti ti-chevron-down"></i></button></span></div>
+    ${pkPilot() ? '<div class="ctf-pilot"><i class="ti ti-discount-2"></i> Для вас цены пилота — на 30% ниже</div>' : ''}
     <div class="ctf-cards">${cards}</div>
     ${histHtml}
     <p class="ctf-foot">Оплата — ЕРИП, карта, Alipay или USDT, способы зависят от страны. После оплаты прикрепите скрин — проверим и включим тариф, обычно в течение пары часов. Вопросы — <a href="https://t.me/piksta_support_bot" target="_blank" rel="noopener">@piksta_support_bot</a></p>
@@ -3342,13 +3349,17 @@ const CAB_PAY_M = { bnb: 'ЕРИП', tbank: 'Т-Банк', alipay: 'Alipay', trc
 let cabSubS = null;
 function cabSubAmt(S) {
   if (typeof PK_BYN === 'undefined') return '';
-  const base = PK_BYN[S.plan][S.m === 12 ? 1 : 0] * (S.cur === 'BYN' ? 1 : PK_MARKUP);
+  const u = cabAdminUsers.find(x => x.id === S.uid) || {};
+  // (10.11.2026) пилот — −30% (pkBynPrice); переход выше из приложения — сумма из заявки, не пересчитываем
+  const base = (typeof pkBynPrice === 'function' ? pkBynPrice(S.plan, S.m === 12 ? 'y' : 'm', u) : PK_BYN[S.plan][S.m === 12 ? 1 : 0]) * (S.cur === 'BYN' ? 1 : PK_MARKUP);
   if (S.cur === 'BYN') return base;
   const r = PK_RATES[S.cur === 'USDT' ? 'USD' : S.cur]; if (!r) return '';
   return pkUp(base / r, S.cur === 'RUB' || S.cur === 'KZT' ? 100 : 1);
 }
-function cabSubEnd(u, m) {
+function cabSubEnd(u, m, up) {
   // (05.11.2026) оплаченный срок — после текущей подписки или после пробного периода / пилота (pkPaidStart в init.js)
+  // (10.11.2026) переход на тариф выше (заявка из приложения) — с сегодня
+  if (up) { const e = new Date(); e.setMonth(e.getMonth() + m); return { e, ext: 'переход на тариф выше — с сегодня' }; }
   const from = typeof pkPaidStart === 'function' ? pkPaidStart(u) : new Date();
   const curEnd = u.subscription ? cabToDate(u.subscription.endDate) : null;
   const e = new Date(from); e.setMonth(e.getMonth() + m);
@@ -3360,7 +3371,7 @@ function cabAdminSub(uid) {
   const sub = u.subscription || {}, pend = sub.pending;
   const cur0 = { BY: 'BYN', RU: 'RUB', KZ: 'KZT' }[u.country] || 'BYN';
   cabSubS = { uid, plan: pend ? pend.plan : (PK_PLANS[sub.plan] ? sub.plan : 'main'), m: pend ? (pend.months || 1) : 1, gift: false,
-    cur: pend ? pend.cur : cur0, method: pend ? pend.method : ({ BYN: 'bnb', RUB: 'tbank' }[cur0] || 'other'), amount: pend ? pend.amount : '', note: '', auto: !pend };
+    up: !!(pend && pend.up), cur: pend ? ((typeof PK_SYM2CODE !== 'undefined' && PK_SYM2CODE[pend.cur]) || pend.cur) : cur0, method: pend ? pend.method : ({ BYN: 'bnb', RUB: 'tbank' }[cur0] || 'other'), amount: pend ? pend.amount : '', note: '', auto: !pend };
   if (cabSubS.auto) cabSubS.amount = cabSubAmt(cabSubS);
   const ov = document.createElement('div');
   ov.id = 'cabSubOv';
@@ -3380,11 +3391,11 @@ function cabSubRender() {
   const u = cabAdminUsers.find(x => x.id === S.uid) || {};
   const pend = (u.subscription || {}).pending;
   const seg = (k, opts) => `<div class="cab-sub-seg">${opts.map(([v, t]) => `<button type="button" class="${S[k] === v ? 'on' : ''}" onclick="cabSubSet('${k}',${typeof v === 'string' ? `'${v}'` : v})">${t}</button>`).join('')}</div>`;
-  const { e, ext } = cabSubEnd(u, S.m);
+  const { e, ext } = cabSubEnd(u, S.m, S.up && pend && S.plan === pend.plan);
   const inp = 'padding:9px 11px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;min-width:0';
   ov.innerHTML = `<div class="cab-sub-box" role="dialog" aria-label="Продлить подписку">
     <div style="font-size:18px;font-weight:700">Продлить · ${cabEsc(u.email || '')}</div>
-    ${pend ? `<div style="background:#fef3c7;color:#92400e;border-radius:10px;padding:9px 11px;font-size:13px">На проверке оплата из приложения: «${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}», ${pend.period === 'y' ? 'год' : 'месяц'}, ${cabEsc(pend.amount)} ${cabEsc(pend.cur)}. Поля заполнены по ней — после продления она закроется.</div>` : ''}
+    ${pend ? `<div style="background:#fef3c7;color:#92400e;border-radius:10px;padding:9px 11px;font-size:13px">На проверке оплата из приложения: ${pend.up ? `<b>переход «${PK_PLANS[pend.up.from] ? PK_PLANS[pend.up.from].n : ''}» → ` : '«'}${PK_PLANS[pend.plan] ? PK_PLANS[pend.plan].n : ''}»${pend.up ? '</b>' : ''}, ${pend.period === 'y' ? 'год' : 'месяц'}, ${cabEsc(pend.amount)} ${cabEsc(pend.cur)}${pend.up && pend.up.credit ? ` (зачёт ${cabEsc(pend.up.credit)} ${cabEsc(pend.up.ccur || '')} за ${cabEsc(pend.up.days)} дн.)` : ''}. Поля заполнены по ней — после продления она закроется.</div>` : ''}
     <div class="cab-sub-l">Тариф</div>${seg('plan', [['start', 'Старт'], ['main', 'Основной'], ['pro', 'Профи']])}
     <div class="cab-sub-l">Срок</div>${seg('m', [[1, '1 месяц'], [12, '12 месяцев']])}
     <div class="cab-sub-l">Основание</div>${seg('gift', [[false, 'Оплата'], [true, 'Подарок / промо']])}
@@ -3402,9 +3413,12 @@ function cabSubRender() {
 async function cabSubSave() {
   const S = cabSubS, u = cabAdminUsers.find(x => x.id === S.uid); if (!S || !u) return;
   const amount = S.gift ? 0 : Math.round(parseFloat(String(S.amount).replace(',', '.').replace(/\s/g, '')) * 100) / 100 || 0;
-  const { e } = cabSubEnd(u, S.m), TS = firebase.firestore.Timestamp, FV = firebase.firestore.FieldValue;
+  const pend0 = (u.subscription || {}).pending, up = !!(S.up && pend0 && pend0.up && S.plan === pend0.plan);
+  const { e } = cabSubEnd(u, S.m, up), TS = firebase.firestore.Timestamp, FV = firebase.firestore.FieldValue;
   const h = { at: TS.now(), plan: S.plan, period: S.m === 12 ? 'y' : 'm', months: S.m, amount, cur: S.gift ? '' : S.cur, method: S.gift ? 'gift' : S.method, gift: !!S.gift, end: TS.fromDate(e), by: 'admin' };
   if (S.note.trim()) h.note = S.note.trim().slice(0, 200);
+  if (up) Object.assign(h, { upgrade: true, from: pend0.up.from || '', credit: pend0.up.credit || 0, ccur: pend0.up.ccur || '' });
+  if (pend0 && pend0.byn && pend0.plan === S.plan && (pend0.months || 1) === S.m) h.byn = pend0.byn;
   const upd = { 'subscription.endDate': TS.fromDate(e), 'subscription.months': S.m, 'subscription.plan': S.plan, 'subscription.by': 'admin',
     'subscription.activatedAt': FV.serverTimestamp(), 'subscription.history': FV.arrayUnion(h) };
   if ((u.subscription || {}).pending) upd['subscription.pending'] = FV.delete();
