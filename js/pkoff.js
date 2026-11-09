@@ -10,6 +10,26 @@
 // Маршрутизация: файлы приложения и фото без интернета отдаёт sw.js (кэши piksta-app-v2 и piksta-images-v1).
 // Старая кнопка «Скачать фото» (cacheShipmentImages в app.js) теперь вызывается изнутри pkPrepOffline — отдельного входа больше нет.
 
+// ---------- 0. Новая версия сайта (09.11.2026) ----------
+// sw.js сообщает pk-upd, когда страница открылась из сохранённой копии, а на сервере уже новая версия.
+// Только что открыли и ничего не вводили — перезагружаемся сами (не чаще раза в минуту); иначе — полоска «Обновить».
+const PK_T0 = Date.now();
+function pkUpdGot() {
+  let last = 0; try { last = +sessionStorage.getItem('pk_upd_rl') || 0; } catch (e) {}
+  const busy = document.querySelector('.cab-ovl, #pkMan[style*="block"], .pk-sheet.open') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && document.activeElement.value);
+  if (Date.now() - PK_T0 < 20000 && Date.now() - last > 60000 && !busy && !(typeof pkOut !== 'undefined' && pkOut.length)) {
+    try { sessionStorage.setItem('pk_upd_rl', String(Date.now())); } catch (e) {}
+    setTimeout(() => location.reload(), 300);
+    return;
+  }
+  if (document.getElementById('pkUpdBar')) return;
+  const b = document.createElement('div'); b.id = 'pkUpdBar';
+  b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:3000;background:#17142a;color:#fff;border-radius:12px;padding:10px 10px 10px 16px;display:flex;align-items:center;gap:12px;font:600 14px/1.3 Inter,system-ui,sans-serif;box-shadow:0 10px 28px rgba(23,20,42,.3);max-width:calc(100vw - 24px)';
+  b.innerHTML = '<span>Вышло обновление Piksta</span><button type="button" style="background:#6C4DB8;color:#fff;border:none;border-radius:8px;padding:8px 14px;font:700 13.5px Inter,system-ui,sans-serif;cursor:pointer" onclick="location.reload()">Обновить</button>';
+  document.body.appendChild(b);
+}
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'pk-upd') pkUpdGot(); });
+
 // ---------- IndexedDB: маленькое хранилище ключ → значение ----------
 const pkIdb = (() => {
   let dbp = null;
