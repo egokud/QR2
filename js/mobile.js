@@ -508,16 +508,7 @@ function pkRenderClientCard(pane, name) {
   const stl = (typeof CAB_CLIENT_STATUS !== 'undefined' && CAB_CLIENT_STATUS[c.status]) ? CAB_CLIENT_STATUS[c.status].label : '';
   const debts = c.ships.filter(x => cabIsBilled(x.ship) && x.c.payRest > 0.005);
   const encN = encodeURIComponent(name);
-  // что заказала сейчас: позиции из незакрытых закупок
-  const items = [];
-  for (const x of c.ships) {
-    if (x.ship.status === 'done') continue;
-    for (const row of (x.ship.data || [])) {
-      const r = Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1', row.n || ''];
-      if (splitWarehouses(r[1] || '').some(p => p.toLowerCase() === name.toLowerCase())) items.push({ r, ship: x.ship });
-      if (items.length >= 30) break;
-    }
-  }
+  const shipsHtml = pkCliShipsHtml(c, name);
   const totalBought = c.totalDue;
   pane.innerHTML = `<button class="pk-btn ghost sm" style="align-self:flex-start" onclick="pkClientOpen=null;pkRender()"><i class="ti ti-chevron-left" aria-hidden="true"></i> Клиенты</button>
     <div class="pk-me"><span class="pk-av" style="width:52px;height:52px;border-radius:26px;font-size:20px">${pkEsc(name.trim().charAt(0).toUpperCase())}</span><div><h1 class="pk-h1" style="font-size:22px">${pkEsc(pkFullName(name))}</h1><div class="pk-muted" style="font-size:14px">${pkEsc(stl)} · ${c.ships.length} ${pkPl(c.ships.length, 'закупка', 'закупки', 'закупок')}</div></div></div>
@@ -529,9 +520,50 @@ function pkRenderClientCard(pane, name) {
       <div class="pk-row" style="margin-top:10px;gap:8px"><button class="pk-btn ok" style="flex:1" onclick="pkPayOpen('${x.ship.id}','${encN}')"><i class="ti ti-cash" aria-hidden="true"></i> Оплата</button><button class="pk-btn ghost" style="flex:1" onclick="pkRemind('${encN}',${Math.round(x.c.payRest * 100) / 100},'${encodeURIComponent(x.ship.name)}')"><i class="ti ti-copy" aria-hidden="true"></i> Напомнить</button></div>
       <div class="pk-muted" style="font-size:12px;margin-top:8px">«Напомнить» копирует вежливое сообщение — вставьте в переписку</div></div>`; }).join('')}
     ${!debts.length ? `<div class="pk-card pk-row"><span>Долгов нет</span><b style="color:var(--pk-ok)">оплачено</b></div>` : ''}
-    <div class="pk-lbl">Что заказала сейчас</div>
-    <div class="pk-list">${items.map(({ r, ship }) => `<div class="pk-li"><span class="ph" ${r[2] ? `style="background-image:url('${pkEsc(pkImg(r[2]))}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) + ' · ' : ''}${pkEsc(ship.name)} · ${pkSt(ship.status || 'forming').label}</small></div><span class="r">${(parseInt(r[5] || '1', 10) || 1) > 1 ? '×' + r[5] : ''}</span></div>`).join('') || '<div class="pk-empty">Сейчас ничего не заказано</div>'}</div>
+    <div class="pk-lbl">Закупки · ${c.ships.length}</div>
+    ${shipsHtml}
     <div class="pk-2"><div class="pk-card"><small>Всего купила</small><b>${pkFmt(totalBought)} ${pkCur()}</b></div><div class="pk-card"><small>Позиций</small><b>${c.totalItems}</b></div></div>`;
+}
+// ---------- закупки в карточке клиента (09.11.2026, как в Кабинете) ----------
+// Каждая закупка клиента — строка (статус, позиций, сумма/долг); нажали — раскрылись его позиции и «+ Добавить позицию».
+// Маршруты «Добавить позицию» (одна форма pkAddItems): Кабинет — закупка → «Товары и цены» и клиент → закупка;
+// телефон — шторка закупки и ЭТОТ: Клиенты → клиент → закупка → «+ Добавить позицию» (клиент уже вписан).
+let pkCliOpen = new Set(), pkCliOpenFor = '';
+function pkCliShips(c) {   // незавершённые сверху (новые выше), потом архив
+  const t = s => (s.created && s.created.seconds) || (s.created instanceof Date ? s.created / 1000 : 0);
+  return c.ships.slice().sort((a, b) => (a.ship.status === 'done') - (b.ship.status === 'done') || t(b.ship) - t(a.ship));
+}
+function pkCliShipsHtml(c, name) {
+  const list = pkCliShips(c), low = name.toLowerCase(), enc = encodeURIComponent(name);
+  if (pkCliOpenFor !== name) {   // открыли другого клиента — раскрыта верхняя незавершённая
+    pkCliOpenFor = name; pkCliOpen = new Set();
+    const first = list.find(x => x.ship.status !== 'done'); if (first) pkCliOpen.add(first.ship.id);
+  }
+  if (!list.length) return '<div class="pk-card pk-empty">Закупок пока нет</div>';
+  return `<div class="pk-csl">${list.map(({ ship, c: cc }) => {
+    const open = pkCliOpen.has(ship.id), done = ship.status === 'done', st = pkSt(ship.status || 'forming');
+    const rows = (ship.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img || '', r.p || '', r.pc || '', r.q || '1', r.n || ''])
+      .filter(r => splitWarehouses(r[1] || '').some(p => p.toLowerCase() === low));
+    const billed = cabIsBilled(ship);
+    const sum = cc.isOwner ? '<small>свой склад</small>' : !billed ? '<small>не рассчитана</small>'
+      : `<b>${pkF2(cc.due)} ${pkCur()}</b>${cc.payRest > 0.004 ? `<small class="due">долг ${pkF2(cc.payRest)}</small>` : '<small class="okk">оплачено</small>'}`;
+    const items = !open ? '' : rows.map(r => {
+      const pr = parseFloat(r[4]) || parseFloat(r[3]) || 0, q = parseInt(r[5] || '1', 10) || 1, im = r[2] ? pkImg(r[2]) : '';
+      return `<div class="pk-li"><span class="ph" ${im ? `style="background-image:url('${pkEsc(im)}')" onclick="event.stopPropagation();if(typeof cabZoomImg==='function')cabZoomImg('${pkEsc(im)}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) : '—'}</small></div><span class="r">${pr ? pkF2(pr) + ' ¥' : '—'}${q > 1 ? ' ×' + q : ''}</span></div>`;
+    }).join('');
+    return `<div class="pk-cs${open ? ' open' : ''}">
+      <button type="button" class="pk-cs-hd" onclick="pkCliShipToggle('${ship.id}')" aria-expanded="${open}"><i class="ti ti-chevron-right ch" aria-hidden="true"></i>
+        <span class="t"><b>${pkEsc(ship.name || 'Закупка')}</b><span class="ln"><span class="pk-stp st-${ship.status || 'forming'}">${st.label}</span><small>${rows.length} ${pkPl(rows.length, 'позиция', 'позиции', 'позиций')}</small></span></span>
+        <span class="sum">${sum}</span></button>
+      ${open ? `<div class="pk-cs-body"><div class="pk-cs-meta"><span>Вес клиента: <b>${cc.weight > 0 ? cc.weight.toFixed(2) + ' кг' : 'не взвешен'}</b></span><span>Цена клиента</span></div>
+        <div>${items || '<div class="pk-empty" style="padding:12px 14px">Нет позиций</div>'}</div>
+        ${done ? '<div class="pk-cs-note">Закупка завершена — добавлять нельзя</div>' : `<button type="button" class="pk-cs-add" onclick="pkCliAddItem('${ship.id}','${enc}')"><i class="ti ti-plus" aria-hidden="true"></i> Добавить позицию</button>`}</div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+function pkCliShipToggle(id) { if (pkCliOpen.has(id)) pkCliOpen.delete(id); else pkCliOpen.add(id); pkRender(); }
+function pkCliAddItem(id, enc) {
+  pkAddItems(id, () => { pkCliOpen.add(id); pkRender(); }, decodeURIComponent(enc));
 }
 // Несколько долгов: сверху общий, одна кнопка «Внести оплату» (гасит от старой закупки к новой), ниже — по закупкам (03.11.2026)
 function pkDebtsAllHtml(c, encN) {
