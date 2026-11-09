@@ -3977,15 +3977,23 @@ function pkBalShipsOf(name) {
   const low = String(name || '').trim().toLowerCase(); if (!low) return [];
   return pkBalShips().filter(sh => sh.status !== 'done' && cabGetClientsFromShipment(sh).clients.some(c => c.name.toLowerCase() === low));
 }
+// долг клиента по закупке (сколько ещё не оплачено) — столько и можно списать с баланса
+function pkBalRestOf(sh, name) {
+  if (!sh) return 0;
+  const key = cabClientKey(sh, name), c = cabGetClientsFromShipment(sh).clients.find(x => x.name === key); if (!c || c.isOwner) return 0;
+  const due = pkR2(c.settle ? c.dueBeforeSettle : c.due), pi = cabPayInfo(sh.payments, sh.paid, key, due, c.isOwner);
+  return pkR2(Math.max(0, due - (pi.paid || 0)));
+}
 function pkBalInOpen(enc) {
   if (typeof pkNet !== 'undefined' && pkNet.down) { alert('Нет интернета — аванс можно внести, когда связь появится'); return; }
   pkBalEnsure();
   const name = decodeURIComponent(enc || '');
   pkBalDlg(`<div class="cab-dlg-h">${name ? 'Внести на баланс · ' + cabEsc(name) : 'Внести аванс'}<button class="cab-dlg-x" onclick="pkBalClose()" aria-label="Закрыть"><i class="ti ti-x"></i></button></div>
     ${name ? `<input type="hidden" id="pkBalName" value="${cabEsc(name)}">` : `<label class="pk-ball">Клиент<input id="pkBalName" list="pkBalNames" autocomplete="off" placeholder="Имя, как в закупках" oninput="pkBalInShips()"><datalist id="pkBalNames">${pkBalKnownNames().map(n => `<option value="${cabEsc(n)}">`).join('')}</datalist></label>`}
-    <label class="pk-ball">Сколько дал, ${pkBalCur()}<input id="pkBalAmt" data-f inputmode="decimal" autocomplete="off" placeholder="0.00"></label>
-    <label class="pk-balopt on"><input type="radio" name="pkBalTo" value="" checked onchange="pkBalOpt()"><span><b>На баланс — в будущую закупку</b><small>Лежит у клиента. Спишете в «Расчёте» закупки, когда появятся его товары</small></span></label>
-    <label class="pk-balopt" id="pkBalOptShip"><input type="radio" name="pkBalTo" value="ship" onchange="pkBalOpt()"><span><b>Сразу в закупку</b><small>Если его товары уже есть в закупке</small><select id="pkBalShip" onfocus="document.querySelector('input[name=pkBalTo][value=ship]').checked=true;pkBalOpt()"></select></span></label>
+    <label class="pk-ball">Сколько дал, ${pkBalCur()}<input id="pkBalAmt" data-f inputmode="decimal" autocomplete="off" placeholder="0.00" oninput="pkBalInHint()"></label>
+    <label class="pk-balopt on"><input type="radio" name="pkBalTo" value="" checked onchange="pkBalOpt();pkBalInHint()"><span><b>На баланс — в будущую закупку</b><small>Лежит у клиента. Спишете в «Расчёте» закупки, когда появятся его товары</small></span></label>
+    <label class="pk-balopt" id="pkBalOptShip"><input type="radio" name="pkBalTo" value="ship" onchange="pkBalOpt();pkBalInHint()"><span><b>Сразу в закупку</b><small>Закроется долг по закупке, остаток останется на балансе</small><select id="pkBalShip" onfocus="document.querySelector('input[name=pkBalTo][value=ship]').checked=true;pkBalOpt()" onchange="pkBalInHint()"></select></span></label>
+    <div class="pk-ballines" id="pkBalInHint"></div>
     <div class="cab-dlg-f"><button class="cab-filter-btn" onclick="pkBalClose()">Отмена</button><button class="cab-filter-btn active" id="pkBalGo" onclick="pkBalInSave()">Записать</button></div>`);
   pkBalInShips();
 }
@@ -3993,9 +4001,20 @@ function pkBalOpt() { document.querySelectorAll('#pkBalOvl .pk-balopt').forEach(
 function pkBalInShips() {
   const n = (document.getElementById('pkBalName') || {}).value || '', sel = document.getElementById('pkBalShip'), box = document.getElementById('pkBalOptShip'); if (!sel) return;
   const L = pkBalShipsOf(n);
-  sel.innerHTML = L.length ? L.map(sh => `<option value="${sh.id}">${cabEsc(sh.name || 'Закупка')}</option>`).join('') : '<option value="">нет закупок с его товарами</option>';
+  sel.innerHTML = L.length ? L.map(sh => { const r = pkBalRestOf(sh, n); return `<option value="${sh.id}">${cabEsc(sh.name || 'Закупка')} · ${r > 0.004 ? 'долг ' + cabFmt2(r) : 'оплачено'}</option>`; }).join('') : '<option value="">нет закупок с его товарами</option>';
   sel.disabled = !L.length; box.classList.toggle('dis', !L.length);
   if (!L.length) { const r = box.querySelector('input'); r.disabled = true; if (r.checked) { document.querySelector('#pkBalOvl input[name=pkBalTo][value=""]').checked = true; pkBalOpt(); } } else box.querySelector('input').disabled = false;
+  pkBalInHint();
+}
+// подсказка: сколько уйдёт в закупку и сколько останется на балансе
+function pkBalInHint() {
+  const el = document.getElementById('pkBalInHint'); if (!el) return;
+  const n = (document.getElementById('pkBalName') || {}).value || '';
+  const a = pkR2(String((document.getElementById('pkBalAmt') || {}).value || '').replace(',', '.').replace(/\s/g, ''));
+  const toShip = (document.querySelector('#pkBalOvl input[name=pkBalTo]:checked') || {}).value === 'ship' ? (document.getElementById('pkBalShip') || {}).value : '';
+  if (!toShip || !(a > 0)) { el.innerHTML = ''; return; }
+  const r = pkBalRestOf(pkBalShips().find(x => x.id === toShip), n), go = Math.min(a, r);
+  el.innerHTML = `<div><span>В оплату закупки</span><b style="color:#16a34a">${cabFmt2(go)}</b></div><div><span>Останется на балансе</span><b>${cabFmt2(pkR2(a - go))}</b></div>`;
 }
 async function pkBalInSave() {
   const name = String((document.getElementById('pkBalName') || {}).value || '').trim();
@@ -4004,19 +4023,21 @@ async function pkBalInSave() {
   if (!(a > 0)) { alert('Укажите сумму'); return; }
   const toShip = (document.querySelector('#pkBalOvl input[name=pkBalTo]:checked') || {}).value === 'ship' ? (document.getElementById('pkBalShip') || {}).value : '';
   const b = document.getElementById('pkBalGo'); b.disabled = true; b.textContent = 'Сохраняю…';
+  let went = 0;
   try {
     await pkBalIn(name, a);
-    if (toShip) { const sh = pkBalShips().find(x => x.id === toShip); await pkBalSpend(name, toShip, cabClientKey(sh, name), a); }
+    // 09.11.2026: в закупку уходит не больше долга по ней, остальное остаётся на балансе
+    if (toShip) { const sh = pkBalShips().find(x => x.id === toShip); went = Math.min(a, pkBalRestOf(sh, name)); if (went > 0.004) await pkBalSpend(name, toShip, cabClientKey(sh, name), went); }
   } catch (e) { b.disabled = false; b.textContent = 'Записать'; alert('Не удалось сохранить: ' + (e.message || e)); return; }
   pkBalClose(); pkBalRefresh();
-  if (typeof showToast === 'function') showToast(toShip ? 'Оплата записана в закупку' : `На балансе ${cabFmt2(pkBalAmt(name))} ${pkBalCur()}`);
+  if (typeof showToast === 'function') showToast((went > 0.004 ? `В оплату закупки ${cabFmt2(went)} · ` : '') + `на балансе ${cabFmt2(pkBalAmt(name))} ${pkBalCur()}`);
 }
 function pkBalSpendOpen(shipId, enc) {
   if (typeof pkNet !== 'undefined' && pkNet.down) { alert('Нет интернета — списать можно, когда связь появится'); return; }
   const key = decodeURIComponent(enc), sh = pkBalShips().find(x => x.id === shipId); if (!sh) return;
   const c = cabGetClientsFromShipment(sh).clients.find(x => x.name === key); if (!c) return;
   const due = pkR2(c.settle ? c.dueBeforeSettle : c.due), pi = cabPayInfo(sh.payments, sh.paid, key, due, c.isOwner);
-  const rest = pkR2(Math.max(0, due - (pi.paid || 0))), b = pkBalAmt(key), def = pkR2(Math.min(b, rest || b));
+  const rest = pkR2(Math.max(0, due - (pi.paid || 0))), b = pkBalAmt(key), def = pkR2(Math.min(b, rest));
   if (typeof pkSheetClose === 'function') { try { pkSheetClose(); } catch (e) {} }
   pkBalDlg(`<div class="cab-dlg-h">Списать с баланса · ${cabEsc(key)}<button class="cab-dlg-x" onclick="pkBalClose()" aria-label="Закрыть"><i class="ti ti-x"></i></button></div>
     <div class="pk-ballines"><div><span>Закупка</span><b>${cabEsc(sh.name || '')}</b></div><div><span>На балансе</span><b>${cabFmt2(b)}</b></div><div><span>Долг по закупке</span><b>${cabFmt2(rest)}</b></div></div>
@@ -4029,9 +4050,9 @@ function pkBalSpendOpen(shipId, enc) {
 function pkBalSpendHint(b, rest) {
   const a = pkR2(String((document.getElementById('pkBalAmt') || {}).value || '').replace(',', '.').replace(/\s/g, ''));
   const el = document.getElementById('pkBalAfter'), go = document.getElementById('pkBalGo'); if (!el) return;
-  const bad = !(a > 0) || a > b + 0.004;
-  el.innerHTML = `<div><span>Останется долг</span><b style="color:${rest - a > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(Math.max(0, rest - a))}</b></div><div><span>Останется на балансе</span><b>${cabFmt2(Math.max(0, b - a))}</b></div>${a > rest + 0.004 && rest > 0 ? `<div><span style="color:#b45309">Больше долга на ${cabFmt2(a - rest)} — это будет переплата</span><b></b></div>` : ''}`;
-  go.disabled = bad; go.textContent = bad ? (a > b + 0.004 ? 'На балансе меньше' : 'Списать') : 'Списать ' + cabFmt2(a);
+  const bad = !(a > 0) || a > b + 0.004 || a > rest + 0.004;   // больше долга не списываем — лишнее остаётся на балансе
+  el.innerHTML = `<div><span>Останется долг</span><b style="color:${rest - a > 0.004 ? '#dc2626' : '#16a34a'}">${cabFmt2(Math.max(0, rest - a))}</b></div><div><span>Останется на балансе</span><b>${cabFmt2(Math.max(0, b - a))}</b></div>${a > rest + 0.004 ? `<div><span style="color:#b45309">${rest > 0.004 ? 'Долг по закупке — ' + cabFmt2(rest) + ', больше списать нельзя' : 'По этой закупке долга нет'}</span><b></b></div>` : ''}`;
+  go.disabled = bad; go.textContent = bad ? (rest <= 0.004 ? 'Долга нет' : a > b + 0.004 ? 'На балансе меньше' : a > rest + 0.004 ? 'Больше долга' : 'Списать') : 'Списать ' + cabFmt2(a);
 }
 async function pkBalSpendSave(shipId, enc) {
   const key = decodeURIComponent(enc), a = pkR2(String((document.getElementById('pkBalAmt') || {}).value || '').replace(',', '.').replace(/\s/g, ''));
