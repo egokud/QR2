@@ -1034,19 +1034,21 @@ function cabPosAll(on) {
 async function cabPosDelete() {
   const idxs = [...cabPos].sort((a, b) => a - b), tracks = idxs.map(i => (TABLE[i] || [])[0] || '');
   if (!idxs.length || !confirm(pkDelConfirmText(idxs.length, tracks))) return;
-  const bar = document.getElementById('cabPosBar'); if (bar) bar.innerHTML = '<b>Удаляю…</b>';
+  cabPos.clear(); tracks.forEach(t => pkDelPending.add(String(t)));   // сразу: выбор сброшен, строки исчезли (pkDelPending — app.js)
+  cabRenderShip();
   try {
     const n = await pkDeleteRows(cabShipId, idxs, tracks);
-    cabPos.clear(); cabRenderShip();
     if (typeof showToast === 'function') showToast('Удалено: ' + n);
-  } catch (e) { alert('Не удалось удалить: ' + e.message); cabPosBar(); }
+  } catch (e) { alert('Не удалось удалить: ' + e.message); }
+  tracks.forEach(t => pkDelPending.delete(String(t)));
+  cabRenderShip();
 }
 
 const CAB_NOPDD_TIP = 'Трек есть только в файле карго — в ваших заказах Pinduoduo за даты импорта его не нашли. Причины: заказ раньше даты «С», продавец отправил поздно или заказано с другого аккаунта. Фото нет, цену впишите вручную.';
 function cabShipItemsHtml() {
   if (cabPosShip !== cabShipId) { cabPos.clear(); cabPosShip = cabShipId; }   // другая закупка — выбор сначала
   for (const i of [...cabPos]) if (!TABLE[i]) cabPos.delete(i);
-  let order = TABLE.map((r, i) => i);
+  let order = TABLE.map((r, i) => i).filter(i => typeof pkDelPending === 'undefined' || !pkDelPending.has(String(TABLE[i][0] || '')));   // удаляемые прямо сейчас не рисуем
   if (cabItemSort === 'wh') {
     const key = i => (TABLE[i][1] || '').trim().toLowerCase();
     order.sort((a, b) => {
