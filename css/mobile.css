@@ -536,3 +536,15 @@ body.dark .pk-stp.st-warehouse{background:#14532d;color:#bbf7d0}body.dark .pk-st
 .pk-bnw .pk-bn-dots button{width:5px;height:5px;padding:0;border:none;border-radius:3px;background:rgba(255,255,255,.5)}
 .pk-bnw .pk-bn-dots button.on{width:12px;background:#fff}
 #pkShipRes:empty{display:none}
+
+/* «Позиции закупки» на телефоне (09.11.2026): галочка перед фото, панель «Выбрано · Удалить» сверху */
+.pe-chk{flex:none;display:flex;align-items:center;justify-content:center;width:30px;align-self:stretch;margin:-4px 2px -4px -6px;cursor:pointer}
+.pe-chk input{width:22px;height:22px;accent-color:#6C4DB8;margin:0}
+.pe-item.sel{background:#f3effc;border-color:#c9b8f3}
+body.dark .pe-item.sel{background:#2a2442;border-color:#4b3d80}
+#priceEditScreen .weigh-header{position:relative}
+.pe-selbar{position:absolute;inset:6px 8px;z-index:5;display:flex;align-items:center;gap:8px;background:#17142a;color:#fff;border-radius:12px;padding:0 6px 0 4px;box-shadow:0 6px 16px rgba(23,20,42,.2)}
+.pe-selbar .x{background:none;border:none;color:#fff;width:32px;height:32px;font-size:17px;display:flex;align-items:center;justify-content:center;padding:0}
+.pe-selbar b{flex:1;font-size:14px}
+.pe-selbar .del{display:inline-flex;align-items:center;gap:5px;background:#e5484d;border:none;color:#fff;border-radius:9px;padding:8px 12px;font-size:13.5px;font-weight:700}
+body.dark .pe-selbar{background:#2d2650}
