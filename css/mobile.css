@@ -156,6 +156,7 @@ body:not(.pk-m) .pk-tabs,body:not(.pk-m) .pk-top,body:not(.pk-m) .pk-pane{displa
 .pk-sheet-bg.on{display:block}
 .pk-sheet{position:fixed;left:0;right:0;bottom:0;z-index:1001;background:var(--pk-card);color:var(--pk-ink);border-radius:22px 22px 0 0;max-height:88vh;overflow-y:auto;padding:8px 16px calc(16px + env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .22s ease;max-width:560px;margin:0 auto}
 .pk-sheet.on{transform:none}
+.pk-sheet{overscroll-behavior:contain}.pk-sheet-bg{touch-action:none;overscroll-behavior:contain}
 .pk-sheet .grab{width:42px;height:5px;border-radius:3px;background:var(--pk-line);margin:4px auto 12px}
 .pk-sheet h3{margin:0;font-size:20px;font-weight:700}
 .pk-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
