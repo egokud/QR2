@@ -986,11 +986,12 @@ function pkManStart() {
 }
 // «Добавить позицию» в уже созданную закупку (06.11.2026): та же форма, но «Сохранить» дописывает товары в эту закупку.
 // Маршрутизация: открывают Кабинет (закупка → «Товары и цены» → «+ Добавить позицию») и телефон (шторка закупки).
-function pkAddItems(id, onDone) {
+// client — имя клиента, если открыли из карточки клиента (Кабинет → Клиенты → клиент → закупка): поле «Клиент» уже заполнено
+function pkAddItems(id, onDone, client) {
   const s = (allShipments || []).find(x => x.id === id) || (typeof cabShipmentsCache !== 'undefined' ? cabShipmentsCache.find(x => x.id === id) : null);
   if (!s) { showToast('Закупка не найдена — обновите страницу'); return; }
   const tracks = new Set((s.data || []).map(r => pkManNorm(Array.isArray(r) ? r[0] : r.t)));
-  pkManOpen(s.name || 'Закупка', false, { id, tracks, onDone });
+  pkManOpen(s.name || 'Закупка', false, { id, tracks, onDone, client: client || '' });
 }
 function pkManOpen(name, fromDraft, addTo) {
   pkMan = fromDraft ? pkManDraft() : { name, items: [] };
@@ -1073,7 +1074,7 @@ function pkManForm() {
   document.getElementById('pkManT').value = it ? it.t : '';
   document.getElementById('pkManN').value = it ? (it.n || '') : '';
   document.getElementById('pkManP').value = it ? (it.p || '') : '';
-  document.getElementById('pkManW').value = it ? (it.w || '') : '';
+  document.getElementById('pkManW').value = it ? (it.w || '') : ((pkMan.addTo && pkMan.addTo.client) || '');
   pkMan.img = it ? (it.img || '') : '';
   document.getElementById('pkManErr').textContent = '';
   document.getElementById('pkManAddB').innerHTML = it ? '<i class="ti ti-check" aria-hidden="true"></i> Сохранить изменения' : '<i class="ti ti-plus" aria-hidden="true"></i> Добавить позицию';
