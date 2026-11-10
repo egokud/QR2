@@ -602,3 +602,14 @@ body.dark .pk-sheet .cab-cond-me{background:#3a1f25;color:#fca5a5}
 .pk-li-vars.pk-vars{display:flex;flex-direction:column;gap:1px;margin-top:3px;font-size:12.5px;line-height:1.35;color:var(--pk-muted,#6b7280)}
 .pk-li-vars.pk-vars b{display:inline;color:var(--pk-acc);font-weight:700;font-family:inherit;font-size:inherit}
 .pk-li-vars .pk-vars-warn{color:var(--pk-due,#b42318)}
+
+/* 10.11.2026: сборный пакет — разновидности одного трека (pkShowScanResult) */
+.pk-sbag{gap:10px}
+.pk-sbag-big{font-size:25px;font-weight:800;line-height:1.2;color:var(--pk-ink)}
+.pk-sbag-who{font-size:15px;line-height:1.5;color:var(--pk-acc);font-weight:600}
+.pk-sbag-who small{display:block;color:var(--pk-muted,#6b7280);font-weight:500;font-size:12.5px}
+.pk-sbag-vl{display:flex;flex-direction:column;gap:3px;background:var(--pk-soft,#f7f6fb);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.45}
+.pk-sbag-vl b{color:var(--pk-acc)}.pk-sbag-vl em{font-style:normal;color:var(--pk-muted,#6b7280)}
+.pk-sbag-ph{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pk-sbag-ph span{aspect-ratio:1;border-radius:10px;background:#eee center/cover;cursor:zoom-in}
+.pk-li-vars .vs{color:var(--pk-ink);font-weight:600}
