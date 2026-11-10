@@ -478,7 +478,7 @@ const PK_SUPPORT_TG = 'https://t.me/piksta_support_bot';
 const PK_IDEA_MAIL = 'mailto:support@piksta.online?subject=' + encodeURIComponent('Идея для Piksta');
 // Актуальная версия расширения — ОДНО место: кнопка «Расширение» в меню и баннер Обзора берут её отсюда.
 // Выложили новое расширение на сайт (piksta-extension.zip) — поменять здесь.
-const PK_EXT_VER = '1.10.7';
+const PK_EXT_VER = '1.10.8';
 // Какая версия стоит у человека (1.10.5+ при каждой загрузке piksta.online кладёт номер в localStorage pk_ext_ver
 // и время в pk_ext_seen, и шлёт событие pk-ext). Номер в localStorage мог остаться от прошлого раза — если человек
 // откатился на старую версию или выключил расширение, свежего отклика в этой загрузке страницы не будет.
@@ -1032,7 +1032,7 @@ const cabMkOf = r => (r && r[9]) || '';
 // [11] qp = '1' — импорт 1.10.6+ посчитал штуки. В старых импортах q — число ЗАКАЗОВ под треком, а не штук: там пишем «N товаров», без цены штуки.
 // Где выводится: Кабинет → закупка → «Товары и цены» (cabinet.js), Кабинет → клиент → закупка (cabinet.js),
 // телефон: клиент → закупка (mobile.js pkCliShipsHtml), результат скана (mobile.js pkShowScanResult).
-const pkRowArr = r => Array.isArray(r) ? r : [r.t, r.w, r.img || '', r.p || '', r.pc || '', r.q || '1', r.n || '', r.mv || 0, r.mvFrom || '', r.mk || '', r.v || null, r.qp || '', r.vs || '', r.vk || ''];
+const pkRowArr = r => Array.isArray(r) ? r : [r.t, r.w, r.img || '', r.p || '', r.pc || '', r.q || '1', r.n || '', r.mv || 0, r.mvFrom || '', r.mk || '', r.v || null, r.qp || '', r.vs || '', r.vk || '', r.vo || ''];
 function pkVarsNote(r, cls) {
   const q = parseInt(r[5], 10) || 1, p = parseFloat(String(r[3] || '').replace(',', '.')) || 0;
   const v = Array.isArray(r[10]) ? r[10] : [];
@@ -1041,7 +1041,7 @@ function pkVarsNote(r, cls) {
   // 1.10.7: у строки свои свойства [12] (строка-разновидность или единственная разновидность)
   if (r[12] || r[13]) {
     const parts = [];
-    if (r[12]) parts.push(`<span class="vs">${esc(r[12])}</span>`);
+    if (r[12]) parts.push(`<span class="vs"${r[14] ? ` title="На площадке: ${esc(r[14])}"` : ''}>${esc(r[12])}</span>`);   // [14] — оригинал (1.10.8: свойства переведены)
     if (q > 1) parts.push(`<span>${q} шт.${p ? ` · по ${f2(p / q)} ¥` : ''}</span>`);
     return parts.length ? `<div class="${cls} pk-vars">${parts.join('')}</div>` : '';
   }
