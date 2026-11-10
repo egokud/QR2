@@ -234,6 +234,68 @@ async function pkSetStatus(id, key) {
 }
 
 // результат скана — на весь экран, без эмодзи
+// ---- Скан сборного пакета (10.11.2026, макеты «плитки 1–10 клиентов» и «один клиент» утверждены) ----
+// Строки-разновидности одного трека (расширение 1.10.7, TABLE[13] «i/n») → клиенты: у каждого его фото (квадратные,
+// вписаны целиком), крупно имя, под ним свойства (цвет, размер). Одна разновидность на нескольких — у каждого «из N шт.».
+// Все вещи одному клиенту — экран «Отмечено, кладите в пакет клиента» с квадратами фото и именем внизу.
+// 2–4 клиента — ряды плиток растягиваются на весь экран; 5–10 — сетка 3 в ряд; больше 10 — первые 10 и «и ещё N».
+function pkBagHtml(track, grp) {
+  const split = w => [...new Set(String(w || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
+  const by = new Map();   // имя → { items: [{img, s, q, shared}] }
+  let nq = 0;
+  grp.forEach(r => {
+    const q = parseInt(r[5], 10) || 1; nq += q;
+    const who = split(r[1]), item = { img: r[2] || '', s: r[12] || r[6] || '', q, shared: who.length > 1 ? q : 0 };
+    (who.length ? who : ['']).forEach(n => { if (!by.has(n)) by.set(n, { items: [] }); by.get(n).items.push(item); });
+  });
+  const noCli = by.get(''); by.delete('');
+  let list = [...by.entries()].map(([name, v]) => ({ name, items: v.items }));
+  if (noCli) list.push({ name: '', items: noCli.items });
+  const line = it => `${pkEsc(it.s || 'без свойств')}${it.q > 1 && !it.shared ? ` ×${it.q}` : ''}${it.shared ? ` <em>· из ${it.shared} шт.</em>` : ''}`;
+  const ph = (img, cls) => `<span class="${cls}" ${img ? `style="background-image:url('${pkEsc(img)}')" onclick="event.stopPropagation();if(typeof cabZoomImg==='function')cabZoomImg('${pkEsc(img)}')"` : ''}>${img ? '' : '<i class="ti ti-photo-off" aria-hidden="true"></i>'}</span>`;
+  // Один клиент (или никто не вписан) — обычная карточка: квадраты фото, внизу крупно имя и что внутри
+  if (by.size <= 1) {
+    const c = list[0], items = grp.map(r => ({ img: r[2] || '', s: r[12] || r[6] || '', q: parseInt(r[5], 10) || 1 }));
+    const k = items.length, nm = c && c.name ? c.name : 'Без клиента';
+    return `<div class="card pk-bag1">
+      <div class="pk-row" style="justify-content:flex-start"><span class="pk-pill" style="background:var(--pk-ok-soft);color:var(--pk-ok)"><i class="ti ti-check" aria-hidden="true"></i> Отмечено</span><span class="pk-muted" style="font-size:13px">кладите в пакет клиента</span></div>
+      <div class="pk-bag1-ph k${Math.min(k, 5)}">${items.slice(0, 9).map(it => ph(it.img, 'sq')).join('')}</div>
+      <div class="pk-bag1-nm${nm.length > 12 ? ' long' : ''}">${pkEsc(nm)}</div>
+      <div class="pk-bag1-ls">${items.map(it => `<span>${pkEsc(it.s || 'без свойств')}${it.q > 1 ? ` ×${it.q}` : ''}</span>`).join('')}</div>
+      ${nq > 1 ? `<div class="warn">×${nq} — под этим треком ${nq} ${pkPl(nq, 'вещь', 'вещи', 'вещей')}, проверьте, что все в пакете</div>` : ''}
+      <div class="trk">${pkEsc(track)}</div>
+    </div>
+    <button class="pk-btn" style="width:100%" onclick="pkResOk()">Следующая посылка</button>
+    <button class="undo" onclick="pkUndo()">Отменить отметку</button>`;
+  }
+  const n = by.size, more = list.length > 10 ? list.length - 10 : 0;
+  if (more) list = list.slice(0, 10);
+  // 3 клиента: тот, у кого больше вещей, — снизу на всю ширину
+  if (list.length === 3) list.sort((x, y) => x.items.length - y.items.length);
+  const fs = n === 2 ? 34 : n === 3 ? 28 : n === 4 ? 26 : n <= 6 ? 20 : n <= 9 ? 19 : 17;
+  const tile = c => {
+    const imgs = [...new Set(c.items.map(it => it.img))].slice(0, 2);
+    const long = Math.max(...(c.name || 'Без клиента').split(' ').map(w => w.length)) >= (n <= 2 ? 12 : n <= 4 ? 9 : 8);
+    return `<div class="pk-bt">
+      <div class="pk-bt-ph${imgs.length > 1 ? ' two' : ''}">${imgs.map(i => ph(i, 'ph')).join('')}</div>
+      <div class="pk-bt-nm${c.name ? '' : ' none'}" style="font-size:${long ? Math.round(fs * 0.8) : fs}px">${c.name ? pkEsc(c.name) : 'Без клиента'}</div>
+      <div class="pk-bt-sz">${c.items.map(line).join('<br>')}</div></div>`;
+  };
+  let tiles;
+  if (list.length <= 4) {
+    const rows = list.length === 2 ? [[0], [1]] : list.length === 3 ? [[0, 1], [2]] : [[0, 1], [2, 3]];
+    tiles = `<div class="pk-bag-rows">${rows.map(rw => `<div class="pk-bag-row">${rw.map(i => tile(list[i])).join('')}</div>`).join('')}</div>`;
+  } else tiles = `<div class="pk-bag-grid${list.length >= 10 ? ' g10' : list.length >= 7 ? ' g7' : ''}">${list.map(tile).join('')}</div>`;
+  return `<div class="card pk-bag">
+    <span class="pk-pill" style="align-self:flex-start;background:var(--pk-warn-soft);color:var(--pk-warn)"><i class="ti ti-box-multiple" aria-hidden="true"></i> Сборный пакет · ${n} ${pkPl(n, 'клиент', 'клиента', 'клиентов')} · ${nq} шт.</span>
+    <div class="pk-bag-big${n > 4 ? ' sm' : ''}">Вскройте пакет и разложите по клиентам</div>
+    ${tiles}
+    ${more ? `<div class="pk-muted" style="font-size:14px">и ещё ${more} ${pkPl(more, 'клиент', 'клиента', 'клиентов')} — см. закупку</div>` : ''}
+    <div class="trk">${pkEsc(track)}</div>
+  </div>
+  <button class="pk-btn" style="width:100%" onclick="pkResOk()">Следующая посылка</button>
+  <button class="undo" onclick="pkUndo()">Отменить отметку</button>`;
+}
 function pkShowScanResult(type, track, wh, tracks, fMsg) {
   if (typeof scanner !== 'undefined' && scanner) try { scanner.pause(true); } catch (e) {}
   const s = pkActive();
@@ -246,20 +308,7 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
   const grp = TABLE.filter(r => r[0] === track && r[13]);   // 1.10.7: разновидности одного трека — сборный пакет
   if (type === 'success' && grp.length > 1) {
     pkLastOk = { track, idx: null, grp: true };
-    const names = [...new Set(grp.flatMap(r => String(r[1] || '').split(/\s(?:и|\+)\s/)).map(x => x.trim()).filter(Boolean))];
-    const nq = grp.reduce((n, r) => n + (parseInt(r[5], 10) || 1), 0);
-    const shown = names.slice(0, 10), more = names.length - shown.length;
-    const pics = grp.filter(r => r[2]).slice(0, 6);
-    body = `<div class="card pk-sbag">
-      <span class="pk-pill" style="align-self:flex-start;background:var(--pk-warn-soft);color:var(--pk-warn)"><i class="ti ti-box-multiple" aria-hidden="true"></i> Сборный пакет · ${names.length ? names.length + ' ' + pkPl(names.length, 'клиент', 'клиента', 'клиентов') : 'клиенты не вписаны'}</span>
-      <div class="pk-sbag-big">Вскройте пакет и разложите по клиентам</div>
-      ${names.length ? `<div class="pk-sbag-who"><small>Клиенты</small>${shown.map(pkEsc).join(', ')}${more > 0 ? ` и ещё ${more}` : ''}</div>` : ''}
-      <div class="pk-sbag-vl">${grp.map(r => `<span><b>×${parseInt(r[5], 10) || 1}</b> ${pkEsc(r[12] || r[6] || 'разновидность')}${r[1] ? ` <em>→ ${pkEsc(String(r[1]).replace(/\s(?:и|\+)\s/g, ', '))}</em>` : ''}</span>`).join('')}</div>
-      ${pics.length ? `<div class="pk-sbag-ph">${pics.map(r => `<span style="background-image:url('${pkEsc(r[2])}')" onclick="if(typeof cabZoomImg==='function')cabZoomImg('${pkEsc(r[2])}')"></span>`).join('')}</div>` : ''}
-      <div class="trk">${pkEsc(track)} · ${nq} шт.</div>
-    </div>
-    <button class="pk-btn" style="width:100%" onclick="pkResOk()">Следующая посылка</button>
-    <button class="undo" onclick="pkUndo()">Отменить отметку</button>`;
+    body = pkBagHtml(track, grp);
   } else if (type === 'success') {
     pkLastOk = { track, idx: pkNewIdx };
     const parts = [...new Set(String(wh || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
