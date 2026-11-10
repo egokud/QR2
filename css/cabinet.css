@@ -1010,3 +1010,31 @@ body.dark .pk-balhist div{border-color:#2d2848}
 
 /* Клиенты → клиент → раскрытая закупка: «+ Добавить позицию» (09.11.2026) */
 .cab-cship-add{float:right;margin:4px 0 0 12px;display:inline-flex;align-items:center;gap:6px;color:#6C4DB8;font-weight:600}
+/* 10.11.2026: «Условия клиента» — «Это я» + скидка с наценки на товар и доставку (одно окно cabCondOpen) */
+.cab-cond-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;border:1px solid #e3def0;background:#fff;font-size:13px;font-weight:600;color:#6b7280;cursor:pointer;white-space:nowrap;font-family:inherit}
+.cab-cond-chip:hover{border-color:#b9a8e3;color:#5b3fb0}.cab-cond-chip i{font-size:15px}
+.cab-cond-chip.on{background:#f3effc;border-color:#d9cdf5;color:#5b3fb0}.cab-cond-chip.me{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+.cab-cond-rule{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.cab-cond-rule>b{font-size:15px;color:#1a1a2e}
+.cab-cond-edit{margin-left:auto;border:1px solid #d9cdf5;background:#f3effc;color:#5b3fb0;border-radius:10px;padding:7px 14px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit}
+.cab-cond-ov{position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px}
+.cab-cond-ov .cab-cond{width:min(470px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(40,20,90,.25);padding:18px 20px}
+.cab-cond{display:flex;flex-direction:column;gap:12px;font-size:14px;color:#1f2430}
+.cab-cond-hd b{display:block;font-size:17px}.cab-cond-hd small{color:#6b7280;font-size:13px}
+.cab-cond-me{display:flex;align-items:center;gap:9px;padding:9px 11px;background:#fef2f2;border-radius:10px;color:#991b1b;font-size:13.5px;cursor:pointer}.cab-cond-me input{width:17px;height:17px;flex:none}
+.cab-cond-row{display:flex;flex-direction:column;gap:7px}
+.cab-cond-l{display:flex;align-items:center;gap:7px}.cab-cond-l b{font-size:14px}
+.cab-cond-q{width:20px;height:20px;border-radius:50%;border:1px solid #b9a8e3;background:#f3effc;color:#5b3fb0;font-weight:700;font-size:12px;line-height:1;cursor:pointer;padding:0;font-family:inherit}
+.cab-cond-seg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cab-cond-seg button{border:1px solid #e3def0;background:#fff;border-radius:10px;padding:7px 11px;font-size:13px;font-weight:600;color:#4a5260;cursor:pointer;font-family:inherit}
+.cab-cond-seg button.on{background:#6C4DB8;border-color:#6C4DB8;color:#fff}
+.cab-cond-seg .own{display:inline-flex;align-items:center;gap:3px;border:1px solid #e3def0;border-radius:10px;padding:0 9px 0 0;font-size:13px;color:#6b7280}.cab-cond-seg .own.on{border-color:#6C4DB8;color:#5b3fb0}
+.cab-cond-seg .own input{width:64px;border:0;background:transparent;padding:7px 4px 7px 9px;font-size:13px;font-family:inherit;color:inherit;outline:none}
+.cab-cond-rate{color:#6b7280;font-size:12.5px}
+.cab-cond-help{background:#f3effc;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45}.cab-cond-help p{margin:4px 0 0}
+.cab-cond-prev{background:#f6f7f9;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.cab-cond-prev>div{display:flex;justify-content:space-between;gap:10px}.cab-cond-prev s{color:#9aa0ab;margin-right:4px}.cab-cond-prev b.ok{color:#15803d}.cab-cond-prev b.bad{color:#dc2626}.cab-cond-prev small{color:#6b7280;font-weight:500}
+.cab-cond-prev .warn{display:block;color:#92400e;font-size:12.5px}
+.cab-cond-foot{color:#6b7280;font-size:12.5px;line-height:1.4}
+.cab-cond-btns{display:flex;gap:8px;justify-content:flex-end}
+.cab-cond-btns button{border-radius:10px;padding:9px 16px;font-weight:600;font-size:14px;border:1px solid #d5d8dd;background:#fff;color:#1f2430;cursor:pointer;font-family:inherit}
+.cab-cond-btns .cab-cond-save{background:#6C4DB8;color:#fff;border-color:#6C4DB8}.cab-cond-btns button:disabled{opacity:.6}
