@@ -750,8 +750,9 @@ function computeClientCalc() {
 
     const isOwner = !!currentOwners[name];
     const inclWeight = !!currentPriceInclWeight[name];  // вес включён в цену: доставку с клиента не берём, но карго-себест вычитаем
-    const costGoods = !!currentCostGoods[name];  // товары по себестоимости (без наценки)
-    const costShip = !!currentCostShip[name];    // доставка по себестоимости (без наценки)
+    // (10.11.2026) скидка с наценки: true = 100% (по себестоимости, как старая галочка), число 1–99 — %, нет — 0
+    const goodsPct = pkDiscPct(currentCostGoods[name]), shipPct = pkDiscPct(currentCostShip[name]);
+    const costGoods = goodsPct > 0, costShip = shipPct > 0;
     let due, profit, profitGoods, profitShip;  // profitGoods + profitShip = profit (разбивка для итогов)
     if (isOwner) {
       // Клиент "это я" (владелец): дохода нет, товары+доставка по СЕБЕСТОИМОСТИ = затраты (минус)
@@ -759,13 +760,13 @@ function computeClientCalc() {
       profit = -(goodsCost + shipCost);  // вычитается из общей прибыли
       profitGoods = -goodsCost; profitShip = -shipCost;
     } else if (costGoods || costShip) {
-      // Индивидуальная скидка: товары и/или доставка по СЕБЕСТОИМОСТИ (клиент платит, но без наценки на это)
-      const goodsPart = costGoods ? goodsCost : goodsClient;  // если товары по себест — берём себестоимость
-      const shipPart = costShip ? shipCost : shipClient;      // если доставка по себест — берём себестоимость
-      due = goodsPart + shipPart;  // клиент должен = (товар по себест или клиент) + (доставка по себест или клиент)
-      // прибыль = наценка только с того что НЕ по себестоимости
-      const goodsProfit = costGoods ? 0 : (goodsClient - goodsCost);
-      const shipProfit = costShip ? 0 : (shipClient - shipCost);
+      // Индивидуальная скидка с наценки на товар и/или доставку (100% — по СЕБЕСТОИМОСТИ, как раньше)
+      const goodsPart = pkDiscApply(goodsClient, goodsCost, goodsPct);
+      const shipPart = pkDiscApply(shipClient, shipCost, shipPct);
+      due = goodsPart + shipPart;  // клиент должен = товар со скидкой + доставка со скидкой
+      // прибыль = оставшаяся наценка
+      const goodsProfit = goodsPart - goodsCost;
+      const shipProfit = shipPart - shipCost;
       profit = goodsProfit + shipProfit;
       profitGoods = goodsProfit; profitShip = shipProfit;
     } else if (inclWeight) {
@@ -786,7 +787,7 @@ function computeClientCalc() {
     if (dueEdited) { profit += ov - due; profitGoods += ov - due; due = ov; }  // ручная правка итога — в прибыль с товаров
 
     return {
-      name, count: counts[name], isOwner, dueCalc, dueEdited, profitGoods, profitShip,
+      name, count: counts[name], isOwner, dueCalc, dueEdited, profitGoods, profitShip, goodsPct, shipPct,
       yuan: clientYuan[name] || 0,
       weight: w, tareShare, shipWeight,
       goodsClient, shipClient, goodsCost, shipCost, due, profit,
@@ -846,7 +847,7 @@ function renderCalc() {
   document.getElementById('calcList').innerHTML = clients.map(c => {
     const ownerChk = `<label class="owner-chk"><input type="checkbox" ${c.isOwner?'checked':''} onchange="toggleOwner('${c.name.replace(/'/g,"\\'")}')"> это я</label>`;
     const nm = c.name.replace(/'/g,"\\'");
-    const discChk = c.isOwner ? '' : `<div class="calc-disc"><label class="calc-disc-item"><input type="checkbox" ${currentCostGoods[c.name]?'checked':''} onchange="toggleCostGoods('${nm}')"> товары по себестоимости</label><label class="calc-disc-item"><input type="checkbox" ${currentCostShip[c.name]?'checked':''} onchange="toggleCostShip('${nm}')"> доставка по себестоимости</label></div>`;
+    const discChk = c.isOwner ? '' : `<div class="calc-disc"><label class="calc-disc-item"><input type="checkbox" ${pkDiscPct(currentCostGoods[c.name])>=100?'checked':''} onchange="toggleCostGoods('${nm}')"> товары по себестоимости</label><label class="calc-disc-item"><input type="checkbox" ${pkDiscPct(currentCostShip[c.name])>=100?'checked':''} onchange="toggleCostShip('${nm}')"> доставка по себестоимости</label></div>`;
     if (c.isOwner) {
       // Владелец — затраты (красным)
       return `<div class="calc-client owner">
@@ -870,7 +871,7 @@ function renderCalc() {
       <div class="calc-rows">
         <div class="calc-row"><span>Товар (${c.count} поз., ¥${c.yuan.toFixed(2)})</span><span>${c.goodsClient.toFixed(0)} BYN</span></div>
         <div class="calc-row"><span>Доставка (товар ${(c.weight*1000).toFixed(0)} г → с тарой ${(c.shipWeight*1000).toFixed(0)} г)</span><span>${c.shipClient.toFixed(0)} BYN</span></div>
-        ${currentCostGoods[c.name]||currentCostShip[c.name] ? `<div class="calc-row" style="color:#6C4DB8;font-size:12px"><span>${currentCostGoods[c.name]?'товары по себест.':''}${currentCostGoods[c.name]&&currentCostShip[c.name]?' + ':''}${currentCostShip[c.name]?'доставка по себест.':''} (без наценки)</span><span></span></div>` : ''}
+        ${c.goodsPct||c.shipPct ? `<div class="calc-row" style="color:#6C4DB8;font-size:12px"><span>${[c.goodsPct ? (c.goodsPct>=100?'товары по себест.':'товары −'+c.goodsPct+'% с наценки') : '', c.shipPct ? (c.shipPct>=100?'доставка по себест.':'доставка −'+c.shipPct+'% с наценки') : ''].filter(Boolean).join(' + ')}</span><span></span></div>` : ''}
         <div class="calc-row total"><span>Клиент должен</span><span>${c.due.toFixed(0)} BYN</span></div>
         <div class="calc-row profit"><span>Твоя прибыль</span><span>${c.profit.toFixed(0)} BYN</span></div>
       </div>
@@ -1123,6 +1124,12 @@ async function setStatus(id, key) {
 // ПРАВИЛА КЛИЕНТА из карточки клиента (кабинет): userProfile.clientRules = { "имя в нижнем регистре": { owner, costGoods, costShip } }
 // Действуют на приходы, где для клиента нет своего явного значения. При смене правила кабинет «замораживает»
 // текущие значения во всех существующих приходах, поэтому правило влияет только на следующие приходы.
+// Скидка клиента с наценки (10.11.2026). В картах закупки costGoods/costShip и в правилах клиента:
+//   true — по себестоимости (100%, старая галочка — работает как раньше), false/нет — 0, число 1–99 — % скидки с наценки.
+// Скидка снимается с вашей наценки, а не со всей цены: 100% = клиент платит себестоимость.
+function pkDiscPct(v) { return v === true ? 100 : (typeof v === 'number' && v > 0) ? Math.min(100, Math.round(v)) : 0; }
+function pkDiscVal(p) { p = Math.round(Math.max(0, Math.min(100, Number(p) || 0))); return p >= 100 ? true : p > 0 ? p : false; }
+function pkDiscApply(cli, cost, p) { return p >= 100 ? cost : p > 0 ? cost + (cli - cost) * (1 - p / 100) : cli; }
 function clientRule(kind, name) {
   const rules = userProfile && userProfile.clientRules;
   const r = rules && rules[String(name || '').toLowerCase()];
@@ -1135,7 +1142,7 @@ function applyClientRules() {
     for (const [kind, map] of [['owner', currentOwners], ['costGoods', currentCostGoods], ['costShip', currentCostShip]]) {
       if (!Object.prototype.hasOwnProperty.call(map, n)) {
         const v = clientRule(kind, n);
-        if (v !== undefined) map[n] = !!v;
+        if (v !== undefined) map[n] = kind === 'owner' ? !!v : pkDiscVal(pkDiscPct(v));
       }
     }
   }
