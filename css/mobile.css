@@ -584,3 +584,15 @@ body.dark .pe-selbar{background:#2d2650}
 .pk-upcalc .row.minus b{color:var(--pk-ok)}.pk-upcalc hr{border:0;border-top:1px solid var(--pk-line);margin:2px 0;width:100%}
 .pk-upcalc>small{font-size:13px;color:var(--pk-muted)}
 .pk-seg button:disabled{opacity:.45;cursor:not-allowed}
+/* 10.11.2026: «Условия» — строка на телефоне и окно в шторке (общие стили окна — в cabinet.css) */
+.pk-condrow{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--pk-line);border-radius:14px;background:var(--pk-card);color:var(--pk-ink);font-size:15px;cursor:pointer;margin-top:10px;-webkit-tap-highlight-color:transparent}
+.pk-condrow>i{font-size:20px;color:var(--pk-acc)}.pk-condrow>i:last-child{font-size:18px;color:var(--pk-muted)}
+.pk-condrow b{flex:1}.pk-condrow .t{flex:1;display:flex;flex-direction:column;min-width:0}.pk-condrow .t small{font-size:12px;color:var(--pk-muted)}
+.pk-condrow em{font-style:normal;color:var(--pk-acc);font-weight:700;font-size:14px;text-align:right}
+.pk-sheet .cab-cond{color:var(--pk-ink);font-size:15px}.pk-sheet .cab-cond-hd small,.pk-sheet .cab-cond-foot,.pk-sheet .cab-cond-rate{color:var(--pk-muted)}
+.pk-sheet .cab-cond-seg button,.pk-sheet .cab-cond-seg .own,.pk-sheet .cab-cond-btns button{background:var(--pk-card);border-color:var(--pk-line);color:var(--pk-ink);padding:9px 12px;font-size:14px}
+.pk-sheet .cab-cond-seg button.on{background:var(--pk-acc);border-color:var(--pk-acc);color:#fff}.pk-sheet .cab-cond-seg .own.on{border-color:var(--pk-acc);color:var(--pk-acc)}
+.pk-sheet .cab-cond-prev{background:var(--pk-bg)}.pk-sheet .cab-cond-help{background:var(--pk-acc-soft)}
+.pk-sheet .cab-cond-btns{position:sticky;bottom:0;background:var(--pk-card);padding:8px 0 2px}.pk-sheet .cab-cond-btns button{flex:1;padding:13px}
+.pk-sheet .cab-cond-btns .cab-cond-save{background:var(--pk-acc);border-color:var(--pk-acc);color:#fff}
+body.dark .pk-sheet .cab-cond-me{background:#3a1f25;color:#fca5a5}
