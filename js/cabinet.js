@@ -211,6 +211,11 @@ function cabFlag(map, kind, name) {
   if (map && Object.prototype.hasOwnProperty.call(map, name)) return !!map[name];
   return typeof clientRule === 'function' ? !!clientRule(kind, name) : false;
 }
+// (10.11.2026) Скидка клиента с наценки в приходе (%): явное значение в приходе, иначе правило клиента. 100 = по себестоимости
+function cabDisc(map, kind, name) {
+  if (map && Object.prototype.hasOwnProperty.call(map, name)) return pkDiscPct(map[name]);
+  return typeof clientRule === 'function' ? pkDiscPct(clientRule(kind, name)) : 0;
+}
 const cabFmt = (v) => v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');   // неразрывный пробел: «38 554» не рвётся на две строки
 const cabFmt2 = (v) => v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 
@@ -267,15 +272,15 @@ function cabGetClientsFromShipment(ship) {
     const shipCo = shipWeight * rates.shipCargo;
     const isOwner = cabFlag(owners, 'owner', name);
     const inclW = !!priceInclWeight[name];
-    const cGoods = cabFlag(costGoods, 'costGoods', name);
-    const cShip = cabFlag(costShip, 'costShip', name);
+    const goodsPct = cabDisc(costGoods, 'costGoods', name), shipPct = cabDisc(costShip, 'costShip', name);
+    const cGoods = goodsPct >= 100, cShip = shipPct >= 100;   // «по себестоимости» целиком
     let due, profit;
     if (isOwner) { due = 0; profit = -(goodsCost + shipCo); }
-    else if (cGoods || cShip) {
-      const gp = cGoods ? goodsCost : goodsClient;
-      const sp = cShip ? shipCo : shipCli;
+    else if (goodsPct || shipPct) {   // скидка с наценки (100% — по себестоимости, как раньше)
+      const gp = pkDiscApply(goodsClient, goodsCost, goodsPct);
+      const sp = pkDiscApply(shipCli, shipCo, shipPct);
       due = gp + sp;
-      profit = (cGoods ? 0 : goodsClient - goodsCost) + (cShip ? 0 : shipCli - shipCo);
+      profit = (gp - goodsCost) + (sp - shipCo);
     } else if (inclW) { due = goodsClient; profit = (goodsClient - goodsCost) - shipCo; }
     else { due = goodsClient + shipCli; profit = (goodsClient - goodsCost) + (shipCli - shipCo); }
     const ov = (ship.dueOverride || {})[name];
@@ -285,7 +290,7 @@ function cabGetClientsFromShipment(ship) {
     result.push({
       name, items: itemCount[name] || 0, weight: w, shipWeight,
       buyYuan: buyYuan[name] || 0, clientYuan: clientYuanMap[name] || 0,
-      due, profit, isOwner, dueCalc, dueEdited, costGoodsOn: cGoods, costShipOn: cShip,
+      due, profit, isOwner, dueCalc, dueEdited, costGoodsOn: cGoods, costShipOn: cShip, goodsPct, shipPct, inclW,
       ...(() => { const pi = cabPayInfo(ship.payments, ship.paid, name, due, isOwner); return { payPaid: pi.paid, payRest: pi.rest, payStatus: pi.status, paid: pi.status === 'full' }; })(),
       goodsClient, goodsCost, shipCli, shipCo
     });
@@ -1269,13 +1274,15 @@ async function cabSetDeparted(inp) {
 // Колонки «Товар» и «Доставка» показывают то, что реально идёт в «Должен»:
 // по себестоимости (или «это я») — себестоимость, «вес в цене» — доставка не начисляется
 function cabCalcGoodsCell(c) {
-  const atCost = c.isOwner || !!currentCostGoods[c.name];
-  return atCost ? `<span class="cab-atcost" title="По себестоимости (по цене клиента: ${cabFmt2(c.goodsClient)})">${cabFmt2(c.goodsCost)}</span>` : cabFmt2(c.goodsClient);
+  const p = c.isOwner ? 100 : (c.goodsPct || 0);
+  if (p >= 100) return `<span class="cab-atcost" title="По себестоимости (по цене клиента: ${cabFmt2(c.goodsClient)})">${cabFmt2(c.goodsCost)}</span>`;
+  return p ? `<span class="cab-atcost" title="Скидка ${p}% с наценки (по цене клиента: ${cabFmt2(c.goodsClient)})">${cabFmt2(pkDiscApply(c.goodsClient, c.goodsCost, p))}</span>` : cabFmt2(c.goodsClient);
 }
 function cabCalcShipCell(c) {
-  if (!c.isOwner && currentPriceInclWeight[c.name] && !currentCostShip[c.name]) return `<span style="color:#6b7280" title="Вес включён в цену товара — доставку клиент не платит">в цене</span>`;
-  const atCost = c.isOwner || !!currentCostShip[c.name];
-  return atCost ? `<span class="cab-atcost" title="По себестоимости (по цене клиента: ${cabFmt2(c.shipClient)})">${cabFmt2(c.shipCost)}</span>` : cabFmt2(c.shipClient);
+  const p = c.isOwner ? 100 : (c.shipPct || 0);
+  if (!c.isOwner && currentPriceInclWeight[c.name] && !p && !c.goodsPct) return `<span style="color:#6b7280" title="Вес включён в цену товара — доставку клиент не платит">в цене</span>`;
+  if (p >= 100) return `<span class="cab-atcost" title="По себестоимости (по цене клиента: ${cabFmt2(c.shipClient)})">${cabFmt2(c.shipCost)}</span>`;
+  return p ? `<span class="cab-atcost" title="Скидка ${p}% с наценки (по цене клиента: ${cabFmt2(c.shipClient)})">${cabFmt2(pkDiscApply(c.shipClient, c.shipCost, p))}</span>` : cabFmt2(c.shipClient);
 }
 
 function cabShipCalcHtml(calc) {
@@ -1298,7 +1305,7 @@ function cabShipCalcHtml(calc) {
       <td class="val-purple" style="white-space:nowrap">${dueCell}</td>
       <td class="${c.profit >= 0 ? 'val-green' : 'val-red'}" style="white-space:nowrap">${c.profit >= 0 ? '+' : ''}${cabFmt2(c.profit)}</td>
       ${payCells}
-      <td><div style="display:flex;flex-direction:column;gap:3px">${chk(currentOwners, c, '<b style="color:#dc2626;font-weight:600">Это я</b>', 'Это вы сами: покупка для себя — клиент ничего не должен, в доход и долги не входит')}${c.isOwner ? '' : chk(currentCostGoods, c, 'Товар', 'Товар по себестоимости: без наценки на курсе, прибыль с товара — 0') + chk(currentCostShip, c, 'Доставка', 'Доставка по себестоимости: по цене карго, без вашей наценки')}</div></td>
+      <td>${cabCondChip(c.isOwner, c.goodsPct || 0, c.shipPct || 0, `cabCondOpen('ship','${encodeURIComponent(c.name)}','${cabShipId}')`)}</td>
     </tr>`;
   }).join('');
   let paidSum = 0, restSum = 0;
@@ -2079,7 +2086,7 @@ function cabRenderClientCard(container, name) {
     ${cabClientInfoHtml(m.name)}
     <div class="cab-table-wrap" style="padding:14px 18px">
       <div style="display:flex;gap:24px;flex-wrap:wrap;row-gap:6px">
-        ${ruleChk('owner', 'Это я')}${ruleChk('costGoods', 'Товар по себестоимости')}${ruleChk('costShip', 'Доставка по себестоимости')}
+        ${cabCondRuleRow(m.name)}
       </div>
       <div style="font-size:13px;color:#6b7280;margin-top:8px">Действуют в закупках, которые формируются, и во всех следующих. Для закупок в дороге и на складе — галочки в колонке «Условия» на вкладке «Расчёт» конкретной закупки.</div>
     </div>
@@ -2105,10 +2112,13 @@ function cabRenderClientCard(container, name) {
 
 // Правило клиента на будущее: сначала «замораживаем» текущие значения во ВСЕХ существующих приходах,
 // затем сохраняем правило в профиль — оно действует только на приходы, созданные после этого.
-async function cabSetClientRule(encName, kind, on) {
+// (10.11.2026) on: для «Это я» — да/нет; для costGoods/costShip — true (по себестоимости), false (0) или % скидки с наценки.
+// silent — без сообщения и перерисовки (окно «Условия» сохраняет сразу несколько условий и сообщает само)
+async function cabSetClientRule(encName, kind, on, silent) {
   const name = decodeURIComponent(encName);
   const low = name.toLowerCase();
   const field = kind === 'owner' ? 'owners' : kind;
+  const val = kind === 'owner' ? !!on : pkDiscVal(pkDiscPct(on));
   try {
     for (const ship of cabShipmentsCache) {
       const { clients } = cabGetClientsFromShipment(ship);
@@ -2116,17 +2126,17 @@ async function cabSetClientRule(encName, kind, on) {
       if (!c) continue;
       const map = { ...(ship[field] || {}) };
       if ((ship.status || 'forming') === 'forming') {  // закупка ещё собирается — условие действует сразу
-        if (map[c.name] === !!on) continue;
-        map[c.name] = !!on;
+        if (map[c.name] === val) continue;
+        map[c.name] = val;
       } else {
         if (Object.prototype.hasOwnProperty.call(map, c.name)) continue;  // уже есть явное значение
-        map[c.name] = kind === 'owner' ? c.isOwner : kind === 'costGoods' ? c.costGoodsOn : c.costShipOn;
+        map[c.name] = kind === 'owner' ? c.isOwner : pkDiscVal(kind === 'costGoods' ? c.goodsPct : c.shipPct);
       }
       await shipmentsRef().doc(ship.id).update({ [field]: map });
       ship[field] = map;
     }
     const rules = { ...((userProfile && userProfile.clientRules) || {}) };
-    rules[low] = { ...(rules[low] || {}), [kind]: !!on };
+    rules[low] = { ...(rules[low] || {}), [kind]: val };
     await db.collection('users').doc(savedUid).update({ clientRules: rules });
     userProfile.clientRules = rules;
     // Если сейчас загружен приход в память — подтянем замороженные значения
@@ -2136,9 +2146,9 @@ async function cabSetClientRule(encName, kind, on) {
       if (cur.costGoods) currentCostGoods = { ...cur.costGoods };
       if (cur.costShip) currentCostShip = { ...cur.costShip };
     }
-    alert('Условие сохранено: оно уже действует в закупках, которые формируются, и будет действовать во всех следующих. В закупках, которые уже в дороге или на складе, условия не меняются — для них откройте закупку, вкладка «Расчёт», колонка «Условия» и поставьте галочку напротив клиента.');
-  } catch (e) { alert('Не удалось сохранить: ' + e.message); }
-  renderCabClients(document.getElementById('cabMain'));
+    if (!silent) alert('Условие сохранено: оно уже действует в закупках, которые формируются, и будет действовать во всех следующих. В закупках, которые уже в дороге или на складе, условия не меняются — для них откройте закупку, вкладка «Расчёт», колонка «Условия» и поставьте галочку напротив клиента.');
+  } catch (e) { if (silent) throw e; alert('Не удалось сохранить: ' + e.message); }
+  if (!silent) renderCabClients(document.getElementById('cabMain'));
 }
 
 // Карточка клиента: инлайн-правка итога и внесение оплаты (частичной или полной)
@@ -2572,7 +2582,7 @@ function cabShipEcon(ship) {
     e.kg += c.weight || 0;
     if (c.isOwner) continue;
     const goods = c.buyYuan > 0 ? c.goodsCost : c.clientYuan * rates.buyRate;
-    const rateM = c.costGoodsOn ? 0 : c.goodsClient - goods;
+    const rateM = c.goodsPct >= 100 ? 0 : (c.goodsPct ? pkDiscApply(c.goodsClient, c.goodsCost, c.goodsPct) - c.goodsCost : c.goodsClient - goods);
     e.due += c.due; e.goods += goods; e.cargo += c.shipCo; e.profit += c.profit; e.rateM += rateM; e.shipM += c.profit - rateM; e.n++;
     e.per.push({ name: c.name, due: c.due, profit: c.profit });
   }
