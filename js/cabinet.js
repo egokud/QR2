@@ -469,6 +469,7 @@ addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cab
 // или палец на нём, и пока вкладка свёрнута. Точки и свайп — листать вручную.
 // Крестик прячет только этот баннер, в этом аккаунте (ключ с uid). Все спрятаны или истекли — в Кабинете снова «Деньги в обороте».
 const PK_BANNERS = [
+  { id: 'disc-2026-11', date: '2026-11-10', until: '2026-12-31', kind: 'disc' },   // «Персональная скидка для клиента» (окно «Условия»)
   { id: 'idea-2026-11', date: '2026-11-07', until: '', kind: 'idea' },
   { id: 'mk3-2026-11', date: '2026-11-06', until: '2026-11-30', kind: 'mk3' }
 ];
@@ -564,6 +565,25 @@ setInterval(() => {
 }, 1000);
 function cabBnSlide(b, on) {
   const x = `<button type="button" class="cab-news-x" onclick="pkBnOff('${b.id}')" title="Скрыть этот баннер"><i class="ti ti-x"></i></button>`;
+  if (b.kind === 'disc') return `<div class="cab-card cab-news disc ${on ? 'on' : ''}" data-bn>${x}
+      <div class="cab-news-l">
+        <span class="cab-news-tag"><i class="ti ti-sparkles"></i> Новое</span>
+        <div class="cab-news-h">Персональная скидка<br>для каждого клиента</div>
+        <div class="cab-news-p">Свой курс, доставка дешевле, всё по себестоимости. <b>Постоянная</b> скидка — на все закупки клиента, <b>разовая</b> — только на одну. Piksta сама пересчитает долг — держать в голове, кому как считали, больше не нужно.</div>
+        <div class="cab-news-bt">
+          <button type="button" class="cab-news-b1" onclick="cabNav('clients')"><i class="ti ti-discount-2"></i>Настроить скидку</button>
+          <span class="cab-news-v">Постоянная: Клиенты → клиент → «Условия клиента»<br>Разовая: закупка → «Расчёт» → «Условия»</span>
+        </div>
+      </div>
+      <div class="cab-disc-art" aria-hidden="true">
+        <div class="cab-disc-card">
+          <div class="hd"><span class="av">А</span><b>Анна К.</b></div>
+          <div class="chips"><span><em>Всегда</em>Товар −25%</span><span><em>Эта закупка</em>Доставка по себест.</span></div>
+          <div class="sum"><span>Должна</span><s>668</s><b>582 BYN</b></div>
+        </div>
+        <div class="cab-disc-pct">%</div>
+      </div>
+    </div>`;
   if (b.kind === 'idea') return `<div class="cab-card cab-news idea ${on ? 'on' : ''}" data-bn>${x}
       <div class="cab-news-l">
         <span class="cab-news-tag">💡 Ваши идеи</span>
