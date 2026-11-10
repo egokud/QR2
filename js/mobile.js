@@ -351,6 +351,7 @@ function pkBnStrip() {
   if (pkBnIdx >= L.length) pkBnIdx = 0;
   const one = (b, on) => {
     const x = `<button type="button" class="xx" onclick="event.stopPropagation();pkBnOff('${b.id}')" aria-label="Скрыть баннер"><i class="ti ti-x"></i></button>`;
+    if (b.kind === 'disc') return `<div class="pk-bn disc ${on ? 'on' : ''}" data-bn><span class="ic pct" aria-hidden="true">%</span><span class="tx"><b>Персональные скидки</b>Постоянные и разовые — для любого клиента</span><button type="button" class="go" onclick="event.stopPropagation();pkGo('clients')">Открыть</button>${x}</div>`;
     if (b.kind === 'idea') return `<div class="pk-bn idea ${on ? 'on' : ''}" data-bn><span class="ic">💡</span><span class="tx"><b>Не хватает функции?</b>Напишите нам — сделаем</span><a class="go" href="${PK_SUPPORT_TG}" target="_blank" rel="noopener">Написать</a>${x}</div>`;
     return `<div class="pk-bn mk3 ${on ? 'on' : ''}" data-bn><span class="ic box"><img src="/icons/icon-192x192.png" alt=""></span><span class="tx"><b>Импорт с 3 площадок</b>PDD, Taobao, 1688 — с&nbsp;компьютера</span><a class="go" href="/extension" onclick="if(!pkIsPhone()){event.preventDefault();window.open('/extension','_blank')}">Подробнее</a>${x}</div>`;
   };
