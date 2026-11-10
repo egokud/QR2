@@ -520,6 +520,7 @@ function pkRenderClientCard(pane, name) {
       <div class="pk-row" style="margin-top:10px;gap:8px"><button class="pk-btn ok" style="flex:1" onclick="pkPayOpen('${x.ship.id}','${encN}')"><i class="ti ti-cash" aria-hidden="true"></i> Оплата</button><button class="pk-btn ghost" style="flex:1" onclick="pkRemind('${encN}',${Math.round(x.c.payRest * 100) / 100},'${encodeURIComponent(x.ship.name)}')"><i class="ti ti-copy" aria-hidden="true"></i> Напомнить</button></div>
       <div class="pk-muted" style="font-size:12px;margin-top:8px">«Напомнить» копирует вежливое сообщение — вставьте в переписку</div></div>`; }).join('')}
     ${!debts.length ? `<div class="pk-card pk-row"><span>Долгов нет</span><b style="color:var(--pk-ok)">оплачено</b></div>` : ''}
+    ${(() => { const R = cabCondRule(name); return `<button type="button" class="pk-condrow" onclick="cabCondOpen('rule','${encN}','','sheet')"><i class="ti ti-adjustments" aria-hidden="true"></i><span class="t"><b>Условия клиента</b><small>для закупок, которые формируются, и следующих</small></span><em>${cabCondText(R.owner, R.pg, R.ps)}</em><i class="ti ti-chevron-right" aria-hidden="true"></i></button>`; })()}
     <div class="pk-lbl">Закупки · ${c.ships.length}</div>
     ${shipsHtml}
     <div class="pk-2"><div class="pk-card"><small>Всего купила</small><b>${pkFmt(totalBought)} ${pkCur()}</b></div><div class="pk-card"><small>Позиций</small><b>${c.totalItems}</b></div></div>`;
@@ -820,18 +821,20 @@ function pkCCSheet(enc) {
     <div class="pk-pay-hint p"><i class="ti ti-user" aria-hidden="true"></i><span>Это вы: покупка для себя — в долги и доход не входит</span></div>${pkCCExtra(ship, c, 0)}`);
 }
 function pkCCBreak(ship, c) {
-  const inclW = (ship.priceInclWeight || {})[c.name] && !c.costShipOn;
-  const goods = c.costGoodsOn ? c.goodsCost : c.goodsClient, shipS = c.costShipOn ? c.shipCo : c.shipCli;
+  // (10.11.2026) скидка с наценки: 100% — по себестоимости, иначе часть наценки (pkDiscApply в app.js)
+  const inclW = (ship.priceInclWeight || {})[c.name] && !c.goodsPct && !c.shipPct;
+  const goods = pkDiscApply(c.goodsClient, c.goodsCost, c.goodsPct || 0), shipS = pkDiscApply(c.shipCli, c.shipCo, c.shipPct || 0);
+  const dl = p => p >= 100 ? ' · по себест.' : p ? ` · скидка ${p}%` : '';
   const enc = encodeURIComponent(c.name);
-  return `<div class="pk-cc-br"><div><span>Товар (¥ ${cabFmt2(c.clientYuan)})${c.costGoodsOn ? ' · по себест.' : ''}</span><b>${pkF2(goods)}</b></div>
-    <div><span>Доставка · ${c.weight > 0 ? cabFmt2(c.shipWeight) + ' кг с тарой' : 'вес не указан'}${c.costShipOn ? ' · по себест.' : ''}</span><b>${inclW ? 'в цене' : pkF2(shipS)}</b></div>
+  return `<div class="pk-cc-br"><div><span>Товар (¥ ${cabFmt2(c.clientYuan)})${dl(c.goodsPct)}</span><b>${pkF2(goods)}</b></div>
+    <div><span>Доставка · ${c.weight > 0 ? cabFmt2(c.shipWeight) + ' кг с тарой' : 'вес не указан'}${dl(c.shipPct)}</span><b>${inclW ? 'в цене' : pkF2(shipS)}</b></div>
     ${c.dueEdited ? `<div><span>Исправлено вручную (по расчёту ${pkF2(c.dueCalc)})</span><b></b></div>` : ''}
     <div class="t"><span>Итого к оплате</span><a href="#" onclick="pkCCEditDue('${enc}');return false" title="Исправить сумму">${pkF2(c.due0)} ${pkCur()} <i class="ti ti-pencil" aria-hidden="true"></i></a></div></div>`;
 }
 function pkCCExtra(ship, c, paid) {
   const enc = encodeURIComponent(c.name);
-  const cb = (kind, on, l) => `<label><input type="checkbox" ${on ? 'checked' : ''} onchange="pkCCCond('${enc}','${kind}',this.checked)">${l}</label>`;
-  return `<div class="pk-cc-cond">${cb('owners', c.isOwner, 'Это я')}${c.isOwner ? '' : cb('costGoods', c.costGoodsOn, 'Товар по себестоимости') + cb('costShip', c.costShipOn, 'Доставка по себест.')}</div>
+  // (10.11.2026) вместо трёх галочек — строка «Условия»: окно cabCondOpen (cabinet.js) — «Это я», скидка на товар и доставку
+  return `<button type="button" class="pk-condrow" onclick="cabCondOpen('ship','${enc}','${ship.id}','sheet')"><i class="ti ti-adjustments" aria-hidden="true"></i><b>Условия</b><em>${cabCondText(c.isOwner, c.goodsPct || 0, c.shipPct || 0)}</em><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
     <div class="pk-cc-links"><a href="#" onclick="pkCCClient('${enc}');return false"><i class="ti ti-user" aria-hidden="true"></i> Карточка клиента</a>${paid > 0.004 ? `<a href="#" class="r" onclick="pkCCReset('${enc}');return false"><i class="ti ti-rotate" aria-hidden="true"></i> Сбросить оплату</a>` : ''}</div>`;
 }
 async function pkCCCond(enc, field, on) {
