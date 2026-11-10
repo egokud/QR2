@@ -892,7 +892,7 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-news-box img{width:44px;height:44px;border-radius:11px}
 .cab-news-box b{font-size:13px;margin-top:2px}
 .cab-news-box small{font-size:11px;color:#8a84a3}
-@media (max-width:1100px){.cab-news-art,.cab-idea-art{display:none}}
+@media (max-width:1100px){.cab-news-art,.cab-idea-art,.cab-disc-art{display:none}}
 /* Баннеры-карусель (07.11.2026): слайды лежат друг на друге в одной клетке, высота — по самому высокому */
 .cab-bn{position:relative;display:grid;container-type:inline-size}
 .cab-bn>.cab-news{grid-area:1/1;margin:0;opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s}
@@ -905,6 +905,17 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-news.idea .cab-news-b1{color:#1f7a52}
 .cab-news.idea .cab-news-b1:hover{background:#effbf4}
 .cab-news-v a{color:#fff;text-decoration:underline;text-underline-offset:2px}
+/* 10.11.2026: баннер «Персональная скидка для клиента» */
+.cab-news.disc{background:linear-gradient(135deg,#c2410c 0%,#ea580c 50%,#fb923c 100%)}
+.cab-news.disc .cab-news-b1{color:#c2410c;border:none;cursor:pointer;font-family:inherit}
+.cab-news.disc .cab-news-b1:hover{background:#fff4ec}
+.cab-disc-art{position:relative;z-index:1;flex:none;width:290px;height:175px}
+.cab-disc-card{position:absolute;left:0;top:10px;width:262px;background:#fff;color:#17142a;border-radius:16px;padding:12px 14px;box-shadow:0 10px 26px rgba(90,30,0,.28);display:flex;flex-direction:column;gap:9px}
+.cab-disc-card .hd{display:flex;align-items:center;gap:8px}.cab-disc-card .av{width:26px;height:26px;border-radius:13px;background:#f3effc;color:#6C4DB8;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.cab-disc-card .hd b{font-size:14px}
+.cab-disc-card .chips{display:flex;flex-direction:column;gap:6px}.cab-disc-card .chips span{display:flex;align-items:center;gap:6px;background:#fff1e6;color:#c2410c;border-radius:10px;padding:5px 9px;font-size:12px;font-weight:700}.cab-disc-card .chips span{white-space:nowrap}.cab-disc-card .chips em{white-space:nowrap;font-style:normal;font-size:10.5px;font-weight:700;color:#9a3412;background:#fed7aa;border-radius:6px;padding:1px 6px}
+.cab-disc-card .sum{display:flex;align-items:baseline;gap:6px;font-size:12px;color:#6b7280;border-top:1px solid #f0edf6;padding-top:8px}.cab-disc-card .sum span{flex:1}.cab-disc-card .sum s{color:#9aa0ab}.cab-disc-card .sum b{font-size:16px;color:#17142a}
+.cab-disc-pct{position:absolute;right:0;top:0;width:58px;height:58px;border-radius:18px;background:#fff;color:#ea580c;font-size:30px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(90,30,0,.25);transform:rotate(8deg)}
 .cab-idea-art{position:relative;z-index:1;flex:none;width:250px;height:170px}
 .cab-idea-bub{position:absolute;background:#fff;color:#17142a;border-radius:14px 14px 14px 4px;padding:9px 12px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 20px rgba(10,40,25,.25);width:190px}
 .cab-idea-bub b{display:block;font-size:11px;color:#1f7a52;margin-bottom:2px}
@@ -917,7 +928,7 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
   .cab-bn .cab-news-l{flex:0 1 560px}
   .cab-bn .cab-news-h{font-size:30px}
   .cab-bn .cab-news-p{max-width:520px;font-size:15px}
-  .cab-bn .cab-news-art,.cab-bn .cab-idea-art{margin:0 auto}
+  .cab-bn .cab-news-art,.cab-bn .cab-idea-art,.cab-bn .cab-disc-art{margin:0 auto}
   .cab-bn .cab-idea-art{width:330px;height:190px}
 }
 
