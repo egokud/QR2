@@ -603,15 +603,6 @@ body.dark .pk-sheet .cab-cond-me{background:#3a1f25;color:#fca5a5}
 .pk-li-vars.pk-vars b{display:inline;color:var(--pk-acc);font-weight:700;font-family:inherit;font-size:inherit}
 .pk-li-vars .pk-vars-warn{color:var(--pk-due,#b42318)}
 
-/* 10.11.2026: сборный пакет — разновидности одного трека (pkShowScanResult) */
-.pk-sbag{gap:10px}
-.pk-sbag-big{font-size:25px;font-weight:800;line-height:1.2;color:var(--pk-ink)}
-.pk-sbag-who{font-size:15px;line-height:1.5;color:var(--pk-acc);font-weight:600}
-.pk-sbag-who small{display:block;color:var(--pk-muted,#6b7280);font-weight:500;font-size:12.5px}
-.pk-sbag-vl{display:flex;flex-direction:column;gap:3px;background:var(--pk-soft,#f7f6fb);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.45}
-.pk-sbag-vl b{color:var(--pk-acc)}.pk-sbag-vl em{font-style:normal;color:var(--pk-muted,#6b7280)}
-.pk-sbag-ph{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.pk-sbag-ph span{aspect-ratio:1;border-radius:10px;background:#eee center/cover;cursor:zoom-in}
 .pk-li-vars .vs{color:var(--pk-ink);font-weight:600}
 
 /* 10.11.2026: одинаковый трек подряд (разновидности) — общая рамка с суммой, список «Цены» (renderPriceEditor, app.js) */
@@ -621,3 +612,31 @@ body.dark .pk-sheet .cab-cond-me{background:#3a1f25;color:#fca5a5}
 .pe-grp .pe-item{margin-bottom:6px}
 .pe-vs{font-size:12.5px;color:#6b7280;margin-top:1px;overflow-wrap:anywhere}
 body.dark .pe-grp{background:#231d3d;border-color:#8b6fe0}body.dark .pe-grp-hd{color:#b9a6f0}body.dark .pe-grp-hd b{color:#f2effa}
+
+/* 10.11.2026: скан сборного пакета — плитки клиентов (pkBagHtml в mobile.js). Фото квадратные — вписаны целиком по центру */
+.pk-res-full .card.pk-bag,.pk-res-full .card.pk-bag1{gap:10px;overflow:hidden}
+.pk-bag-big{font-size:22px;font-weight:800;line-height:1.15;color:var(--pk-ink)}.pk-bag-big.sm{font-size:18px}
+.pk-bag-rows{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
+.pk-bag-row{flex:1;min-height:0;display:flex;gap:10px}
+.pk-bag-row>.pk-bt{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+.pk-bag-row .pk-bt-ph{flex:1;min-height:70px}
+.pk-bt-ph{display:flex;gap:4px}
+.pk-bt-ph .ph{flex:1;min-width:0;border-radius:12px;background:var(--pk-bg) center/contain no-repeat;display:flex;align-items:center;justify-content:center;color:var(--pk-muted);font-size:20px;cursor:zoom-in}
+.pk-bag-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 8px;overflow:auto;min-height:0}
+.pk-bag-grid .pk-bt-ph{aspect-ratio:1}
+.pk-bt-nm{font-weight:800;color:var(--pk-acc);line-height:1.08;margin-top:5px;overflow-wrap:normal;word-break:normal}
+.pk-bt-nm.none{color:var(--pk-muted)}
+.pk-bt-sz{font-size:13px;line-height:1.35;color:var(--pk-ink);margin-top:2px;overflow-wrap:anywhere}.pk-bag-grid .pk-bt-sz{font-size:11.5px}
+.pk-bt-sz em{font-style:normal;color:var(--pk-muted)}
+.pk-bag1-ph{flex:1;min-height:0;display:grid;gap:10px}
+.pk-bag1-ph .sq{border-radius:14px;background:var(--pk-bg) center/contain no-repeat;min-height:0;display:flex;align-items:center;justify-content:center;color:var(--pk-muted);font-size:22px;cursor:zoom-in}
+.pk-bag1-ph.k1{grid-template-columns:1fr}.pk-bag1-ph.k2{grid-template-rows:1fr 1fr}
+.pk-bag1-ph.k3{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}.pk-bag1-ph.k3 .sq:nth-child(3){grid-column:1 / span 2}
+.pk-bag1-ph.k4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}.pk-bag1-ph.k5{grid-template-columns:repeat(3,1fr)}
+.pk-bag1-nm{font-size:48px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--pk-acc)}.pk-bag1-nm.long{font-size:34px}
+.pk-bag1-ls{display:flex;flex-direction:column;font-size:17px;line-height:1.4;color:var(--pk-ink);margin-top:-4px}
+
+.pk-bt-ph .ph:empty,.pk-bag1-ph .sq:empty{background-color:transparent}
+.pk-bag-grid .pk-bt-sz{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pk-bag-grid.g7 .pk-bt-ph{aspect-ratio:1.35}.pk-bag-grid.g10 .pk-bt-ph{aspect-ratio:2.3}.pk-bag-grid.g10{gap:6px 8px}.pk-bag-grid.g10 .pk-bt-sz{-webkit-line-clamp:1}.pk-bag-grid.g10 .pk-bt-nm{margin-top:3px}
+.pk-bag1-ls span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
