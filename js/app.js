@@ -317,6 +317,7 @@ function pePickHint(wh) {
   renderPriceEditor();
 }
 
+const pkPl3 = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
 function renderPriceEditor() {
   const q = (document.getElementById('peSearch').value || '').toLowerCase().trim();
   let items = TABLE.map((r, i) => ({
@@ -344,7 +345,7 @@ function renderPriceEditor() {
   }
   const byWh = peSortMode === 'warehouse';
   let lastWh = null;
-  list.innerHTML = warnHtml + items.map(r => {
+  const cards = items.map(r => {
     let header = '';
     // В режиме "По складам" — заголовок клиента перед сменой группы
     if (byWh) {
@@ -360,14 +361,27 @@ function renderPriceEditor() {
       <span class="pe-img-wrap" data-img="${r.img}"></span>
       <div class="pe-info">
         <input class="pe-name" data-idx="${r.idx}" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="+ название" maxlength="40" onchange="onEditName(this)" onclick="event.stopPropagation()" autocomplete="off">
-        <div class="pe-bot"><div class="pe-track">${r.track}${pkMkBadge(r.row)}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}
+        <div class="pe-bot"><div class="pe-track">${r.track}${pkMkBadge(r.row)}${r.qty>1?`<span class="pe-qty">×${r.qty}</span>`:''}</div>${r.row && r.row[12] ? `<div class="pe-vs">${String(r.row[12]).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</div>` : ''}${typeof pkMvNote === 'function' ? pkMvNote(r.row) : ''}
         ${byWh ? '' : `<div style="position:relative"><input class="pe-wh pe-wh-input" data-idx="${r.idx}" value="${(r.wh||'').replace(/"/g,'&quot;')}" placeholder="— клиент —" onchange="onEditClientName(this)" oninput="showClientHints(this)" onfocus="showClientHints(this)" onblur="hideClientHints(this)" onclick="event.stopPropagation()" autocomplete="off"></div>`}
       </div></div>
       <div class="pe-prices">
         <label class="pe-price-field"><span>Выкуп ¥</span><input type="number" step="0.01" inputmode="decimal" class="buy" data-idx="${r.idx}" value="${r.buy}" placeholder="—" onchange="onEditBuy(this)"></label>
       </div>
     </div>`;
-  }).join('');
+  });
+  // 10.11.2026: строки с одинаковым трек-кодом подряд (разновидности, расширение 1.10.7) — в общую рамку «одна посылка» с общей суммой.
+  // Только в обычном порядке (в «По клиентам» строки трека разбросаны по клиентам). Кабинет — то же в cabinet.js (cab-vgrp).
+  let html = '';
+  for (let i = 0; i < items.length; ) {
+    let j = i + 1;
+    if (!byWh) while (j < items.length && items[j].track === items[i].track) j++;
+    if (j - i < 2) { html += cards[i]; i++; continue; }
+    const g = items.slice(i, j), gq = g.reduce((n, x) => n + (x.qty || 1), 0);
+    const gs = g.reduce((n, x) => n + (parseFloat(String(x.buy || '').replace(',', '.')) || 0), 0);
+    html += `<div class="pe-grp"><div class="pe-grp-hd"><span><i class="ti ti-package" aria-hidden="true"></i> Одна посылка · ${g.length} ${pkPl3(g.length, 'разновидность', 'разновидности', 'разновидностей')} · ${gq} шт.</span><b>${gs ? gs.toFixed(2).replace('.', ',') + ' ¥' : ''}</b></div>${cards.slice(i, j).join('')}</div>`;
+    i = j;
+  }
+  list.innerHTML = warnHtml + html;
 
   peSelBar();
   // картинки
