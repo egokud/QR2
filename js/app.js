@@ -1170,7 +1170,7 @@ function pkImg(u) {
 }
 function applyShipDoc(d) {
   d = d || {};
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'']);
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'', r.v||null, r.qp||'']);   // [10] — разновидности под треком, [11] — «штуки точные» (расширение 1.10.6)
   TABLE.forEach(r => { if (r[2]) r[2] = pkImg(r[2]); });  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};

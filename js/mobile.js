@@ -252,7 +252,7 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
       <div class="img ${img ? '' : 'no'}" style="${img ? `background-image:url('${pkEsc(img)}')` : ''}">${img ? '' : '<span><i class="ti ti-photo-off" style="font-size:22px;vertical-align:-5px;margin-right:6px"></i>фото товара нет</span>'}</div>
       <div class="pk-row" style="justify-content:flex-start"><span class="pk-pill" style="background:var(--pk-ok-soft);color:var(--pk-ok)"><i class="ti ti-check" aria-hidden="true"></i> Отмечено</span><span class="pk-muted" style="font-size:13px">кладите в пакет клиента</span></div>
       <div class="who ${who.length > 22 ? 'long' : ''}">${who}</div>
-      ${q > 1 ? `<div class="warn">×${q} — под этим треком ${q} ${pkPl(q, 'вещь', 'вещи', 'вещей')}, проверьте, что все в пакете</div>` : ''}
+      ${q > 1 ? `<div class="warn">×${q} — под этим треком ${q} ${pkPl(q, 'вещь', 'вещи', 'вещей')}, проверьте, что все в пакете${row && Array.isArray(row[10]) && row[10].length > 1 ? row[10].map(x => `<span style="display:block;font-weight:500;font-size:13px;margin-top:2px">×${parseInt(x.q, 10) || 1} ${pkEsc(x.s || '')}</span>`).join('') : ''}</div>` : ''}
       ${many ? `<div class="warn">В посылке товары для нескольких клиентов — разложите по пакетам</div>` : ''}
       ${row && row[6] ? `<div class="pnm">${pkEsc(row[6])}</div>` : ''}
       <div class="trk">${pkEsc(track)}</div>
@@ -544,14 +544,14 @@ function pkCliShipsHtml(c, name) {
   if (!list.length) return '<div class="pk-card pk-empty">Закупок пока нет</div>';
   return `<div class="pk-csl">${list.map(({ ship, c: cc }) => {
     const open = pkCliOpen.has(ship.id), done = ship.status === 'done', st = pkSt(ship.status || 'forming');
-    const rows = (ship.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img || '', r.p || '', r.pc || '', r.q || '1', r.n || ''])
+    const rows = (ship.data || []).map(pkRowArr)
       .filter(r => splitWarehouses(r[1] || '').some(p => p.toLowerCase() === low));
     const billed = cabIsBilled(ship);
     const sum = cc.isOwner ? '<small>свой склад</small>' : !billed ? '<small>не рассчитана</small>'
       : `<b>${pkF2(cc.due)} ${pkCur()}</b>${cc.payRest > 0.004 ? `<small class="due">долг ${pkF2(cc.payRest)}</small>` : '<small class="okk">оплачено</small>'}`;
     const items = !open ? '' : rows.map(r => {
       const pr = parseFloat(r[4]) || parseFloat(r[3]) || 0, q = parseInt(r[5] || '1', 10) || 1, im = r[2] ? pkImg(r[2]) : '';
-      return `<div class="pk-li"><span class="ph" ${im ? `style="background-image:url('${pkEsc(im)}')" onclick="event.stopPropagation();if(typeof cabZoomImg==='function')cabZoomImg('${pkEsc(im)}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) : '—'}</small></div><span class="r">${pr ? pkF2(pr) + ' ¥' : '—'}${q > 1 ? ' ×' + q : ''}</span></div>`;
+      return `<div class="pk-li"><span class="ph" ${im ? `style="background-image:url('${pkEsc(im)}')" onclick="event.stopPropagation();if(typeof cabZoomImg==='function')cabZoomImg('${pkEsc(im)}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) : '—'}</small>${pkVarsNote(r, 'pk-li-vars')}</div><span class="r">${pr ? pkF2(pr) + ' ¥' : '—'}${q > 1 ? ' ×' + q : ''}</span></div>`;
     }).join('');
     return `<div class="pk-cs${open ? ' open' : ''}">
       <button type="button" class="pk-cs-hd" onclick="pkCliShipToggle('${ship.id}')" aria-expanded="${open}"><i class="ti ti-chevron-right ch" aria-hidden="true"></i>

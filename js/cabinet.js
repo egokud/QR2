@@ -478,7 +478,7 @@ const PK_SUPPORT_TG = 'https://t.me/piksta_support_bot';
 const PK_IDEA_MAIL = 'mailto:support@piksta.online?subject=' + encodeURIComponent('Идея для Piksta');
 // Актуальная версия расширения — ОДНО место: кнопка «Расширение» в меню и баннер Обзора берут её отсюда.
 // Выложили новое расширение на сайт (piksta-extension.zip) — поменять здесь.
-const PK_EXT_VER = '1.10.5';
+const PK_EXT_VER = '1.10.6';
 // Какая версия стоит у человека (1.10.5+ при каждой загрузке piksta.online кладёт номер в localStorage pk_ext_ver
 // и время в pk_ext_seen, и шлёт событие pk-ext). Номер в localStorage мог остаться от прошлого раза — если человек
 // откатился на старую версию или выключил расширение, свежего отклика в этой загрузке страницы не будет.
@@ -1024,6 +1024,28 @@ let cabItemMk = 'all';       // в режиме «По маркетплейса�
 // Маршрутизация: цвета плашек — те же классы .pk-mk, что рисует pkMkBadge() в app.js.
 const CAB_MK = [['pdd', 'PDD', 'pdd'], ['tb', 'TAOBAO', 'tb'], ['1688', '1688', 'a1688'], ['pz', 'POIZON', 'pz'], ['', 'Без пометки', '']];
 const cabMkOf = r => (r && r[9]) || '';
+// ---- Штуки и разновидности под одним треком (10.11.2026, расширение 1.10.6) ----
+// Строка закупки: [5] q — штук всего, [3] p — оплачено ¥ за все штуки, [10] v — разновидности [{s, q, p, img}] (только если их 2+).
+// Сумма p разновидностей = p строки, сумма q = q строки — ничего не задваиваем; цена штуки = p / q.
+// [11] qp = '1' — импорт 1.10.6+ посчитал штуки. В старых импортах q — число ЗАКАЗОВ под треком, а не штук: там пишем «N товаров», без цены штуки.
+// Где выводится: Кабинет → закупка → «Товары и цены» (cabinet.js), Кабинет → клиент → закупка (cabinet.js),
+// телефон: клиент → закупка (mobile.js pkCliShipsHtml), результат скана (mobile.js pkShowScanResult).
+const pkRowArr = r => Array.isArray(r) ? r : [r.t, r.w, r.img || '', r.p || '', r.pc || '', r.q || '1', r.n || '', r.mv || 0, r.mvFrom || '', r.mk || '', r.v || null, r.qp || ''];
+function pkVarsNote(r, cls) {
+  const q = parseInt(r[5], 10) || 1, p = parseFloat(String(r[3] || '').replace(',', '.')) || 0;
+  const v = Array.isArray(r[10]) ? r[10] : [];
+  const f2 = x => (Math.round(x * 100) / 100).toFixed(2).replace('.', ',');
+  const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  if (v.length > 1) {
+    const vs = v.reduce((n, x) => n + (parseFloat(x.p) || 0), 0);
+    return `<div class="${cls} pk-vars">${v.map(x => { const xq = parseInt(x.q, 10) || 1, xp = parseFloat(x.p) || 0;
+      return `<span><b>×${xq}</b> ${esc(x.s || 'без свойств')} · ${f2(xp)} ¥${xq > 1 && xp ? ` (по ${f2(xp / xq)})` : ''}</span>`; }).join('')}`
+      + (p && Math.abs(vs - p) > 0.01 ? `<span class="pk-vars-warn">Цена позиции изменена вручную: ${f2(p)} ¥ вместо ${f2(vs)} ¥</span>` : '') + '</div>';
+  }
+  if (q < 2) return '';
+  if (!r[11]) return `<div class="${cls} pk-vars"><span>${q} ${cabPl(q, 'товар', 'товара', 'товаров')} под одним треком</span></div>`;
+  return `<div class="${cls} pk-vars"><span>${q} шт. под одним треком${p ? ` · по ${f2(p / q)} ¥` : ''}</span></div>`;
+}
 
 function cabSetItemSort(m) { cabItemSort = m; if (m !== 'mk') cabItemMk = 'all'; cabRenderShip(); }
 function cabSetItemMk(k) { cabItemMk = cabItemMk === k ? 'all' : k; cabRenderShip(); }
@@ -1118,7 +1140,7 @@ function cabShipItemsHtml() {
     return mkHead + head + `<tr class="cab-item-row ${sel ? 'sel' : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
       <td class="cab-chk-td"><input type="checkbox" class="cab-chk" ${sel ? 'checked' : ''} onchange="cabPosToggle(${i},this.checked,this)" aria-label="Выбрать позицию"></td>
       <td style="width:52px">${img}</td>
-      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] || r[9] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span><div class="cab-qty-note" title="Из одного магазина, товары могут быть разными"><i class="ti ti-info-circle"></i> ${qty} ${cabPl(qty, 'товар', 'товара', 'товаров')} под одним треком</div>` : ''}</td>
+      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] || r[9] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span>` : ''}${pkVarsNote(r, 'cab-qty-note')}</td>
       <td class="cab-mk-cell">${typeof pkMkBadge === 'function' ? pkMkBadge(r) : ''}</td>
       <td><input data-idx="${i}" value="${(r[6] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,6)" maxlength="40" placeholder="название, 1–3 слова" style="${cabInp};width:100%"></td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
@@ -2191,14 +2213,14 @@ function cabRenderClientCard(container, name) {
         <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" title="Отметить полностью оплаченным" ${c.payStatus === 'full' ? 'checked' : ''} onchange="cabCardSetFull('${ship.id}','${enc}', this.checked)" style="width:16px;height:16px;margin:0;cursor:pointer">${cabPayBadge(c.payStatus)}${cabSettleNote(c)}</label>`;
     let items = '';
     if (open) {
-      const rows = (ship.data || []).map(row => Array.isArray(row) ? row : [row.t, row.w, row.img || '', row.p || '', row.pc || '', row.q || '1'])
+      const rows = (ship.data || []).map(pkRowArr)
         .filter(r => splitWarehouses(r[1] || '').some(p => p.toLowerCase() === low))
         .map(r => {
           const parts = splitWarehouses(r[1] || '');
           const shared = parts.length > 1 ? ` <span style="font-size:12px;color:#6b7280">(общий: ${r[1]})</span>` : '';
           const price = parseFloat(r[4]) || parseFloat(r[3]) || 0;
           const img = r[2] ? `<img src="${pkImg(r[2])}" loading="lazy" onclick="cabZoomImg(this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
-          return `<tr><td style="width:52px">${img}</td><td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${shared}</td><td>${price ? cabFmt2(price) + ' ¥' : '—'}${(parseInt(r[5]) || 1) > 1 ? ' ×' + r[5] : ''}</td></tr>`;
+          return `<tr><td style="width:52px">${img}</td><td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${shared}${pkVarsNote(r, 'cab-qty-note')}</td><td>${price ? cabFmt2(price) + ' ¥' : '—'}${(parseInt(r[5]) || 1) > 1 ? ' ×' + r[5] : ''}</td></tr>`;
         }).join('');
       items = `<div style="padding:4px 0 6px">
         ${ship.status === 'done' ? '' : `<button type="button" class="cab-filter-btn cab-cship-add" onclick="event.stopPropagation();cabAddItemsOpen('${ship.id}','${enc}')" title="Добавить товар в эту закупку — клиент уже будет вписан"><i class="ti ti-plus"></i> Добавить позицию</button>`}
