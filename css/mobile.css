@@ -597,3 +597,8 @@ body.dark .pe-selbar{background:#2d2650}
 .pk-sheet .cab-cond-btns{position:sticky;bottom:0;background:var(--pk-card);padding:8px 0 2px}.pk-sheet .cab-cond-btns button{flex:1;padding:13px}
 .pk-sheet .cab-cond-btns .cab-cond-save{background:var(--pk-acc);border-color:var(--pk-acc);color:#fff}
 body.dark .pk-sheet .cab-cond-me{background:#3a1f25;color:#fca5a5}
+
+/* 10.11.2026: штуки и разновидности под треком — телефон, клиент → закупка (pkVarsNote) */
+.pk-li-vars.pk-vars{display:flex;flex-direction:column;gap:1px;margin-top:3px;font-size:12.5px;line-height:1.35;color:var(--pk-muted,#6b7280)}
+.pk-li-vars.pk-vars b{display:inline;color:var(--pk-acc);font-weight:700;font-family:inherit;font-size:inherit}
+.pk-li-vars .pk-vars-warn{color:var(--pk-due,#b42318)}
