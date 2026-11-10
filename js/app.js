@@ -1170,7 +1170,7 @@ function pkImg(u) {
 }
 function applyShipDoc(d) {
   d = d || {};
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'', r.v||null, r.qp||'']);   // [10] — разновидности под треком, [11] — «штуки точные» (расширение 1.10.6)
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'', r.v||null, r.qp||'', r.vs||'', r.vk||'']);   // [10] — разновидности (1.10.6), [11] — «штуки точные», [12] — свойства строки, [13] — «i/n» разновидность трека (1.10.7)
   TABLE.forEach(r => { if (r[2]) r[2] = pkImg(r[2]); });  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};
@@ -1589,6 +1589,18 @@ function lookup(code) {
   if (!rows.length) { pkSndSafe('no'); showResult('error',code,null,'«'+code+'» не найден'); return; }
   const ut=[...new Set(rows.map(r=>r.t))];
   if (isP && ut.length>1) { showResult('multi',code,null,null,ut); return; }
+  // 10.11.2026: строки-разновидности одного трека (расширение 1.10.7, [13] «i/n») — это ОДИН пакет: один скан отмечает все его строки
+  if (ut.length === 1 && rows.some(r => TABLE[r.i] && TABLE[r.i][13])) {
+    const fr = rows.filter(r => !scanned[r.i]);
+    if (!fr.length) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
+    fr.forEach(r => { scanned[r.i] = true; });
+    saveScanned();
+    const whG = [...new Set(rows.map(r=>r.w).filter(Boolean))].join(' + ');
+    showResult('success',rows[0].t,whG);
+    addHistory(rows[0].t,whG);
+    updateStats(); beep(); vibrate();
+    return;
+  }
   const free = rows.find(r => !scanned[r.i]);
   if (!free) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
   scanned[free.i] = true;

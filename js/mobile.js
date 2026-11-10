@@ -243,7 +243,24 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
   const q = row ? parseInt(row[5] || '1', 10) || 1 : 1;
   const el = document.getElementById('pkResFull');
   let body;
-  if (type === 'success') {
+  const grp = TABLE.filter(r => r[0] === track && r[13]);   // 1.10.7: разновидности одного трека — сборный пакет
+  if (type === 'success' && grp.length > 1) {
+    pkLastOk = { track, idx: null, grp: true };
+    const names = [...new Set(grp.flatMap(r => String(r[1] || '').split(/\s(?:и|\+)\s/)).map(x => x.trim()).filter(Boolean))];
+    const nq = grp.reduce((n, r) => n + (parseInt(r[5], 10) || 1), 0);
+    const shown = names.slice(0, 10), more = names.length - shown.length;
+    const pics = grp.filter(r => r[2]).slice(0, 6);
+    body = `<div class="card pk-sbag">
+      <span class="pk-pill" style="align-self:flex-start;background:var(--pk-warn-soft);color:var(--pk-warn)"><i class="ti ti-box-multiple" aria-hidden="true"></i> Сборный пакет · ${names.length ? names.length + ' ' + pkPl(names.length, 'клиент', 'клиента', 'клиентов') : 'клиенты не вписаны'}</span>
+      <div class="pk-sbag-big">Вскройте пакет и разложите по клиентам</div>
+      ${names.length ? `<div class="pk-sbag-who"><small>Клиенты</small>${shown.map(pkEsc).join(', ')}${more > 0 ? ` и ещё ${more}` : ''}</div>` : ''}
+      <div class="pk-sbag-vl">${grp.map(r => `<span><b>×${parseInt(r[5], 10) || 1}</b> ${pkEsc(r[12] || r[6] || 'разновидность')}${r[1] ? ` <em>→ ${pkEsc(String(r[1]).replace(/\s(?:и|\+)\s/g, ', '))}</em>` : ''}</span>`).join('')}</div>
+      ${pics.length ? `<div class="pk-sbag-ph">${pics.map(r => `<span style="background-image:url('${pkEsc(r[2])}')" onclick="if(typeof cabZoomImg==='function')cabZoomImg('${pkEsc(r[2])}')"></span>`).join('')}</div>` : ''}
+      <div class="trk">${pkEsc(track)} · ${nq} шт.</div>
+    </div>
+    <button class="pk-btn" style="width:100%" onclick="pkResOk()">Следующая посылка</button>
+    <button class="undo" onclick="pkUndo()">Отменить отметку</button>`;
+  } else if (type === 'success') {
     pkLastOk = { track, idx: pkNewIdx };
     const parts = [...new Set(String(wh || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
     const many = parts.length > 1;
@@ -280,6 +297,16 @@ function pkResOk(silent) {
 }
 function pkUndo() {
   if (!pkLastOk) return pkResOk();
+  if (pkLastOk.grp) {   // сборный пакет: снимаем отметку со всех строк трека
+    TABLE.forEach((r, k) => { if (r[0] === pkLastOk.track && r[13]) delete scanned[k]; });
+    saveScanned(); updateStats();
+    if (typeof scanHistory !== 'undefined' && scanHistory[0] && scanHistory[0].track === pkLastOk.track) { scanHistory.shift(); saveHistory(); renderHistory(); }
+    pkLastOk = null;
+    document.getElementById('pkResFull').classList.remove('on');
+    if (typeof scanner !== 'undefined' && scanner) try { scanner.resume(); } catch (e) {}
+    if (typeof showToast === 'function') showToast('Отметка отменена');
+    return pkRender();
+  }
   let i = pkLastOk.idx;
   if (i == null || !scanned[i]) { const idx = TABLE.map((r, k) => r[0] === pkLastOk.track && scanned[k] ? k : -1).filter(k => k >= 0); i = idx.length ? idx[idx.length - 1] : null; }
   if (i != null) { delete scanned[i]; saveScanned(); updateStats(); }

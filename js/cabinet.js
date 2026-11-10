@@ -478,7 +478,7 @@ const PK_SUPPORT_TG = 'https://t.me/piksta_support_bot';
 const PK_IDEA_MAIL = 'mailto:support@piksta.online?subject=' + encodeURIComponent('Идея для Piksta');
 // Актуальная версия расширения — ОДНО место: кнопка «Расширение» в меню и баннер Обзора берут её отсюда.
 // Выложили новое расширение на сайт (piksta-extension.zip) — поменять здесь.
-const PK_EXT_VER = '1.10.6';
+const PK_EXT_VER = '1.10.7';
 // Какая версия стоит у человека (1.10.5+ при каждой загрузке piksta.online кладёт номер в localStorage pk_ext_ver
 // и время в pk_ext_seen, и шлёт событие pk-ext). Номер в localStorage мог остаться от прошлого раза — если человек
 // откатился на старую версию или выключил расширение, свежего отклика в этой загрузке страницы не будет.
@@ -1027,15 +1027,24 @@ const cabMkOf = r => (r && r[9]) || '';
 // ---- Штуки и разновидности под одним треком (10.11.2026, расширение 1.10.6) ----
 // Строка закупки: [5] q — штук всего, [3] p — оплачено ¥ за все штуки, [10] v — разновидности [{s, q, p, img}] (2+ или одна со свойствами).
 // Сумма p разновидностей = p строки, сумма q = q строки — ничего не задваиваем; цена штуки = p / q.
+// [12] vs — свойства строки, [13] vk — «i/n»: строка i из n разновидностей одного трека (1.10.7: каждая разновидность — своя строка,
+//      своё фото, штуки, цена; строки трека в «Товары и цены» — общей группой, скан отмечает их все сразу — app.js lookup).
 // [11] qp = '1' — импорт 1.10.6+ посчитал штуки. В старых импортах q — число ЗАКАЗОВ под треком, а не штук: там пишем «N товаров», без цены штуки.
 // Где выводится: Кабинет → закупка → «Товары и цены» (cabinet.js), Кабинет → клиент → закупка (cabinet.js),
 // телефон: клиент → закупка (mobile.js pkCliShipsHtml), результат скана (mobile.js pkShowScanResult).
-const pkRowArr = r => Array.isArray(r) ? r : [r.t, r.w, r.img || '', r.p || '', r.pc || '', r.q || '1', r.n || '', r.mv || 0, r.mvFrom || '', r.mk || '', r.v || null, r.qp || ''];
+const pkRowArr = r => Array.isArray(r) ? r : [r.t, r.w, r.img || '', r.p || '', r.pc || '', r.q || '1', r.n || '', r.mv || 0, r.mvFrom || '', r.mk || '', r.v || null, r.qp || '', r.vs || '', r.vk || ''];
 function pkVarsNote(r, cls) {
   const q = parseInt(r[5], 10) || 1, p = parseFloat(String(r[3] || '').replace(',', '.')) || 0;
   const v = Array.isArray(r[10]) ? r[10] : [];
   const f2 = x => (Math.round(x * 100) / 100).toFixed(2).replace('.', ',');
   const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // 1.10.7: у строки свои свойства [12] (строка-разновидность или единственная разновидность)
+  if (r[12] || r[13]) {
+    const parts = [];
+    if (r[12]) parts.push(`<span class="vs">${esc(r[12])}</span>`);
+    if (q > 1) parts.push(`<span>${q} шт.${p ? ` · по ${f2(p / q)} ¥` : ''}</span>`);
+    return parts.length ? `<div class="${cls} pk-vars">${parts.join('')}</div>` : '';
+  }
   if (v.length > 1) {
     const vs = v.reduce((n, x) => n + (parseFloat(x.p) || 0), 0);
     return `<div class="${cls} pk-vars">${v.map(x => { const xq = parseInt(x.q, 10) || 1, xp = parseFloat(x.p) || 0;
@@ -1116,7 +1125,7 @@ function cabShipItemsHtml() {
   }
   const whCount = {};
   for (const r of TABLE) { const k = (r[1] || '').trim().toLowerCase(); whCount[k] = (whCount[k] || 0) + 1; }
-  let lastWh = null, lastMk = null;
+  let lastWh = null, lastMk = null, lastGrp = '';
   const rows = order.map(i => {
     const r = TABLE[i];
     if (cabItemSort === 'mk' && cabMkOf(r) !== lastMk) {
@@ -1133,13 +1142,22 @@ function cabShipItemsHtml() {
       }
     }
     const qty = parseInt(r[5]) || 1;
+    // 10.11.2026: разновидности одного трека ([13] «i/n») — заголовок «одна посылка» и фиолетовая полоса
+    let grpHead = '';
+    const gk = r[13] ? String(r[0]) : '';
+    if (gk && cabItemSort === 'track' && gk !== lastGrp) {
+      const gr = TABLE.filter(x => x[13] && String(x[0]) === gk);
+      const gq = gr.reduce((n, x) => n + (parseInt(x[5]) || 1), 0), gp = gr.reduce((n, x) => n + (parseFloat(String(x[3] || '').replace(',', '.')) || 0), 0);
+      grpHead = `<tr class="cab-item-grp cab-vgrp-hd"><td colspan="7"><i class="ti ti-package"></i> ${cabEsc(gk)} · одна посылка · ${gr.length} ${cabPl(gr.length, 'разновидность', 'разновидности', 'разновидностей')} · ${gq} шт. · ${cabFmt2(gp)} ¥</td></tr>`;
+    }
+    lastGrp = gk;
     const img = r[2] ? `<img src="${r[2]}" loading="lazy" onclick="cabImgZoom(event,this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
     const mv = parseInt(r[7]) || 0;   // сколько раз трек переносили как «не пришёл» (05.11.2026)
     const mvNote = !mv ? '' : mv >= 2
       ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:600;color:#b42318;margin-top:3px;white-space:normal"><i class="ti ti-alert-triangle"></i> Не пришёл ${mv} раза — обратитесь в карго, возможно, посылка потерялась</div>`
       : `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;color:#6b7280;margin-top:3px;white-space:normal"><i class="ti ti-arrow-forward-up"></i> Перенесён из «${cabEsc(r[8] || 'прошлой закупки')}» — в том грузе не пришёл</div>`;
     const sel = cabPos.has(i);
-    return mkHead + head + `<tr class="cab-item-row ${sel ? 'sel' : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
+    return mkHead + head + grpHead + `<tr class="cab-item-row ${sel ? 'sel' : ''}${gk && cabItemSort === 'track' ? ' cab-vgrp' : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
       <td class="cab-chk-td"><input type="checkbox" class="cab-chk" ${sel ? 'checked' : ''} onchange="cabPosToggle(${i},this.checked,this)" aria-label="Выбрать позицию"></td>
       <td style="width:52px">${img}</td>
       <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] || r[9] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span>` : ''}${pkVarsNote(r, 'cab-qty-note')}</td>
