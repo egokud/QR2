@@ -1338,6 +1338,137 @@ function cabToggleCost(inp, kind) {
   cabRenderShip();
 }
 
+// ============ УСЛОВИЯ КЛИЕНТА: «Это я» + скидка с наценки на товар и доставку (10.11.2026) ============
+// Хранение — в тех же полях, что и раньше (owners / costGoods / costShip у закупки, clientRules в профиле):
+//   true — по себестоимости (= скидка 100%; старые галочки работают как раньше, ничего не переносится),
+//   false — без скидки, число 1–99 — % скидки с наценки (pkDiscPct / pkDiscVal / pkDiscApply в app.js).
+// Маршруты окна «Условия» (одно окно cabCondOpen, два режима; дублей нет):
+//   'ship' — Кабинет: закупка → «Расчёт» → колонка «Условия»;   телефон: Расчёт с клиентами → клиент → «Условия»;
+//   'rule' — Кабинет: Клиенты → клиент → «Условия клиента · Изменить»;   телефон: Клиенты → клиент → «Условия клиента».
+const PK_DISC_PRE = [0, 10, 25, 50, 100];
+let cabCond = null;
+function cabCondText(owner, pg, ps) {
+  if (owner) return 'Это я';
+  if (pg >= 100 && ps >= 100) return 'Всё по себест.';
+  const a = [];
+  if (pg) a.push(pg >= 100 ? 'Товар по себест.' : `Товар −${pg}%`);
+  if (ps) a.push(ps >= 100 ? 'Доставка по себест.' : `Доставка −${ps}%`);
+  return a.join(' · ') || 'Обычные';
+}
+function cabCondChip(owner, pg, ps, onclick) {
+  const cls = owner ? 'me' : (pg || ps) ? 'on' : '';
+  return `<button type="button" class="cab-cond-chip ${cls}" onclick="${onclick}" title="Изменить условия клиента">${owner ? '' : `<i class="ti ti-${pg || ps ? 'discount-2' : 'adjustments'}" aria-hidden="true"></i>`}${cabCondText(owner, pg, ps)}</button>`;
+}
+function cabCondRule(name) { return { owner: !!clientRule('owner', name), pg: pkDiscPct(clientRule('costGoods', name)), ps: pkDiscPct(clientRule('costShip', name)) }; }
+function cabCondRuleRow(name) {
+  const R = cabCondRule(name), enc = encodeURIComponent(name);
+  return `<div class="cab-cond-rule"><b>Условия клиента</b>${cabCondChip(R.owner, R.pg, R.ps, `cabCondOpen('rule','${enc}')`)}<button type="button" class="cab-cond-edit" onclick="cabCondOpen('rule','${enc}')">Изменить</button></div>`;
+}
+function cabCondOpen(mode, enc, shipId, where) {
+  const name = decodeURIComponent(enc);
+  let o, ship = null, c = null;
+  if (mode === 'ship') {
+    ship = cabShipmentsCache.find(s => s.id === shipId) || (typeof allShipments !== 'undefined' ? (allShipments || []).find(s => s.id === shipId) : null);
+    if (!ship) return;
+    c = cabGetClientsFromShipment(ship).clients.find(x => x.name === name); if (!c) return;
+    o = { owner: !!c.isOwner, pg: c.goodsPct || 0, ps: c.shipPct || 0 };
+  } else o = cabCondRule(name);
+  cabCond = { mode, name, shipId, where: where || 'modal', ship, c, o, owner: o.owner, pg: o.pg, ps: o.ps, help: false };
+  if (cabCond.where === 'modal') {
+    let ov = document.getElementById('cabCondOv'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'cabCondOv'; ov.className = 'cab-cond-ov';
+    ov.addEventListener('click', e => { if (e.target === ov) cabCondClose(); });
+    document.body.appendChild(ov);
+  }
+  cabCondRender(true);
+}
+function cabCondSet(k, v) {
+  const S = cabCond; if (!S) return;
+  if (k === 'owner') S.owner = !!v;
+  else { v = Math.round(Number(v) || 0); S[k] = Math.max(0, Math.min(100, v)); }
+  cabCondRender();
+}
+function cabCondHelp() { if (cabCond) { cabCond.help = !cabCond.help; cabCondRender(); } }
+// Что заплатит клиент при выбранных условиях (как в расчёте закупки)
+function cabCondCalc(c, owner, pg, ps) {
+  if (owner) return { g: c.goodsCost, s: c.shipCo, due: 0, profit: -(c.goodsCost + c.shipCo) };
+  let g = c.goodsClient, sh = c.shipCli;
+  if (pg || ps) { g = pkDiscApply(c.goodsClient, c.goodsCost, pg); sh = pkDiscApply(c.shipCli, c.shipCo, ps); }
+  else if (c.inclW) sh = 0;
+  return { g, s: sh, due: g + sh, profit: (g - c.goodsCost) + (sh - c.shipCo) };
+}
+function cabCondRender(first) {
+  const S = cabCond; if (!S) return;
+  const f2 = v => cabFmt2(v);
+  const seg = k => {
+    const v = S[k], pre = PK_DISC_PRE.includes(v);
+    return `<div class="cab-cond-seg">${PK_DISC_PRE.map(p => `<button type="button" class="${v === p ? 'on' : ''}" onclick="cabCondSet('${k}',${p})">${p === 0 ? 'Нет' : p === 100 ? 'По себестоимости' : p + '%'}</button>`).join('')}<label class="own${pre ? '' : ' on'}"><input type="number" min="1" max="100" inputmode="numeric" placeholder="свой" value="${pre ? '' : v}" onchange="cabCondSet('${k}',this.value)" aria-label="Свой процент скидки">%</label></div>`;
+  };
+  const q = `<button type="button" class="cab-cond-q" onclick="cabCondHelp()" aria-label="Как считается скидка" title="Как считается скидка">?</button>`;
+  let rate = '';
+  if (S.ship && !S.owner && S.pg > 0) {
+    const r = S.ship.rates ? { ...DEFAULT_RATES, ...S.ship.rates } : { ...DEFAULT_RATES };
+    if (r.clientRate > r.buyRate) { const e = r.buyRate + (r.clientRate - r.buyRate) * (1 - Math.min(100, S.pg) / 100); const fr = v => String(+(+v).toFixed(3)).replace('.', ','); rate = `<small class="cab-cond-rate">Курс для клиента получится ${fr(e)} вместо ${fr(r.clientRate)}</small>`; }
+  }
+  let prev = '';
+  if (S.mode === 'ship' && S.c) {
+    const A = cabCondCalc(S.c, S.o.owner, S.o.pg, S.o.ps), B = cabCondCalc(S.c, S.owner, S.pg, S.ps), ch = (a, b) => Math.abs(a - b) > 0.004 ? `<s>${f2(a)}</s> ${f2(b)}` : f2(b);
+    prev = `<div class="cab-cond-prev"><div><span>Товар</span><b>${ch(A.g, B.g)}</b></div><div><span>Доставка</span><b>${ch(A.s, B.s)}</b></div>
+      <div><span>${S.owner ? 'Ваши затраты' : 'Должен'}</span><b>${S.owner ? f2(S.c.goodsCost + S.c.shipCo) : ch(A.due, B.due)}</b></div>
+      ${S.owner ? '' : `<div><span>Ваша прибыль</span><b class="${B.profit >= 0 ? 'ok' : 'bad'}">${B.profit >= 0 ? '+' : ''}${f2(B.profit)}${Math.abs(A.profit - B.profit) > 0.004 ? ` <small>(было ${A.profit >= 0 ? '+' : ''}${f2(A.profit)})</small>` : ''}</b></div>`}
+      ${S.c.dueEdited ? '<div class="warn">Сумма этого клиента исправлена вручную — она остаётся прежней, пока вы её не вернёте к расчётной.</div>' : ''}</div>`;
+  }
+  const help = S.help ? `<div class="cab-cond-help"><b>Как считается скидка</b><p>Скидка снимается <b>с вашей наценки</b>, а не со всей цены. Клиент всё равно платит то, что товар и доставка стоили вам.</p><p>Пример: товар стоит вам 100, клиенту — 130, ваша наценка — 30. Скидка 50% — клиент платит 115 (вы зарабатываете 15). «По себестоимости» (100%) — клиент платит 100: вы ничего не зарабатываете, но и не теряете.</p></div>` : '';
+  const sub = S.mode === 'ship' ? cabEsc(S.ship.name || 'Закупка') : 'В закупках, которые формируются, и во всех следующих';
+  const html = `<div class="cab-cond-hd"><b>Условия для «${cabEsc(S.name)}»</b><small>${sub}</small></div>
+    <label class="cab-cond-me"><input type="checkbox" ${S.owner ? 'checked' : ''} onchange="cabCondSet('owner',this.checked)"><span><b>Это я</b> — покупка для себя: в доход и долги не входит</span></label>
+    ${S.owner ? '' : `<div class="cab-cond-row"><div class="cab-cond-l"><b>Скидка на товар</b>${q}</div>${seg('pg')}${rate}</div>
+    <div class="cab-cond-row"><div class="cab-cond-l"><b>Скидка на доставку</b>${q}</div>${seg('ps')}</div>${help}`}
+    ${prev}
+    <small class="cab-cond-foot">Скидка — с вашей наценки: 100% = по себестоимости.${S.mode === 'rule' ? ' Закупки в дороге и на складе не меняются — там условия ставятся в расчёте закупки.' : ' Действует в этой закупке.'}</small>
+    <div class="cab-cond-btns"><button type="button" class="cab-cond-cancel" onclick="cabCondClose(true)">Отмена</button><button type="button" class="cab-cond-save" id="cabCondSaveBtn" onclick="cabCondSave()">Сохранить</button></div>`;
+  const body = document.getElementById('cabCondBody');
+  if (body && !first) { body.innerHTML = html; return; }
+  const wrap = `<div class="cab-cond" id="cabCondBody">${html}</div>`;
+  if (S.where === 'sheet') pkSheet(wrap);
+  else { const ov = document.getElementById('cabCondOv'); if (ov) ov.innerHTML = wrap; }
+}
+function cabCondClose(back) {
+  const S = cabCond; cabCond = null;
+  const ov = document.getElementById('cabCondOv'); if (ov) ov.remove();
+  if (S && S.where === 'sheet') {
+    // на телефоне из расчёта закупки — возвращаемся к окну клиента
+    if (back && S.mode === 'ship' && typeof pkCC !== 'undefined' && pkCC && typeof pkCCSheet === 'function') pkCCSheet(encodeURIComponent(S.name));
+    else if (typeof pkSheetClose === 'function') pkSheetClose();
+  }
+}
+async function cabCondSave() {
+  const S = cabCond; if (!S) return;
+  const b = document.getElementById('cabCondSaveBtn'); if (b) { b.disabled = true; b.textContent = 'Сохраняю…'; }
+  try {
+    if (S.mode === 'ship') {
+      const loaded = S.shipId === (editingShipmentId || activeShipmentId);
+      const ch = [['owners', S.owner !== S.o.owner, !!S.owner, () => currentOwners], ['costGoods', S.pg !== S.o.pg, pkDiscVal(S.pg), () => currentCostGoods], ['costShip', S.ps !== S.o.ps, pkDiscVal(S.ps), () => currentCostShip]];
+      for (const [f, changed, val, cur] of ch) {
+        if (!changed) continue;   // явное значение пишем только тому, что поменяли, — остальное идёт по правилу клиента
+        await cabTxMapField(S.shipId, f, S.name, val);
+        if (loaded) cur()[S.name] = val;
+      }
+    } else {
+      const enc = encodeURIComponent(S.name);
+      if (S.owner !== S.o.owner) await cabSetClientRule(enc, 'owner', S.owner, true);
+      if (S.pg !== S.o.pg) await cabSetClientRule(enc, 'costGoods', pkDiscVal(S.pg), true);
+      if (S.ps !== S.o.ps) await cabSetClientRule(enc, 'costShip', pkDiscVal(S.ps), true);
+    }
+  } catch (e) { if (b) { b.disabled = false; b.textContent = 'Сохранить'; } alert('Не сохранилось: ' + (e.message || e)); return; }
+  const toast = m => typeof showToast === 'function' ? showToast(m) : null;
+  cabCondClose(false);
+  if (S.where === 'sheet') { if (typeof pkRender === 'function') pkRender(); if (S.mode === 'ship' && typeof pkCC !== 'undefined' && pkCC) pkCCSheet(encodeURIComponent(S.name)); }
+  else if (S.mode === 'ship') cabRenderShip();
+  else renderCabClients(document.getElementById('cabMain'));
+  toast(S.mode === 'rule' ? 'Условия клиента сохранены: действуют в закупках, которые формируются, и во всех следующих' : 'Условия сохранены');
+}
+
 async function cabEditDue(encName) {
   const n = decodeURIComponent(encName);
   if (!confirm('Вы точно хотите изменить задолженность клиента «' + n + '»?')) return;
