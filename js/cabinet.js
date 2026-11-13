@@ -888,11 +888,11 @@ function renderCabShipments(container) {
     let due = 0, profit = 0;
     for (const c of clients) { due += c.due; profit += c.profit; }
     const date = ship.created ? new Date(ship.created).toLocaleDateString('ru-RU') : '—';
-    const isDone = ship.status === 'done';
+    const isDone = ship.status === 'done';   // 13.11.2026: архивная закупка тоже открывается — внутри «⋯ → Вернуть из архива»
     const departed = (ship.departed && ship.status !== 'sorted' && ship.status !== 'done') ? ' <i class="ti ti-truck" style="color:#3cb371;font-size:14px" title="Выехала"></i>' : '';
     const hide = (cabShipFilter === 'active' && isDone) || (cabShipFilter === 'done' && !isDone);
     return `<tr class="cab-ship-row" data-status="${isDone ? 'done' : 'active'}" style="${isDone ? 'opacity:0.6;' : ''}${hide ? 'display:none' : ''}">
-      <td style="font-weight:500">${isDone ? (ship.name || 'Без названия') : `<a href="#" onclick="cabOpenShip('${ship.id}');return false" style="color:#6C4DB8;text-decoration:none">${ship.name || 'Без названия'}</a>`}</td>
+      <td style="font-weight:500"><a href="#" onclick="cabOpenShip('${ship.id}');return false" style="color:#6C4DB8;text-decoration:none">${ship.name || 'Без названия'}</a></td>
       <td>${cabShipPill(ship.status)}${departed}</td>
       <td class="val-purple">${cabFmt(due)}</td>
       <td class="${profit >= 0 ? 'val-green' : 'val-red'}">${profit >= 0 ? '+' : ''}${cabFmt(profit)}</td>
