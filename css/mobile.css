@@ -548,6 +548,7 @@ body.dark .pe-item.sel{background:#2a2442;border-color:#4b3d80}
 .pe-selbar{position:absolute;inset:6px 8px;z-index:5;display:flex;align-items:center;gap:8px;background:#17142a;color:#fff;border-radius:12px;padding:0 6px 0 4px;box-shadow:0 6px 16px rgba(23,20,42,.2)}
 .pe-selbar .x{background:none;border:none;color:#fff;width:32px;height:32px;font-size:17px;display:flex;align-items:center;justify-content:center;padding:0}
 .pe-selbar b{flex:1;font-size:14px}
+.pe-selbar .mv{display:inline-flex;align-items:center;gap:5px;background:#6C4DB8;border:none;color:#fff;border-radius:9px;padding:8px 10px;font-size:13.5px;font-weight:700}
 .pe-selbar .del{display:inline-flex;align-items:center;gap:5px;background:#e5484d;border:none;color:#fff;border-radius:9px;padding:8px 12px;font-size:13.5px;font-weight:700}
 body.dark .pe-selbar{background:#2d2650}
 /* 09.11.2026: закупки в карточке клиента (телефон) */

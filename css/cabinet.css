@@ -987,6 +987,7 @@ body.pk-cabman #pkMan{top:4vh;bottom:4vh;max-width:520px;border-radius:20px;box-
 .cab-posbar-x{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer}
 .cab-posbar-del{display:inline-flex;align-items:center;gap:6px;background:#e5484d;border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:700;cursor:pointer}
 .cab-posbar-del:hover{background:#d13438}
+.cab-posbar-mv{display:inline-flex;align-items:center;gap:6px;background:#6C4DB8;border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:700;cursor:pointer}.cab-posbar-mv:hover{background:#5b3fb0}
 body.dark .cab-item-row.sel>td{background:#2a2442}
 body.dark .cab-posbar{background:#2d2650}
 
