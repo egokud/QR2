@@ -2256,7 +2256,7 @@ body.dark #pkMoveOv .bx{background:#1f1b33;color:#ece9f7}body.dark #pkMoveOv .it
   const ts = s => { const c = s.created; return c ? (c.toDate ? c.toDate().getTime() : new Date(c).getTime()) || 0 : 0; };
   const list = (allShipments || []).filter(s => s.id !== fromId).sort((a, b) => ((a.status === 'done') - (b.status === 'done')) || ts(b) - ts(a));
   const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const row = s => `<button type="button" class="it" data-id="${esc(s.id)}"><div><b>${esc(s.name || 'Без названия')}</b><span>${(SHIP_STATUSES[s.status] || {}).label || ''} · ${(s.data || []).length} ${typeof pkPosWord === 'function' ? pkPosWord((s.data || []).length).replace('позицию', 'позиция') : 'поз.'}</span></div><i class="ti ti-arrow-right"></i></button>`;
+  const row = s => `<button type="button" class="it" data-id="${esc(s.id)}"><div><b>${esc(s.name || 'Без названия')}</b><span>${(SHIP_STATUSES[s.status || 'forming'] || {}).label || ''} · ${(s.data || []).length} ${typeof pkPosWord === 'function' ? pkPosWord((s.data || []).length).replace('позицию', 'позиция') : 'поз.'}</span></div><i class="ti ti-arrow-right"></i></button>`;
   const work = list.filter(s => s.status !== 'done'), arch = list.filter(s => s.status === 'done');
   const ov = document.createElement('div'); ov.id = 'pkMoveOv';
   ov.innerHTML = `<div class="bx" role="dialog" aria-label="Перенести позиции"><div class="hd">Куда перенести ${n === 1 ? 'позицию' : n + ' ' + pkPosWord(n)}?<small>Товар переедет со всеми данными: клиент, фото, цены, отметка сканирования</small></div>
