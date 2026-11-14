@@ -1071,7 +1071,7 @@ function cabPosBar() {
   // панель висит вверху экрана над таблицей (position:fixed) — видна при любой прокрутке, таблица не сдвигается
   const m = document.getElementById('cabMain'), r = m ? m.getBoundingClientRect() : null;
   if (n && r) { bar.style.left = (r.left + 20) + 'px'; bar.style.width = Math.max(320, r.width - 40) + 'px'; }
-  if (n) bar.innerHTML = `<b>Выбрано: ${n}</b><button type="button" class="cab-posbar-x" onclick="cabPosAll(false)">Снять выбор</button><button type="button" class="cab-posbar-del" onclick="cabPosDelete()"><i class="ti ti-trash"></i>Удалить ${n === 1 ? 'позицию' : 'позиции'}</button>`;
+  if (n) bar.innerHTML = `<b>Выбрано: ${n}</b><button type="button" class="cab-posbar-x" onclick="cabPosAll(false)">Снять выбор</button><button type="button" class="cab-posbar-mv" onclick="cabPosMove()"><i class="ti ti-arrows-right-left"></i>Перенести ${n === 1 ? 'позицию' : 'позиции'}</button><button type="button" class="cab-posbar-del" onclick="cabPosDelete()"><i class="ti ti-trash"></i>Удалить ${n === 1 ? 'позицию' : 'позиции'}</button>`;
   const all = document.getElementById('cabPosChkAll');
   if (all) { const vis = [...document.querySelectorAll('.cab-item-row')].filter(tr => tr.style.display !== 'none'); all.checked = vis.length > 0 && vis.every(tr => cabPos.has(+tr.dataset.idx)); }
 }
@@ -1100,6 +1100,19 @@ async function cabPosDelete() {
   } catch (e) { alert('Не удалось удалить: ' + e.message); }
   tracks.forEach(t => pkDelPending.delete(String(t)));
   cabRenderShip();
+}
+
+// 14.11.2026: «Перенести позицию» в другую закупку — pkMoveRows/pkMovePick в js/app.js (общие с телефоном)
+function cabPosMove() {
+  const fromId = cabShipId, idxs = [...cabPos].sort((a, b) => a - b), tracks = idxs.map(i => (TABLE[i] || [])[0] || '');
+  if (!idxs.length) return;
+  pkMovePick(fromId, idxs.length, async toId => {
+    cabPos.clear(); tracks.forEach(t => pkDelPending.add(String(t)));
+    cabRenderShip();
+    try { pkMoveToast(await pkMoveRows(fromId, idxs, tracks, toId)); } catch (e) { alert('Не удалось перенести: ' + e.message); }
+    tracks.forEach(t => pkDelPending.delete(String(t)));
+    cabRenderShip();
+  });
 }
 
 const CAB_NOPDD_TIP = 'Трек есть только в файле карго — в ваших заказах Pinduoduo за даты импорта его не нашли. Причины: заказ раньше даты «С», продавец отправил поздно или заказано с другого аккаунта. Фото нет, цену впишите вручную.';

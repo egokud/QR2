@@ -2175,7 +2175,7 @@ function peSelBar() {
   }
   const n = peSel.size;
   bar.style.display = n ? '' : 'none';
-  if (n) bar.innerHTML = `<button type="button" class="x" onclick="peSelClear()" aria-label="Снять выбор"><i class="ti ti-x"></i></button><b>Выбрано: ${n}</b><button type="button" class="del" onclick="peDeleteSel()"><i class="ti ti-trash"></i> Удалить ${n === 1 ? 'позицию' : 'позиции'}</button>`;
+  if (n) bar.innerHTML = `<button type="button" class="x" onclick="peSelClear()" aria-label="Снять выбор"><i class="ti ti-x"></i></button><b>Выбрано: ${n}</b><button type="button" class="mv" onclick="peMoveSel()"><i class="ti ti-arrows-right-left"></i> Перенести</button><button type="button" class="del" onclick="peDeleteSel()"><i class="ti ti-trash"></i> Удалить</button>`;   // 14.11.2026: + «Перенести» (pkMoveRows); подписи короткие — на телефоне две кнопки в одну строку
 }
 function peToggleSel(idx, on, el) {
   if (on) peSel.add(idx); else peSel.delete(idx);
@@ -2194,6 +2194,97 @@ async function peDeleteSel() {
   } catch (e) { alert('Не удалось удалить: ' + e.message); }
   tracks.forEach(t => pkDelPending.delete(String(t)));
   renderPriceEditor();
+}
+
+// ============ ПЕРЕНОС ПОЗИЦИЙ В ДРУГУЮ ЗАКУПКУ (14.11.2026, просьба Егора) ============
+// Маршрутизация: ОДНА функция pkMoveRows для Кабинета (cabPosMove, js/cabinet.js — «Товары и цены», галочки слева от фото)
+// и телефона (peMoveSel ниже — «Позиции закупки»). Окно выбора закупки — pkMovePick (тоже общее).
+// Строки переезжают со всеми данными (клиент, фото, цены, разновидности); отметка сканирования переезжает вместе со строкой.
+// Трек, который уже есть в той закупке, второй раз не добавляется. Вернули туда, откуда перенесла «Сканирование окончено», —
+// счётчик «не доехал» (mv) снимается.
+async function pkMoveRows(fromId, idxs, tracks, toId) {
+  if (!fromId || !toId || fromId === toId || !idxs || !idxs.length) return { moved: 0, dup: 0 };
+  if (typeof pkNet !== 'undefined' && pkNet.down) throw new Error('нет интернета — переносить позиции можно только онлайн');
+  const sel = new Set(idxs.map(Number));
+  const A = shipmentsRef().doc(fromId), B = shipmentsRef().doc(toId);
+  const [sa, sb] = await Promise.all([scannedRef(fromId).get(), scannedRef(toId).get()]);
+  const scA = sa.exists ? (sa.data().items || {}) : {}, scB = sb.exists ? (sb.data().items || {}) : {};
+  let newA = {}, newB = {}, moved = 0, dup = 0, toName = '';
+  await db.runTransaction(async t => {
+    const a = await t.get(A), b = await t.get(B);
+    if (!a.exists || !b.exists) throw new Error('закупка не найдена');
+    const da = a.data().data || [], rowsB = (b.data().data || []).slice();
+    toName = b.data().name || '';
+    // защита: на экране могли быть старые данные (закупку поменяли с другого устройства) — тогда ничего не переносим
+    idxs.forEach((i, k) => { if (!da[i] || (tracks && tracks[k] != null && pkRowTrack(da[i]) !== String(tracks[k]))) throw new Error('закупка изменилась на другом устройстве — откройте её заново'); });
+    const have = new Set(rowsB.map(r => pkNormT(pkRowTrack(r))));   // треки, что УЖЕ были там (разновидности одного трека переезжают все)
+    const keep = []; newA = {}; newB = { ...scB }; moved = 0; dup = 0;
+    da.forEach((r, i) => {
+      if (!sel.has(i)) { if (scA[i]) newA[keep.length] = scA[i]; keep.push(r); return; }
+      if (have.has(pkNormT(pkRowTrack(r)))) { dup++; return; }
+      let row = r;
+      if (!Array.isArray(r) && r.mvFrom && r.mvFrom === toName) { row = { ...r }; delete row.mv; delete row.mvFrom; }
+      if (scA[i]) newB[rowsB.length] = scA[i];
+      rowsB.push(row); moved++;
+    });
+    t.update(A, { data: keep });
+    t.update(B, { data: rowsB });
+  });
+  await scannedRef(fromId).set({ items: newA });
+  await scannedRef(toId).set({ items: newB });
+  if (toId === activeShipmentId) scanned = newB;
+  try { await loadShipments(); } catch (e) {}
+  try { await updateShipmentStats(); } catch (e) {}
+  await loadShipmentData(fromId, fromId !== activeShipmentId);   // на экране остаётся та закупка, откуда переносили
+  return { moved, dup, toName };
+}
+// Окно «Куда перенести?» — список остальных закупок (сначала рабочие, новые сверху; архив в конце)
+function pkMovePick(fromId, n, onPick) {
+  if (!document.getElementById('pkMoveCss')) {
+    const st = document.createElement('style'); st.id = 'pkMoveCss';
+    st.textContent = `#pkMoveOv{position:fixed;inset:0;z-index:9500;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:12px}
+#pkMoveOv .bx{background:#fff;color:#17142a;width:100%;max-width:440px;max-height:82vh;display:flex;flex-direction:column;border-radius:16px;box-shadow:0 14px 40px rgba(23,20,42,.3);font-family:inherit}
+#pkMoveOv .hd{padding:16px 18px 8px;font-size:17px;font-weight:700}#pkMoveOv .hd small{display:block;font-size:13px;font-weight:500;color:#6b6780;margin-top:3px}
+#pkMoveOv .ls{overflow:auto;padding:4px 10px}#pkMoveOv .gr{font-size:12px;color:#9aa0ab;font-weight:600;padding:8px 8px 4px;text-transform:uppercase;letter-spacing:.03em}
+#pkMoveOv .it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:1px solid #ebe7f3;border-radius:11px;padding:10px 12px;margin-bottom:6px;cursor:pointer;font:inherit;color:inherit}
+#pkMoveOv .it:hover{border-color:#6C4DB8;background:#f7f4fd}#pkMoveOv .it b{font-size:14.5px;display:block}#pkMoveOv .it span{font-size:12.5px;color:#6b6780}
+#pkMoveOv .it i{margin-left:auto;color:#6C4DB8;font-size:18px}#pkMoveOv .ft{padding:10px 18px 14px;display:flex;justify-content:flex-end}
+#pkMoveOv .ft button{background:none;border:1px solid #ddd5f3;color:#6C4DB8;border-radius:10px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
+body.dark #pkMoveOv .bx{background:#1f1b33;color:#ece9f7}body.dark #pkMoveOv .it{border-color:#3a3358}body.dark #pkMoveOv .it:hover{background:#2a2445}body.dark #pkMoveOv .ft button{border-color:#3a3358}`;
+    document.head.appendChild(st);
+  }
+  const ts = s => { const c = s.created; return c ? (c.toDate ? c.toDate().getTime() : new Date(c).getTime()) || 0 : 0; };
+  const list = (allShipments || []).filter(s => s.id !== fromId).sort((a, b) => ((a.status === 'done') - (b.status === 'done')) || ts(b) - ts(a));
+  const esc = x => String(x || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const row = s => `<button type="button" class="it" data-id="${esc(s.id)}"><div><b>${esc(s.name || 'Без названия')}</b><span>${(SHIP_STATUSES[s.status] || {}).label || ''} · ${(s.data || []).length} ${typeof pkPosWord === 'function' ? pkPosWord((s.data || []).length).replace('позицию', 'позиция') : 'поз.'}</span></div><i class="ti ti-arrow-right"></i></button>`;
+  const work = list.filter(s => s.status !== 'done'), arch = list.filter(s => s.status === 'done');
+  const ov = document.createElement('div'); ov.id = 'pkMoveOv';
+  ov.innerHTML = `<div class="bx" role="dialog" aria-label="Перенести позиции"><div class="hd">Куда перенести ${n === 1 ? 'позицию' : n + ' ' + pkPosWord(n)}?<small>Товар переедет со всеми данными: клиент, фото, цены, отметка сканирования</small></div>
+    <div class="ls">${list.length ? work.map(row).join('') + (arch.length ? '<div class="gr">Архив</div>' + arch.map(row).join('') : '') : '<div style="padding:12px 8px;color:#6b6780">Других закупок нет — сначала создайте закупку.</div>'}</div>
+    <div class="ft"><button type="button" data-x="1">Отмена</button></div></div>`;
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-x]')) { ov.remove(); return; }
+    const b = e.target.closest('.it'); if (!b) return;
+    ov.remove(); onPick(b.dataset.id);
+  });
+  document.body.appendChild(ov);
+}
+function pkMoveToast(r) {
+  if (typeof showToast !== 'function') return;
+  showToast(r.moved ? `Перенесено: ${r.moved} → «${r.toName}»${r.dup ? ` · ${r.dup} уже были там` : ''}` : `Ничего не перенесено: ${r.dup ? 'эти треки уже есть в той закупке' : 'нет позиций'}`);
+}
+// Телефон: «Позиции закупки» → галочки → «Перенести»
+function peMoveSel() {
+  const fromId = editingShipmentId || activeShipmentId;
+  const idxs = [...peSel].sort((a, b) => a - b), tracks = idxs.map(i => (TABLE[i] || [])[0] || '');
+  if (!idxs.length) return;
+  pkMovePick(fromId, idxs.length, async toId => {
+    peSel.clear(); tracks.forEach(t => pkDelPending.add(String(t)));   // сразу: выбор сброшен, строки исчезли
+    renderPriceEditor();
+    try { pkMoveToast(await pkMoveRows(fromId, idxs, tracks, toId)); } catch (e) { alert('Не удалось перенести: ' + e.message); }
+    tracks.forEach(t => pkDelPending.delete(String(t)));
+    renderPriceEditor();
+  });
 }
 
 // ============ RESET / EXPORT ============
