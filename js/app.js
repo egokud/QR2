@@ -729,7 +729,7 @@ function computeClientCalc() {
     const parts = splitWarehouses(wh);
     if (!parts.length) continue;
     const buyPrice = parseFloat(row[3]) || 0;         // цена закупки (r[3])
-    const cliPrice = parseFloat(row[4]) || buyPrice;  // цена клиента (r[4]); если нет — = закупке
+    const cliPrice = buyPrice;  // 15.11.2026: скрытая «цена клиента ¥» (r[4]/pc, поле «Клиент ¥» до ноября) больше не учитывается — его нет на экране, а оно тихо завышало суммы (база Вероники, 8 строк, +352 BYN). Считаем только от выкупа.
     for (const p of parts) {
       const name = canon[p.toLowerCase()] || p;  // приводим к каноническому написанию
       buyYuan[name] = (buyYuan[name] || 0) + buyPrice / parts.length;      // сборный: делим

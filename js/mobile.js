@@ -626,7 +626,7 @@ function pkCliShipsHtml(c, name) {
     const sum = cc.isOwner ? '<small>свой склад</small>' : !billed ? '<small>не рассчитана</small>'
       : `<b>${pkF2(cc.due)} ${pkCur()}</b>${cc.payRest > 0.004 ? `<small class="due">долг ${pkF2(cc.payRest)}</small>` : '<small class="okk">оплачено</small>'}`;
     const items = !open ? '' : rows.map(r => {
-      const pr = parseFloat(r[4]) || parseFloat(r[3]) || 0, q = parseInt(r[5] || '1', 10) || 1, im = r[2] ? pkImg(r[2]) : '';
+      const pr = parseFloat(r[3]) || 0, q =   /* 15.11.2026: только выкуп, без скрытой r[4] */ parseInt(r[5] || '1', 10) || 1, im = r[2] ? pkImg(r[2]) : '';
       return `<div class="pk-li"><span class="ph" ${im ? `style="background-image:url('${pkEsc(im)}')" onclick="event.stopPropagation();if(typeof cabZoomImg==='function')cabZoomImg('${pkEsc(im)}')"` : ''}></span><div><b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(r[0])}</b><small>${r[6] ? pkEsc(r[6]) : '—'}</small>${pkVarsNote(r, 'pk-li-vars')}</div><span class="r">${pr ? pkF2(pr) + ' ¥' : '—'}${q > 1 ? ' ×' + q : ''}</span></div>`;
     }).join('');
     return `<div class="pk-cs${open ? ' open' : ''}">

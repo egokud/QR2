@@ -246,7 +246,7 @@ function cabGetClientsFromShipment(ship) {
         if (name) {
           clientsSet.add(name);
           const buy = parseFloat(r[3]) || 0;
-          const cli = parseFloat(r[4]) || buy;
+          const cli = buy;   // 15.11.2026: скрытая «цена клиента ¥» (r[4]/pc, поле «Клиент ¥» до ноября) больше не учитывается — его нет на экране, а оно тихо завышало суммы (база Вероники, 8 строк, +352 BYN). Считаем только от выкупа.
           buyYuan[name] = (buyYuan[name] || 0) + buy / parts.length;
           clientYuanMap[name] = (clientYuanMap[name] || 0) + cli / parts.length;
           itemCount[name] = (itemCount[name] || 0) + 1;
@@ -2251,14 +2251,14 @@ function cabRenderClientCard(container, name) {
         .map(r => {
           const parts = splitWarehouses(r[1] || '');
           const shared = parts.length > 1 ? ` <span style="font-size:12px;color:#6b7280">(общий: ${r[1]})</span>` : '';
-          const price = parseFloat(r[4]) || parseFloat(r[3]) || 0;
+          const price = parseFloat(r[3]) || 0;   // 15.11.2026: только выкуп, без скрытой «цены клиента» r[4]
           const img = r[2] ? `<img src="${pkImg(r[2])}" loading="lazy" onclick="cabZoomImg(this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
           return `<tr><td style="width:52px">${img}</td><td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${shared}${pkVarsNote(r, 'cab-qty-note')}</td><td>${price ? cabFmt2(price) + ' ¥' : '—'}${(parseInt(r[5]) || 1) > 1 ? ' ×' + r[5] : ''}</td></tr>`;
         }).join('');
       items = `<div style="padding:4px 0 6px">
         ${ship.status === 'done' ? '' : `<button type="button" class="cab-filter-btn cab-cship-add" onclick="event.stopPropagation();cabAddItemsOpen('${ship.id}','${enc}')" title="Добавить товар в эту закупку — клиент уже будет вписан"><i class="ti ti-plus"></i> Добавить позицию</button>`}
         <div style="font-size:13px;color:#6b7280;margin:6px 0 8px">Вес клиента в закупке: <b style="color:#1a1a2e">${c.weight > 0 ? c.weight.toFixed(2) + ' кг' : 'не взвешен'}</b>${c.shipWeight > 0 ? ' · с тарой ' + c.shipWeight.toFixed(2) + ' кг' : ''} (вес вводится на клиента целиком, не по товарам)</div>
-        <table class="cab-table"><thead><tr><th></th><th>Трек-код</th><th>Цена клиента</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="color:#6b7280">Нет товаров</td></tr>'}</tbody></table>
+        <table class="cab-table"><thead><tr><th></th><th>Трек-код</th><th>Выкуп ¥</th></tr></thead><tbody>${rows || '<tr><td colspan="3" style="color:#6b7280">Нет товаров</td></tr>'}</tbody></table>
       </div>`;
     }
     return `<div class="cab-cship">
