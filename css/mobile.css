@@ -526,6 +526,7 @@ body.dark .pk-stp.st-warehouse{background:#14532d;color:#bbf7d0}body.dark .pk-st
 .pk-bn{grid-area:1/1;display:flex;align-items:center;gap:10px;border-radius:14px;padding:10px 32px 14px 12px;color:#fff;opacity:0;visibility:hidden;transition:opacity .45s,visibility .45s}
 .pk-bn.on{opacity:1;visibility:visible}
 .pk-bn.idea{background:linear-gradient(135deg,#1f7a52,#2f9e6a)}
+.pk-bn.trial{background:linear-gradient(135deg,#3730a3,#5b52e8)}.pk-bn.trial .go{color:#4338ca;border:none;font-family:inherit;cursor:pointer}
 .pk-bn.mk3{background:linear-gradient(135deg,#6C4DB8,#8b6be0)}
 .pk-bn.disc{background:linear-gradient(135deg,#c2410c,#ea580c)}.pk-bn.disc .go{color:#c2410c;border:none;font-family:inherit;cursor:pointer}.pk-bn.disc .ic.pct{background:#fff;color:#ea580c;font-size:19px;font-weight:800}
 .pk-bn .ic{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:17px;flex:none}
