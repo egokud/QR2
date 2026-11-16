@@ -14,6 +14,14 @@ const FB_KEY = 'AIzaSyASHE3yqM0wOC3QHVbL4UVSHVq2rEzA5ss'; // публичный 
 const FS = 'https://firestore.googleapis.com/v1/projects/parcel-scanner-90427/databases/(default)/documents';
 const HOOK_URL = 'https://www.piksta.online/api/tg-admin';
 const TRIAL_DAYS = 30, PILOT_TRIAL_DAYS = 90, GRACE_DAYS = 5, DAY = 864e5;
+// (16.11.2026) пробный период — с первого разбора (trialStart), но не позже 60 дней после регистрации; как pkTrialInfo в js/init.js
+const TRIAL_WAIT_DAYS = 60;
+function trialInfo(u) {
+  const now = new Date(), created = u.created instanceof Date ? u.created : now;
+  const cap = new Date(created.getTime() + TRIAL_WAIT_DAYS * DAY), ts = u.trialStart instanceof Date ? u.trialStart : null;
+  const start = ts && ts < cap ? ts : cap;
+  return { start, cap, waiting: !ts && now < cap, end: new Date(start.getTime() + (u.founder ? PILOT_TRIAL_DAYS : TRIAL_DAYS) * DAY) };
+}
 
 const TOKEN = () => process.env.TG_TOKEN || '';
 const SECRET = () => crypto.createHash('sha256').update('piksta-tg:' + TOKEN()).digest('hex').slice(0, 48);
@@ -89,10 +97,10 @@ async function log(action, u, prev, next) {
 function access(u) {
   const now = new Date();
   if (u.blocked) return { kind: 'blocked' };
-  const created = u.created instanceof Date ? u.created : now;
-  const trialEnd = new Date(created.getTime() + (u.founder ? PILOT_TRIAL_DAYS : TRIAL_DAYS) * DAY);
+  const T = trialInfo(u), trialEnd = T.end;
   const subEnd = u.subscription && u.subscription.endDate instanceof Date ? u.subscription.endDate : null;
   const from = subEnd ? 'sub' : 'trial', end = subEnd || trialEnd, until = new Date(end.getTime() + GRACE_DAYS * DAY);
+  if (from === 'trial' && T.waiting) return { kind: 'trial', from, end, left: Math.ceil((end - now) / DAY), waiting: true, startBy: T.cap };
   if (now < end) return { kind: from, from, end, left: Math.ceil((end - now) / DAY) };
   if (now < until) return { kind: 'grace', from, end, until, left: Math.ceil((until - now) / DAY) };
   return { kind: 'readonly', from, end };
@@ -118,6 +126,7 @@ function card(u) {
   const items = stats.reduce((n, s) => n + (Number(s && s.count) || 0), 0);
   let st = STATUS[A.kind] + (A.from === 'sub' ? ` «${PLANS[curPlan(u)]}»` : '') + (u.founder ? ' · пилот' : '');
   if (A.kind === 'grace') st += ` · ещё ${A.left} дн.`;
+  if (A.waiting) st += ` · ждёт первого разбора (не позже ${d(A.startBy)})`;
   const us = u.usage || {};
   const useLine = us.k ? `Треков с ${us.k.split('-').reverse().slice(0, 2).join('.')}: <b>${nf(us.n || 0)}</b>${us.lim ? ' из ' + nf(us.lim) : ''}` : '';
   const h = Array.isArray(u.subscription && u.subscription.history) ? u.subscription.history.slice(-1)[0] : null;
@@ -139,8 +148,7 @@ function paidStart(u) {
   const now = new Date(), prev = u.subscription || null;
   if (prev && prev.endDate instanceof Date && prev.endDate > now) return prev.endDate;
   if (!(prev && prev.endDate instanceof Date)) {
-    const created = u.created instanceof Date ? u.created : now;
-    const trialEnd = new Date(created.getTime() + (u.founder ? PILOT_TRIAL_DAYS : TRIAL_DAYS) * DAY);
+    const trialEnd = trialInfo(u).end;
     if (trialEnd > now) return trialEnd;
   }
   return now;

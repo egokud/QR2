@@ -53,7 +53,7 @@ const SITE = 'https://piksta.online';
 function html() {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f3f1f8;font-family:Arial,Helvetica,sans-serif;color:#17142a">
-<div style="display:none;max-height:0;overflow:hidden">Почта подтверждена — можно начинать. 30 дней всё бесплатно.</div>
+<div style="display:none;max-height:0;overflow:hidden">Почта подтверждена — можно начинать. Пробный месяц начнётся с разбора первой закупки.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f1f8"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden">
 <tr><td style="background:#6C4DB8;background-image:linear-gradient(135deg,#8b6fe0,#6C4DB8);padding:26px 28px 28px">
@@ -66,7 +66,7 @@ function html() {
 </td></tr>
 <tr><td style="padding:26px 28px 6px;font-size:15px;line-height:1.6">
   <p style="margin:0 0 12px">Здравствуйте!</p>
-  <p style="margin:0 0 12px">Спасибо, что выбрали Piksta. Первые <b>30 дней</b> всё доступно бесплатно, без ограничений.</p>
+  <p style="margin:0 0 12px">Спасибо, что выбрали Piksta. Всё доступно бесплатно, без ограничений. Пробный период <b>30 дней</b> начнётся, когда вы разберёте первую закупку (отсканируете половину посылок), так что спокойно дождитесь своего груза.</p>
   <p style="margin:0 0 12px">С чего начать, подскажет сам Кабинет: создайте закупку, там будет короткая инструкция под ваш способ работы, с Пиндуодуо или с любых площадок.</p>
   <p style="margin:0">Если что-то непонятно, просто ответьте на это письмо или напишите в поддержку в Telegram. Отвечаем быстро.</p>
 </td></tr>
@@ -87,7 +87,7 @@ function html() {
 }
 const TEXT = `Здравствуйте!
 
-Почта подтверждена, можно начинать. Спасибо, что выбрали Piksta. Первые 30 дней всё доступно бесплатно, без ограничений.
+Почта подтверждена, можно начинать. Спасибо, что выбрали Piksta. Всё доступно бесплатно, без ограничений. Пробный период 30 дней начнётся, когда вы разберёте первую закупку (отсканируете половину посылок), так что спокойно дождитесь своего груза.
 
 С чего начать, подскажет сам Кабинет: создайте закупку, там будет короткая инструкция под ваш способ работы, с Пиндуодуо или с любых площадок.
 
