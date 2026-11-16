@@ -469,6 +469,7 @@ addEventListener('scroll', () => { if (matchMedia('(hover: hover)').matches) cab
 // или палец на нём, и пока вкладка свёрнута. Точки и свайп — листать вручную.
 // Крестик прячет только этот баннер, в этом аккаунте (ключ с uid). Все спрятаны или истекли — в Кабинете снова «Деньги в обороте».
 const PK_BANNERS = [
+  { id: 'trial-2026-11', date: '2026-11-16', until: '2027-01-31', kind: 'trial' },  // «Пробный месяц — с первого разбора» (16.11.2026); подписчикам не показываем
   { id: 'disc-2026-11', date: '2026-11-10', until: '2026-12-31', kind: 'disc' },   // «Персональная скидка для клиента» (окно «Условия»)
   { id: 'idea-2026-11', date: '2026-11-07', until: '', kind: 'idea' },
   { id: 'mk3-2026-11', date: '2026-11-06', until: '2026-11-30', kind: 'mk3' }
@@ -523,6 +524,7 @@ const pkBnUid = () => (typeof savedUid !== 'undefined' && savedUid ? savedUid : 
 function pkBnHidden(b) {
   try {
     if (localStorage.getItem('pk_bn_off_' + pkBnUid() + '_' + b.id)) return true;
+    if (b.kind === 'trial' && typeof userProfile !== 'undefined' && userProfile && userProfile.subscription) return true;   // уже платят — новость про пробный не нужна
     if (b.id === 'mk3-2026-11' && localStorage.getItem('pk_news_off_' + pkBnUid()) === b.id) return true;   // крестик старой версии (06.11)
   } catch (e) {}
   return false;
@@ -565,6 +567,25 @@ setInterval(() => {
 }, 1000);
 function cabBnSlide(b, on) {
   const x = `<button type="button" class="cab-news-x" onclick="pkBnOff('${b.id}')" title="Скрыть этот баннер"><i class="ti ti-x"></i></button>`;
+  if (b.kind === 'trial') return `<div class="cab-card cab-news trial ${on ? 'on' : ''}" data-bn>${x}
+      <div class="cab-news-l">
+        <span class="cab-news-tag"><i class="ti ti-gift"></i> Новое правило</span>
+        <div class="cab-news-h">Пробный месяц начнётся<br>с вашего первого разбора</div>
+        <div class="cab-news-p">Груз из Китая едет 2–3 недели, и тестировать Piksta без посылок на руках неудобно. Поэтому теперь <b>30 дней</b> отсчитываются с разбора первой закупки. Пока груз в пути, всё работает бесплатно и без ограничений.</div>
+        <div class="cab-news-bt">
+          <button type="button" class="cab-news-b1" onclick="cabNav('tariffs')"><i class="ti ti-hourglass"></i>Мой пробный период</button>
+          <span class="cab-news-v">Разбор: отсканирована половина<br>посылок закупки</span>
+        </div>
+      </div>
+      <div class="cab-trial-art" aria-hidden="true">
+        <div class="cab-trial-card">
+          <div class="st done"><span class="ic"><i class="ti ti-truck-delivery"></i></span><span><b>Груз едет из Китая</b><small>2–3 недели · бесплатно</small></span></div>
+          <div class="st done"><span class="ic"><i class="ti ti-scan"></i></span><span><b>Первый разбор</b><small>пик, и видно, чья посылка</small></span></div>
+          <div class="st go"><span class="ic"><i class="ti ti-player-play-filled"></i></span><span><b>Старт пробного месяца</b><small>30 дней с этого дня</small></span></div>
+        </div>
+        <div class="cab-trial-badge"><b>30</b>дней</div>
+      </div>
+    </div>`;
   if (b.kind === 'disc') return `<div class="cab-card cab-news disc ${on ? 'on' : ''}" data-bn>${x}
       <div class="cab-news-l">
         <span class="cab-news-tag"><i class="ti ti-sparkles"></i> Новое</span>
@@ -617,8 +638,8 @@ function cabBnSlide(b, on) {
       </div>
     </div>`;
 }
-function cabBnBlock() {
-  const L = pkBnList(); if (!L.length) return '';
+function cabBnBlock(only) {   // only(b) — показать не все баннеры (пустой Обзор: только «Пробный месяц»)
+  const L = pkBnList().filter(b => !only || only(b)); if (!L.length) return '';
   if (pkBnIdx >= L.length) pkBnIdx = 0;
   return `<div class="cab-bn" ${pkBnAttrs(PK_BN_SEC.cab)}>${L.map((b, k) => cabBnSlide(b, k === pkBnIdx)).join('')}${pkBnDots(L.length)}</div>`;
 }
@@ -3762,6 +3783,7 @@ const CAB_GUIDE_PDD = '/guides/piksta-start-marketplejsy.pdf', CAB_GUIDE_MAN = '
 function cabEmptyOverview() {
   const first = userProfile && userProfile.name ? String(userProfile.name).split(' ')[0] : '';
   return `<div class="cab-main-title">${first ? 'Добро пожаловать, ' + cabEsc(first) + '!' : 'Добро пожаловать в Piksta!'}</div>
+    ${cabBnBlock(b => b.kind === 'trial')}
     <div class="cab-start"><h2>С чего начать</h2><p>Три шага — и первая закупка разобрана по клиентам. Начните с закупки: всё остальное Piksta посчитает сама.</p></div>
     <div class="cab-start-steps">
       <div class="cab-start-st cur"><span class="n">1</span><b>Создайте закупку</b><span>Импорт с Pinduoduo, Taobao и 1688 через расширение — или вручную, с любой площадки.</span><button type="button" class="cab-eb" onclick="cabNav('shipments')">Перейти в «Закупки» <i class="ti ti-arrow-right"></i></button></div>
