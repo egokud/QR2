@@ -231,7 +231,7 @@ function pkTariffRender() {
   if (A.kind === 'admin') head = `<div class="pk-tfnow"><small>Сейчас</small><b>Администратор</b><small>Тарифы не действуют. Проверять оплату — с тестового аккаунта.</small></div>`;
   else if (A.kind === 'trial') {
     const tot = (userProfile && userProfile.founder) ? 90 : 30, pct = Math.max(4, Math.min(100, A.left / tot * 100));
-    head = `<div class="pk-tfnow"><small>${pkPilot() ? 'Пилот · бесплатно 3 месяца' : 'Сейчас'}</small><b>Пробный период · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}</b><div class="pk-bar"><span style="width:${pct}%"></span></div><small>Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}</small></div>`;
+    head = `<div class="pk-tfnow"><small>${pkPilot() ? 'Пилот · бесплатно 3 месяца' : 'Сейчас'}</small><b>${A.waiting ? 'Пробный период начнётся с разбора первой закупки' : `Пробный период · осталось ${A.left} ${pkPl(A.left, 'день', 'дня', 'дней')}`}</b>${A.waiting ? `<small>${tot} ${pkPl(tot, 'день', 'дня', 'дней')} отсчитываются, когда вы отсканируете половину посылок закупки (не позже ${pkD(A.startBy)}).</small>` : `<div class="pk-bar"><span style="width:${pct}%"></span></div>`}<small>Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}</small></div>`;
   } else if (A.kind === 'sub') {
     const U = pkUsage(), lim = U.lim, pct = lim === Infinity ? 0 : Math.min(100, U.n / lim * 100);
     const per = `${U.P.start.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}–${U.P.last.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`;

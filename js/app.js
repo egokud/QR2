@@ -193,7 +193,7 @@ async function showApp() {
       banner.innerHTML = ic('ti-license') + 'Лицензия действует до ' + d(A.end);
     } else if (A.kind === 'trial') {
       banner.style.cssText = css('#fff7ed', '#fed7aa', '#ea580c');
-      banner.innerHTML = A.left <= 14 ? ic('ti-clock') + 'Тестовый период: осталось ' + A.left + ' ' + cabDaysWord(A.left) : ic('ti-hourglass') + 'Тестовый период: ' + A.left + ' ' + cabDaysWord(A.left);
+      banner.innerHTML = A.waiting ? ic('ti-hourglass') + 'Пробный период начнётся с разбора первой закупки' + sm('30 дней отсчитываются, когда вы отсканируете половину посылок закупки') : A.left <= 14 ? ic('ti-clock') + 'Тестовый период: осталось ' + A.left + ' ' + cabDaysWord(A.left) : ic('ti-hourglass') + 'Тестовый период: ' + A.left + ' ' + cabDaysWord(A.left);
     } else if (A.kind === 'grace') {
       banner.style.cssText = css('#fef2f2', '#fca5a5', '#dc2626');
       banner.innerHTML = ic('ti-alert-triangle') + ended + d(A.end) + sm('Всё работает ещё ' + A.left + ' ' + cabDaysWord(A.left) + ' — до ' + d(A.until) + '. Потом только просмотр. Для продления обратитесь в техподдержку');
@@ -1878,6 +1878,7 @@ function updateStats() {
   document.getElementById('unscannedCount').textContent=t-d;
   if(document.getElementById('statScannedBtn')) document.getElementById('statScannedBtn').textContent=d;
   document.getElementById('fullListCount').textContent=t;
+  if (typeof pkTrialCheck === 'function') pkTrialCheck(t, d);   // (16.11.2026) пробный период — с первого разбора
 }
 
 // ============ HISTORY ============

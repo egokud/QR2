@@ -1050,7 +1050,7 @@ function pkTariffLine() {
   const { A, sub, plan } = pkPlanNow();
   if (sub.pending) return '<small style="color:var(--pk-warn)">оплата на проверке</small>';
   if (A.kind === 'sub') return `<small>${PK_PLANS[plan].n} · до ${A.end.toLocaleDateString('ru-RU')}</small>`;
-  if (A.kind === 'trial') return `<small>пробный · ${A.left} дн.</small>`;
+  if (A.kind === 'trial') return A.waiting ? '<small>пробный · с разбора</small>' : `<small>пробный · ${A.left} дн.</small>`;
   if (A.kind === 'grace' || A.kind === 'readonly') return '<small style="color:var(--pk-bad)">нужно оплатить</small>';
   return '';
 }

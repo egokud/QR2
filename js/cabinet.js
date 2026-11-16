@@ -2889,7 +2889,7 @@ function renderCabSettings(container) {
   const created = cabToDate(userProfile && userProfile.created) || (currentUser && currentUser.metadata ? new Date(currentUser.metadata.creationTime) : null);
   const A = typeof pkAccess === 'function' ? pkAccess(userProfile) : {};
   const plan = A.kind === 'admin' ? 'Администратор' : A.kind === 'sub' ? (typeof PK_PLANS !== 'undefined' && PK_PLANS[(userProfile.subscription || {}).plan] ? PK_PLANS[userProfile.subscription.plan].n : 'Подписка') + (A.end ? ' · до ' + A.end.toLocaleDateString('ru-RU') : '')
-    : A.kind === 'trial' ? 'Пробный период' + (A.end ? ' · до ' + A.end.toLocaleDateString('ru-RU') : '') : A.kind === 'grace' ? 'Нужно оплатить' : A.kind === 'readonly' ? 'Только просмотр' : '—';
+    : A.kind === 'trial' && A.waiting ? 'Пробный период · начнётся с разбора первой закупки' : A.kind === 'trial' ? 'Пробный период' + (A.end ? ' · до ' + A.end.toLocaleDateString('ru-RU') : '') : A.kind === 'grace' ? 'Нужно оплатить' : A.kind === 'readonly' ? 'Только просмотр' : '—';
   const tips = typeof pkTourMenuOn === 'function' && pkTourMenuOn();
   const row = (l, v) => `<div class="cab-set-row"><span class="cab-set-l">${l}</span><div class="cab-set-v">${v}</div></div>`;
   container.innerHTML = `
@@ -3097,6 +3097,11 @@ function renderCabTariffs(container) {
     const tot = (userProfile && userProfile.founder) ? 90 : 30, pct = Math.max(4, Math.min(100, A.left / tot * 100));
     title = `${pkPilot() ? 'Пилот · ' : ''}Пробный период · осталось ${A.left} ${cabDaysWord(A.left)}`; text = `До ${d(A.end)}. Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}`;
     bar = `<div class="ctf-bar"><span style="width:${pct}%"></span></div>`;
+    if (A.waiting) {   // (16.11.2026) отсчёт ещё не начался — начнётся с первого разбора груза
+      title = `${pkPilot() ? 'Пилот · ' : ''}Пробный период ещё не начался`;
+      text = `${tot} ${cabDaysWord(tot)} начнутся, когда вы разберёте первую закупку (отсканируете половину посылок), но не позже ${d(A.startBy)}. Открыто всё, как в «Основном». Треков в ${PK_MON_IN[new Date().getMonth()]}: ${pkN(T.cur)}`;
+      bar = '';
+    }
   } else if (A.kind === 'sub') {
     const U = pkUsage(), lim = U.lim, pct = lim === Infinity ? 0 : Math.min(100, U.n / lim * 100);
     ic = 'ti-circle-check'; tone = 'ok'; title = `${PK_PLANS[plan].n} · ${pkSubPer(sub) === 'y' ? 'на год' : 'помесячно'}${pkPilot() ? ' · пилот' : ''}`;
@@ -3168,7 +3173,7 @@ function renderCabTariffsOld(container) {
   const st = {
     admin:   { icon: 'ti-shield-check', color: '#6C4DB8', bg: '#f0ecf9', title: 'Администратор', text: 'Доступ без ограничений' },
     sub:     { icon: 'ti-circle-check', color: '#16a34a', bg: '#f0fdf4', title: 'Подписка активна', text: A.end ? `До ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}` : '' },
-    trial:   { icon: 'ti-hourglass',    color: '#ea580c', bg: '#fff7ed', title: 'Пробный период', text: A.end ? `До ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}` : '' },
+    trial:   { icon: 'ti-hourglass',    color: '#ea580c', bg: '#fff7ed', title: 'Пробный период', text: A.waiting ? `Начнётся с разбора первой закупки (не позже ${d(A.startBy)})` : A.end ? `До ${d(A.end)} · осталось ${A.left} ${cabDaysWord(A.left)}` : '' },
     grace:   { icon: 'ti-alert-triangle', color: '#dc2626', bg: '#fef2f2', title: A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился', text: A.end ? `${d(A.end)} · всё работает ещё ${A.left} ${cabDaysWord(A.left)} (до ${A.until ? d(A.until) : ''}), потом только просмотр` : '' },
     readonly:{ icon: 'ti-lock',         color: '#4a5260', bg: '#f3f4f6', title: 'Только просмотр', text: A.end ? `${A.from === 'sub' ? 'Подписка закончилась' : 'Пробный период закончился'} ${d(A.end)} · данные сохранены, изменения недоступны` : '' },
     blocked: { icon: 'ti-lock',         color: '#4a5260', bg: '#f3f4f6', title: 'Доступ ограничен', text: 'Только просмотр · обратитесь в техподдержку' }
@@ -3442,7 +3447,7 @@ function cabAdminRenderList() {
     const st = {
       blocked: ['Заблокирован', '#4a5260', '#f3f4f6'], readonly: ['Только просмотр', '#b91c1c', '#fde8e8'],
       grace: [`5 дней на оплату · ещё ${A.left} дн.`, '#b91c1c', '#fde8e8'], sub: ['Подписка', '#15803d', '#dcfce7'],
-      trial: [u.founder ? 'Пробный · пилот' : 'Пробный', '#92400e', '#fef3c7']
+      trial: [(u.founder ? 'Пробный · пилот' : 'Пробный') + (A.waiting ? ' · ждёт разбора' : ''), '#92400e', '#fef3c7']
     }[A.kind] || ['—', '#4a5260', '#f3f4f6'];
     const plan = A.from === 'sub' && typeof PK_PLANS !== 'undefined' ? (PK_PLANS[(u.subscription || {}).plan] ? u.subscription.plan : 'main') : null;
     if (A.kind === 'sub' && plan) st[0] = PK_PLANS[plan].n + (u.founder ? ' · пилот' : '');

@@ -54,6 +54,10 @@ let activeCameraId = null;
 // как только подписка выдана, действует только её срок (остаток теста сгорает). После окончания —
 // ещё 5 календарных дней всё работает, затем только просмотр. Заблокирован — сразу только просмотр.
 const PK_TRIAL_DAYS = 30, PK_PILOT_TRIAL_DAYS = 90, PK_GRACE_DAYS = 5;
+// (16.11.2026, решение Егора) Пробный период (30 дн., пилоту 90) начинается не с регистрации, а с первого разбора груза:
+// в одной закупке от 10 позиций отсканирована половина и больше — приложение само пишет в профиль trialStart (один раз).
+// Не было разбора за 60 дней с регистрации — отсчёт всё равно начинается на 60-й день. То же — в правилах Firestore и api/tg-admin.js.
+const PK_TRIAL_WAIT_DAYS = 60, PK_TRIAL_MIN_ITEMS = 10;
 function pkToDate(v) {
   if (!v) return null;
   if (v.toDate) return v.toDate();
@@ -63,13 +67,30 @@ function pkToDate(v) {
 // С какой даты начинается оплаченный срок (решение Егора 05.11.2026): сначала до конца доходит то, что уже есть,
 // потом — оплаченное. Действующая подписка → от её окончания; ещё идёт пробный период / пилот (подписки не было) →
 // от конца пробного; иначе → с сегодняшнего дня. Та же формула — в api/tg-admin.js (paidStart).
+function pkTrialInfo(p) {
+  const DAY = 864e5, now = new Date(), created = pkToDate(p.created) || now;
+  const cap = new Date(created.getTime() + PK_TRIAL_WAIT_DAYS * DAY), ts = pkToDate(p.trialStart);
+  const start = ts && ts < cap ? ts : cap;
+  return { start, cap, waiting: !ts && now < cap, end: new Date(start.getTime() + (p.founder ? PK_PILOT_TRIAL_DAYS : PK_TRIAL_DAYS) * DAY) };
+}
+// Первый разбор: вызывается из updateStats (app.js) — total позиций в закупке, done отмечено
+function pkTrialCheck(total, done) {
+  try {
+    const p = userProfile;
+    if (!p || !currentUser || p.role === 'admin' || p.trialStart || p.subscription) return;
+    if (total < PK_TRIAL_MIN_ITEMS || done * 2 < total) return;
+    p.trialStart = new Date();
+    db.collection('users').doc(currentUser.uid).update({ trialStart: firebase.firestore.FieldValue.serverTimestamp() })
+      .catch(() => { delete p.trialStart; });
+  } catch (e) {}
+}
 function pkPaidStart(p) {
   p = p || userProfile || {};
   const now = new Date(), DAY = 864e5;
   const subEnd = p.subscription ? pkToDate(p.subscription.endDate) : null;
   if (subEnd && subEnd > now) return subEnd;
   if (!subEnd && p.role !== 'admin') {
-    const trialEnd = new Date((pkToDate(p.created) || now).getTime() + (p.founder ? PK_PILOT_TRIAL_DAYS : PK_TRIAL_DAYS) * DAY);
+    const trialEnd = pkTrialInfo(p).end;
     if (trialEnd > now) return trialEnd;
   }
   return now;
@@ -79,11 +100,13 @@ function pkAccess(p) {
   const now = new Date(), DAY = 864e5;
   if (p.role === 'admin') return { kind: 'admin' };
   if (p.blocked) return { kind: 'blocked' };
-  const trialEnd = new Date((pkToDate(p.created) || now).getTime() + (p.founder ? PK_PILOT_TRIAL_DAYS : PK_TRIAL_DAYS) * DAY);
+  const T = pkTrialInfo(p), trialEnd = T.end;
   const subEnd = p.subscription ? pkToDate(p.subscription.endDate) : null;
   const from = subEnd ? 'sub' : 'trial';
   const end = from === 'sub' ? subEnd : trialEnd;
   const until = new Date(end.getTime() + PK_GRACE_DAYS * DAY);
+  // ждём первого разбора: пробный период ещё не начался (начнётся сам, но не позже T.cap)
+  if (from === 'trial' && T.waiting) return { kind: 'trial', from, end, left: Math.ceil((end - now) / DAY), waiting: true, startBy: T.cap };
   if (now < end) return { kind: from, from, end, left: Math.ceil((end - now) / DAY) };
   if (now < until) return { kind: 'grace', from, end, until, left: Math.ceil((until - now) / DAY) };
   return { kind: 'readonly', from, end };
