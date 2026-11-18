@@ -1212,6 +1212,7 @@ async function loadShipmentData(id, keepActive) {
   let scDoc;
   try { scDoc = await fsGet('users/' + savedUid + '/scanned/' + id); } catch(e) { scDoc = { exists: false }; }
   scanned = scDoc.exists ? (scDoc.data().items || {}) : {};
+  await pkScansLoad(id);   // 19.11.2026: счётчик сканов сборных пакетов
   updateStats();
   checkCacheStatus(); // проверяем загружены ли картинки этого прихода
   document.getElementById('resultBlock').innerHTML = '';
@@ -1606,12 +1607,34 @@ function lookup(code) {
   // 10.11.2026: строки-разновидности одного трека (расширение 1.10.7, [13] «i/n») — это ОДИН пакет: один скан отмечает все его строки
   if (ut.length === 1 && rows.some(r => TABLE[r.i] && TABLE[r.i][13])) {
     const fr = rows.filter(r => !scanned[r.i]);
-    if (!fr.length) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
-    fr.forEach(r => { scanned[r.i] = true; });
-    saveScanned();
+    // 19.11.2026: сборный пакет — сканировать можно столько раз, сколько КЛИЕНТОВ под треком.
+    // Сколько физических пакетов приехало — неизвестно, поэтому разрешаем по клиентам.
+    // Отметка в закупке — одна единица: ставим при первом скане, при повторных не меняем.
+    const cl = bagClients(rows);
+    const lim = Math.max(1, cl.length);
+    const n = pkScanCount(rows[0].t);
+    if (n >= lim) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
+    pkScanInc(rows[0].t);
+    if (fr.length) { fr.forEach(r => { scanned[r.i] = true; }); saveScanned(); }
     const whG = [...new Set(rows.map(r=>r.w).filter(Boolean))].join(' + ');
     showResult('success',rows[0].t,whG);
     addHistory(rows[0].t,whG);
+    updateStats(); beep(); vibrate();
+    return;
+  }
+  // 19.11.2026: сборный пакет без разновидностей — несколько клиентов в одной строке
+  // («Коля и Андрей»). Сканировать можно по числу клиентов, отметка ставится один раз.
+  const cl2 = bagClients(rows);
+  if (cl2.length > 1) {
+    const lim2 = cl2.length;
+    const n2 = pkScanCount(rows[0].t);
+    if (n2 >= lim2) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
+    pkScanInc(rows[0].t);
+    const fr2 = rows.filter(r => !scanned[r.i]);
+    if (fr2.length) { fr2.forEach(r => { scanned[r.i] = true; }); saveScanned(); }
+    const whG2 = [...new Set(rows.map(r=>r.w).filter(Boolean))].join(' + ');
+    showResult('success',rows[0].t,whG2);
+    addHistory(rows[0].t,whG2);
     updateStats(); beep(); vibrate();
     return;
   }
@@ -1623,6 +1646,32 @@ function lookup(code) {
   showResult('success',rows[0].t,wh);
   addHistory(rows[0].t,free.w);
   updateStats(); beep(); vibrate();
+}
+
+// ============ 19.11.2026: сборные пакеты — сканы по числу клиентов ============
+// Отметка в закупке остаётся одной единицей (товар в базе один). Число сканов храним отдельно,
+// в отдельном документе users/{uid}/scanCount/{shipId} — чтобы НЕ ломать счётчики «считано/осталось»,
+// которые считают Object.keys(scanned).length.
+let pkScans = {};
+async function pkScansLoad(shipId) {
+  pkScans = {};
+  try { const d = await fsGet('users/' + savedUid + '/scanCount/' + shipId); if (d && d.exists) pkScans = d.data().items || {}; } catch (e) {}
+}
+function pkScanCount(track) { return parseInt(pkScans[String(track)] || 0, 10) || 0; }
+function pkScanInc(track) {
+  const k = String(track);
+  pkScans[k] = (parseInt(pkScans[k] || 0, 10) || 0) + 1;
+  try { pkWrite('users/' + savedUid + '/scanCount/' + (editingShipmentId || activeShipmentId), 'set', { items: pkScans }); } catch (e) {}
+}
+function pkScansReset(shipId) { pkScans = {}; try { pkWrite('users/' + savedUid + '/scanCount/' + (shipId || editingShipmentId || activeShipmentId), 'set', { items: {} }); } catch (e) {} }
+// Клиенты под треком (разбиваем «Коля и Андрей» на двоих), по порядку из таблицы
+function bagClients(rows) {
+  const seen = new Set(); const out = [];
+  (rows || []).forEach(r => {
+    const w = Array.isArray(r) ? r[1] : (r && r.w);
+    splitWarehouses(w || '').forEach(n => { const k = n.toLowerCase(); if (n && !seen.has(k)) { seen.add(k); out.push(n); } });
+  });
+  return out;
 }
 
 // ============ SHOW RESULT ============
@@ -2293,6 +2342,7 @@ async function resetAll(skipConfirm) {
   if(!skipConfirm && !confirm('Сбросить все отметки?'))return false;
   const shipId = editingShipmentId || activeShipmentId;  // сбрасываем отметки именно открытого прихода
   scanned={};
+  pkScansReset(shipId);
   await scannedRef(shipId).set({ items: {} });
   // (05.11.2026) вместе с отметками стираем и «Последние отметки» этой же закупки — иначе список висит после сброса
   try { await historyRef(shipId).set({ items: [] }); } catch (e) {}
