@@ -1607,11 +1607,11 @@ function lookup(code) {
   // 10.11.2026: строки-разновидности одного трека (расширение 1.10.7, [13] «i/n») — это ОДИН пакет: один скан отмечает все его строки
   if (ut.length === 1 && rows.some(r => TABLE[r.i] && TABLE[r.i][13])) {
     const fr = rows.filter(r => !scanned[r.i]);
-    // 19.11.2026: сборный пакет — сканировать можно столько раз, сколько КЛИЕНТОВ под треком.
-    // Сколько физических пакетов приехало — неизвестно, поэтому разрешаем по клиентам.
+    // 19.11.2026: сборный пакет — лимит сканов = max(клиентов, повторяющихся строк).
+    // Что больше, по тому и считаем: 2 клиента и 3 строки → 3 скана; 3 клиента и 2 строки → 3 скана.
     // Отметка в закупке — одна единица: ставим при первом скане, при повторных не меняем.
     const cl = bagClients(rows);
-    const lim = Math.max(1, cl.length);
+    const lim = Math.max(1, cl.length, rows.length);
     const n = pkScanCount(rows[0].t);
     if (n >= lim) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
     pkScanInc(rows[0].t);
@@ -1623,10 +1623,10 @@ function lookup(code) {
     return;
   }
   // 19.11.2026: сборный пакет без разновидностей — несколько клиентов в одной строке
-  // («Коля и Андрей»). Сканировать можно по числу клиентов, отметка ставится один раз.
+  // («Коля и Андрей»). Лимит сканов = max(клиентов, строк). Отметка ставится один раз.
   const cl2 = bagClients(rows);
-  if (cl2.length > 1) {
-    const lim2 = cl2.length;
+  if (cl2.length > 1 || rows.length > 1) {
+    const lim2 = Math.max(cl2.length, rows.length);
     const n2 = pkScanCount(rows[0].t);
     if (n2 >= lim2) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
     pkScanInc(rows[0].t);
