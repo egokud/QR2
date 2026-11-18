@@ -1180,7 +1180,7 @@ function cabShipItemsHtml() {
   }
   const whCount = {};
   for (const r of TABLE) { const k = (r[1] || '').trim().toLowerCase(); whCount[k] = (whCount[k] || 0) + 1; }
-  let lastWh = null, lastMk = null, lastGrp = '';
+  let lastWh = null, lastMk = null, lastGrp = '', lastGrpDup = false;   // 19.11.2026: lastGrpDup — цвет текущей группы (фиолет/оранж)
   const rows = order.map(i => {
     const r = TABLE[i];
     if (cabItemSort === 'mk' && cabMkOf(r) !== lastMk) {
@@ -1201,13 +1201,12 @@ function cabShipItemsHtml() {
     // 19.11.2026: одинаковые треки из ручного ввода или Excel — такой же заголовок, но ОРАНЖЕВЫЙ
     // и с честной подписью «одинаковые треки · N позиций» (сколько пакетов — неизвестно).
     let grpHead = '';
-    let grpDup = false;
     const gk = (r[13] || isDupTrack(r)) ? String(r[0]) : '';
     if (gk && cabItemSort === 'track' && gk !== lastGrp) {
       const isExt = !!r[13];
       const gr = TABLE.filter(x => String(x[0]) === gk && (isExt ? x[13] : isDupTrack(x)));
       const gq = gr.reduce((n, x) => n + (parseInt(x[5]) || 1), 0), gp = gr.reduce((n, x) => n + (parseFloat(String(x[3] || '').replace(',', '.')) || 0), 0);
-      grpDup = !isExt;
+      lastGrpDup = !isExt;   // цвет запоминаем на всю группу, а не на одну строку
       const txt = isExt
         ? `одна посылка · ${gr.length} ${cabPl(gr.length, 'разновидность', 'разновидности', 'разновидностей')} · ${gq} шт.`
         : `одинаковые треки · ${gr.length} ${cabPl(gr.length, 'позиция', 'позиции', 'позиций')}`;
@@ -1220,7 +1219,7 @@ function cabShipItemsHtml() {
       ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:600;color:#b42318;margin-top:3px;white-space:normal"><i class="ti ti-alert-triangle"></i> Не пришёл ${mv} раза — обратитесь в карго, возможно, посылка потерялась</div>`
       : `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;color:#6b7280;margin-top:3px;white-space:normal"><i class="ti ti-arrow-forward-up"></i> Перенесён из «${cabEsc(r[8] || 'прошлой закупки')}» — в том грузе не пришёл</div>`;
     const sel = cabPos.has(i);
-    return mkHead + head + grpHead + `<tr class="cab-item-row ${sel ? 'sel' : ''}${gk && cabItemSort === 'track' ? (grpDup ? ' cab-dgrp' : ' cab-vgrp') : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
+    return mkHead + head + grpHead + `<tr class="cab-item-row ${sel ? 'sel' : ''}${gk && cabItemSort === 'track' ? (lastGrpDup ? ' cab-dgrp' : ' cab-vgrp') : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
       <td class="cab-chk-td"><input type="checkbox" class="cab-chk" ${sel ? 'checked' : ''} onchange="cabPosToggle(${i},this.checked,this)" aria-label="Выбрать позицию"></td>
       <td style="width:52px">${img}</td>
       <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span>` : ''}${pkVarsNote(r, 'cab-qty-note')}</td>
