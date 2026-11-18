@@ -1134,10 +1134,11 @@ function pkManOpen(name, fromDraft, addTo) {
     <div class="pk-man-body">
       <div class="pk-card pk-man-form" id="pkManForm">
         <div><label class="pk-man-l" for="pkManT">Трек-номер <span style="color:#ea580c">*</span></label>
-          <div class="pk-man-tr"><input id="pkManT" class="pk-man-i mono" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Введите или отсканируйте" onkeydown="if(event.key==='Enter'){event.preventDefault();pkManNext('pkManP')}">
+          <div class="pk-man-tr"><input id="pkManT" class="pk-man-i mono" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Введите или отсканируйте" oninput="pkManTrackHint()" onkeydown="if(event.key==='Enter'){event.preventDefault();pkManNext('pkManP')}">
           <button type="button" class="pk-man-sc" onclick="pkManScanStart()" aria-label="Сканировать штрих-код"><i class="ti ti-scan" aria-hidden="true"></i></button></div>
           <div id="pkManCam" class="pk-man-cam" style="display:none"><div id="pkManReader"></div><button type="button" class="pk-btn ghost sm" onclick="pkManScanStop()">Закрыть камеру</button></div>
-          <div class="pk-man-err" id="pkManErr"></div></div>
+          <div class="pk-man-err" id="pkManErr"></div>
+          <div id="pkManTHint"></div></div>
         <div class="pk-man-row">
           <label class="pk-man-ph" id="pkManPh"><input type="file" accept="image/*" onchange="pkManPhoto(this)" hidden><span id="pkManPhIn"></span></label>
           <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
@@ -1211,6 +1212,19 @@ function pkManForm() {
   pkManPhView(); pkManHints();
 }
 function pkManNorm(t) { return String(t || '').toLowerCase().replace(/\s+/g, ''); }
+// 19.11.2026: проверяем трек СРАЗУ при вводе — есть ли он уже в закупке (в базе) или в форме.
+// Раньше проверка срабатывала только при добавлении второй одинаковой позиции внутри формы,
+// а треки, уже лежащие в базе, не учитывались.
+function pkManTrackHint() {
+  const el = document.getElementById('pkManTHint'); if (!el) return;
+  const t = pkManNorm((document.getElementById('pkManT') || {}).value || '');
+  if (!t || t.length < 4) { el.innerHTML = ''; return; }
+  const inForm = pkMan.items.some((x, i) => i !== pkMan.edit && pkManNorm(x.t) === t);
+  const inBase = !!(pkMan.addTo && pkMan.addTo.tracks && pkMan.addTo.tracks.has(t));
+  el.innerHTML = (inForm || inBase)
+    ? '<div class="pk-man-dupb"><i class="ti ti-alert-triangle" aria-hidden="true"></i><div><b>Такой трек уже есть в закупке</b>Проверьте, что код введён верно — если нет, удалите позицию.</div></div>'
+    : '';
+}
 function pkManAdd() {
   const t = (document.getElementById('pkManT').value || '').replace(/\s+/g, '').trim();
   const err = document.getElementById('pkManErr');
@@ -1224,11 +1238,18 @@ function pkManAdd() {
   const size = JSON.stringify(pkMan.items).length + JSON.stringify(it).length;
   if (size > 850000) { err.textContent = 'Закупка слишком большая: уберите фото у части товаров или создайте ещё одну закупку'; return; }
   if (pkMan.edit != null) { pkMan.items[pkMan.edit] = it; pkMan.edit = null; showToast('Изменения сохранены'); }
-  else { pkMan.items.unshift(it); if (wasDup) showToast('Позиция добавлена · такой трек уже есть в закупке'); }
+  else pkMan.items.unshift(it);   // 19.11.2026: всплывающее убрано — жёлтая плашка видна сразу при вводе трека
   pkManSaveDraft(); pkManForm(); pkManRender();
   document.getElementById('pkManT').focus();
 }
 function pkManEdit(i) { pkMan.edit = i; pkManForm(); document.querySelector('#pkMan .pk-man-body').scrollTo({ top: 0, behavior: 'smooth' }); }
+// 19.11.2026: удалить позицию прямо из списка формы (корзинка у каждой строки)
+function pkManDelIdx(i) {
+  if (i == null || i < 0 || i >= pkMan.items.length) return;
+  pkMan.items.splice(i, 1);
+  if (pkMan.edit === i) pkMan.edit = null; else if (pkMan.edit != null && pkMan.edit > i) pkMan.edit--;
+  pkManSaveDraft(); pkManForm(); pkManRender(); showToast('Позиция удалена');
+}
 function pkManDel() {
   if (pkMan.edit == null) return;
   pkMan.items.splice(pkMan.edit, 1); pkMan.edit = null;
@@ -1246,14 +1267,21 @@ function pkManRender() {
   document.getElementById('pkManSave').disabled = !n;
   // 19.11.2026: считаем повторные треки — плашка над списком + подсветка позиций
   const seenT = {}; const dupIdx = new Set();
-  its.forEach((x, i) => { const k = pkManNorm(x.t); if (seenT[k] != null) { dupIdx.add(i); dupIdx.add(seenT[k]); } else seenT[k] = i; });
+  const inBase = (pkMan.addTo && pkMan.addTo.tracks) ? pkMan.addTo.tracks : new Set();
+  its.forEach((x, i) => {
+    const k = pkManNorm(x.t);
+    if (seenT[k] != null) { dupIdx.add(i); dupIdx.add(seenT[k]); }   // повтор внутри формы
+    else if (inBase.has(k)) dupIdx.add(i);                          // 19.11.2026: трек уже есть в базе
+    if (seenT[k] == null) seenT[k] = i;
+  });
   const dupBar = document.getElementById('pkManDup');
   if (dupBar) dupBar.innerHTML = dupIdx.size ? `<div class="pk-man-dupb"><i class="ti ti-alert-triangle" aria-hidden="true"></i><div><b>Такой трек уже есть в закупке</b>Если ввели неверно — удалите позицию.</div></div>` : '';
   document.getElementById('pkManList').innerHTML = n ? its.map((x, i) => `
-    <button type="button" class="pk-man-it ${x.w ? '' : 'nocl'} ${pkMan.edit === i ? 'on' : ''} ${dupIdx.has(i) ? 'dup' : ''}" onclick="pkManEdit(${i})">
+    <div class="pk-man-it ${x.w ? '' : 'nocl'} ${pkMan.edit === i ? 'on' : ''} ${dupIdx.has(i) ? 'dup' : ''}" onclick="pkManEdit(${i})">
       <span class="th" ${x.img ? `style="background-image:url('${x.img}')"` : ''}>${x.img ? '' : '<i class="ti ti-photo-off" aria-hidden="true"></i>'}</span>
       <span class="m"><b>${pkEsc(x.t)}</b>${x.n ? `<span class="nm">${pkEsc(x.n)}</span>` : ''}${x.w ? `<span class="cl">${pkEsc(x.w)}</span>` : '<span class="nm" style="color:var(--pk-warn)">нет клиента</span>'}</span>
-      <span class="pr">${x.p ? fy(+x.p) : '—'}</span></button>`).join('')
+      <span class="pr">${x.p ? fy(+x.p) : '—'}</span>
+      <button type="button" class="pk-man-del" onclick="event.stopPropagation();pkManDelIdx(${i})" aria-label="Удалить позицию"><i class="ti ti-trash" aria-hidden="true"></i></button></div>`).join('')
     : '<div class="pk-card pk-empty" style="font-size:14px">Товаров пока нет. Впишите трек и нажмите «Добавить позицию» — форма очистится для следующего.</div>';
 }
 function pkManBack() {

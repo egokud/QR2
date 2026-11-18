@@ -241,6 +241,9 @@ body.pk-man-on{overflow:hidden}
 /* 19.11.2026: повторный трек в ручной закупке — подсветка позиции и плашка над списком.
    Решение Егора: не блокировать добавление, а показать, что код уже есть. */
 .pk-man-it.dup{border-color:var(--pk-warn);background:var(--pk-warn-soft)}
+/* 19.11.2026: корзинка у позиции в форме добавления — удалить сразу, не выходя */
+.pk-man-it .pk-man-del{width:34px;height:34px;flex:none;border:0;background:transparent;color:var(--pk-muted);font-size:17px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pk-man-it .pk-man-del:active{background:var(--pk-bad-soft);color:var(--pk-bad)}
 .pk-man-dupb{display:flex;gap:9px;align-items:flex-start;background:var(--pk-warn-soft);color:var(--pk-warn);border-radius:12px;padding:10px 12px;margin:8px 0 2px;font-size:13px;line-height:1.45}
 .pk-man-dupb:empty{display:none}
 .pk-man-dupb i{font-size:18px;flex:none;margin-top:1px}

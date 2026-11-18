@@ -277,6 +277,16 @@ function closePriceEditor() {
   document.getElementById('priceEditScreen').classList.remove('show');
   restoreActiveEditing();
 }
+// 19.11.2026: добавить позицию с экрана «Позиции закупки» — та же форма, что в Кабинете и шторке закупки
+function peAddPos() {
+  const id = editingShipmentId || activeShipmentId;
+  if (!id) { alert('Сначала выберите закупку'); return; }
+  if (typeof pkAddItems !== 'function') { alert('Обновите страницу'); return; }
+  pkAddItems(id, async () => {
+    try { await loadShipmentData(id, true); } catch (e) {}
+    if (typeof isShownEl === 'function' && isShownEl('priceEditScreen')) renderPriceEditor();
+  });
+}
 
 let peExactWh = null;
 let peSortMode = 'default';
