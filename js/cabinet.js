@@ -1136,7 +1136,6 @@ function cabPosMove() {
   });
 }
 
-const CAB_NOPDD_TIP = 'Трек есть только в файле карго — в ваших заказах Pinduoduo за даты импорта его не нашли. Причины: заказ раньше даты «С», продавец отправил поздно или заказано с другого аккаунта. Фото нет, цену впишите вручную.';
 function cabShipItemsHtml() {
   if (cabPosShip !== cabShipId) { cabPos.clear(); cabPosShip = cabShipId; }   // другая закупка — выбор сначала
   for (const i of [...cabPos]) if (!TABLE[i]) cabPos.delete(i);
@@ -1194,16 +1193,15 @@ function cabShipItemsHtml() {
     return mkHead + head + grpHead + `<tr class="cab-item-row ${sel ? 'sel' : ''}${gk && cabItemSort === 'track' ? ' cab-vgrp' : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
       <td class="cab-chk-td"><input type="checkbox" class="cab-chk" ${sel ? 'checked' : ''} onchange="cabPosToggle(${i},this.checked,this)" aria-label="Выбрать позицию"></td>
       <td style="width:52px">${img}</td>
-      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${r[2] || r[9] ? '' : ` <span title="${CAB_NOPDD_TIP}" style="font-family:Inter,system-ui,sans-serif;font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;white-space:nowrap;cursor:help">нет в Pinduoduo</span>`}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span>` : ''}${pkVarsNote(r, 'cab-qty-note')}</td>
+      <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span>` : ''}${pkVarsNote(r, 'cab-qty-note')}</td>
       <td class="cab-mk-cell">${typeof pkMkBadge === 'function' ? pkMkBadge(r) : ''}</td>
       <td><input data-idx="${i}" value="${(r[6] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,6)" maxlength="40" placeholder="название, 1–3 слова" style="${cabInp};width:100%"></td>
       <td><input data-idx="${i}" value="${(r[1] || '').replace(/"/g, '&quot;')}" onchange="cabEditCell(this,1)" placeholder="клиент" style="${cabInp};width:100%;color:#6C4DB8"></td>
       <td><input data-idx="${i}" value="${r[3] || ''}" onchange="cabEditCell(this,3)" inputmode="decimal" placeholder="—" style="${cabInp};width:80px"></td>
     </tr>`;
   }).join('');
-  const noPdd = TABLE.filter(r => !r[2] && !r[9]).length;   // трек с пометкой площадки пришёл из импорта — это не «только из карго»
   return `<div class="cab-table-wrap cab-items-wrap">
-    ${noPdd ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:14px;color:#92400e;line-height:1.5;white-space:normal"><b>${noPdd} ${cabPl(noPdd, 'трек', 'трека', 'треков')} без данных Pinduoduo</b> — нет фото, цену нужно вписать вручную. Они пришли только из файла карго: заказ раньше выбранной при импорте даты, продавец отправил поздно или заказано с другого аккаунта. В расширении Piksta 1.9.15 и новее есть кнопка «Поискать за 3 месяца».</div>` : ''}
+
     <!-- Панель «Товары и цены» (06.11.2026): верхняя строка не меняется при переключении режимов (кнопки не прыгают),
          плашки площадок появляются второй строкой только в «По маркетплейсам» -->
     <div class="cab-items-bar">
