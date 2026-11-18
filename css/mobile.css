@@ -630,6 +630,11 @@ body.dark .pk-sheet .cab-cond-me{background:#3a1f25;color:#fca5a5}
 .pe-grp .pe-item{margin-bottom:6px}
 .pe-vs{font-size:12.5px;color:#6b7280;margin-top:1px;overflow-wrap:anywhere}
 body.dark .pe-grp{background:#231d3d;border-color:#8b6fe0}body.dark .pe-grp-hd{color:#b9a6f0}body.dark .pe-grp-hd b{color:#f2effa}
+/* 19.11.2026: одинаковые треки из ручного ввода и Excel — оранжевая рамка (фиолетовую из расширения не трогаем) */
+.pe-grp.dup{border-color:#ea580c;background:#fff6ec}
+.pe-grp.dup .pe-grp-hd{color:#c2410c}
+body.dark .pe-grp.dup{background:#3a2a18;border-color:#c2703a}
+body.dark .pe-grp.dup .pe-grp-hd{color:#f2b062}
 
 /* 10.11.2026: скан сборного пакета — плитки клиентов (pkBagHtml в mobile.js). Фото квадратные — вписаны целиком по центру */
 .pk-res-full .card.pk-bag,.pk-res-full .card.pk-bag1{gap:10px;overflow:hidden}

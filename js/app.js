@@ -381,15 +381,31 @@ function renderPriceEditor() {
   });
   // 10.11.2026: строки с одинаковым трек-кодом подряд (разновидности, расширение 1.10.7) — в общую рамку «одна посылка» с общей суммой.
   // Только в обычном порядке (в «По клиентам» строки трека разбросаны по клиентам). Кабинет — то же в cabinet.js (cab-vgrp).
+  // 19.11.2026: одинаковые треки собираем в группы и ставим РЯДОМ, даже если в списке они не подряд.
+  // Цвет группы: фиолетовая — из расширения (там точно одна посылка, разновидности), оранжевая — наша
+  // (ручной ввод или Excel: сколько пакетов — неизвестно, поэтому «Одинаковые треки · N позиций»).
+  // Признаки расширения: фото, площадка (mk), свойства (vs), «i/n» (vk).
   let html = '';
-  for (let i = 0; i < items.length; ) {
-    let j = i + 1;
-    if (!byWh) while (j < items.length && items[j].track === items[i].track) j++;
-    if (j - i < 2) { html += cards[i]; i++; continue; }
-    const g = items.slice(i, j), gq = g.reduce((n, x) => n + (x.qty || 1), 0);
-    const gs = g.reduce((n, x) => n + (parseFloat(String(x.buy || '').replace(',', '.')) || 0), 0);
-    html += `<div class="pe-grp"><div class="pe-grp-hd"><span><i class="ti ti-package" aria-hidden="true"></i> Одна посылка · ${g.length} ${pkPl3(g.length, 'разновидность', 'разновидности', 'разновидностей')} · ${gq} шт.</span><b>${gs ? gs.toFixed(2).replace('.', ',') + ' ¥' : ''}</b></div>${cards.slice(i, j).join('')}</div>`;
-    i = j;
+  if (byWh) {
+    html = cards.join('');   // в «По клиентам» строки трека разбросаны по клиентам — не группируем
+  } else {
+    const seenG = new Set();
+    for (let i = 0; i < items.length; i++) {
+      const tk = items[i].track;
+      if (seenG.has(tk)) continue;
+      seenG.add(tk);
+      const gIdx = [];
+      for (let k = 0; k < items.length; k++) if (items[k].track === tk) gIdx.push(k);
+      if (gIdx.length < 2) { html += cards[i]; continue; }
+      const g = gIdx.map(k => items[k]);
+      const isExt = g.some(x => x.row && (x.row[2] || x.row[9] || x.row[12] || x.row[13]));
+      const gq = g.reduce((n, x) => n + (x.qty || 1), 0);
+      const gs = g.reduce((n, x) => n + (parseFloat(String(x.buy || '').replace(',', '.')) || 0), 0);
+      const hd = isExt
+        ? `<i class="ti ti-package" aria-hidden="true"></i> Одна посылка · ${g.length} ${pkPl3(g.length, 'разновидность', 'разновидности', 'разновидностей')} · ${gq} шт.`
+        : `<i class="ti ti-copy" aria-hidden="true"></i> Одинаковые треки · ${g.length} ${pkPl3(g.length, 'позиция', 'позиции', 'позиций')}`;
+      html += `<div class="pe-grp${isExt ? '' : ' dup'}"><div class="pe-grp-hd"><span>${hd}</span><b>${gs ? gs.toFixed(2).replace('.', ',') + ' ¥' : ''}</b></div>${gIdx.map(k => cards[k]).join('')}</div>`;
+    }
   }
   list.innerHTML = warnHtml + html;
 

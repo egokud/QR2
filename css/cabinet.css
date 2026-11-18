@@ -648,6 +648,11 @@
 .cab-item-row.cab-vgrp td{background:#f0ecf9}
 .cab-item-row.cab-vgrp td:first-child{box-shadow:inset 4px 0 0 #6C4DB8}
 .cab-vgrp-hd td{background:#e6dff6!important;color:#6C4DB8;font-weight:600;padding:7px 10px;box-shadow:inset 4px 0 0 #6C4DB8}
+/* 19.11.2026: одинаковые треки из ручного ввода и Excel — такие же заголовки-группы, но ОРАНЖЕВЫЕ.
+   Фиолетовые (из расширения) не трогаем. */
+.cab-item-row.cab-dgrp td{background:#fff6ec}
+.cab-item-row.cab-dgrp td:first-child{box-shadow:inset 4px 0 0 #ea580c}
+.cab-dgrp-hd td{background:#ffead5!important;color:#c2410c;font-weight:600;padding:7px 10px;box-shadow:inset 4px 0 0 #ea580c}
 .cab-zoom{position:fixed;z-index:10050;background:#fff;border-radius:16px;padding:6px;box-shadow:0 24px 60px -16px rgba(23,20,42,.45);cursor:zoom-out;box-sizing:border-box}
 .cab-zoom img{width:100%;height:100%;object-fit:contain;border-radius:12px;display:block;background:#f6f5fa}
 /* Взвешивание: таблица + сводка справа */

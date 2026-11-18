@@ -1039,6 +1039,13 @@ async function cabRenameShip() {
 }
 
 // ---- Товары и цены ----
+// 19.11.2026: одинаковый трек без признаков расширения (нет фото, площадки, свойств, «i/n») —
+// значит из ручного ввода или Excel. Такие группируем в оранжевые рамки «одинаковые треки».
+function isDupTrack(r) {
+  if (!r || !r[0]) return false;
+  if (r[2] || r[9] || r[12] || r[13]) return false;              // есть признаки расширения — не наша группа
+  return TABLE.filter(x => String(x[0]) === String(r[0])).length > 1;
+}
 let cabItemSort = 'track';  // 'track' — как в закупке (по трек-кодам), 'wh' — по клиентам, 'mk' — по маркетплейсам
 let cabItemMk = 'all';       // в режиме «По маркетплейсам»: 'all' или одна площадка — показываем только её треки (06.11.2026)
 // Порядок и подписи площадок. Пометка mk ставится импортом расширения 1.10+; у старых закупок её нет → «Без пометки».
@@ -1140,6 +1147,21 @@ function cabShipItemsHtml() {
   if (cabPosShip !== cabShipId) { cabPos.clear(); cabPosShip = cabShipId; }   // другая закупка — выбор сначала
   for (const i of [...cabPos]) if (!TABLE[i]) cabPos.delete(i);
   let order = TABLE.map((r, i) => i).filter(i => typeof pkDelPending === 'undefined' || !pkDelPending.has(String(TABLE[i][0] || '')));   // удаляемые прямо сейчас не рисуем
+  // 19.11.2026: в «По трек-кодам» одинаковые треки ставим РЯДОМ (просьба Егора) — иначе группа не собирается,
+  // если в закупке они записаны вразнобой. Порядок групп — по первому появлению, внутри группы — как было.
+  if (cabItemSort === 'track') {
+    const first = new Map();
+    order.forEach(i => { const k = String(TABLE[i][0] || ''); if (!first.has(k)) first.set(k, []); first.get(k).push(i); });
+    order = [];
+    const used = new Set();
+    TABLE.forEach((r, i) => {
+      if (typeof pkDelPending !== 'undefined' && pkDelPending.has(String(r[0] || ''))) return;
+      const k = String(r[0] || '');
+      if (used.has(k)) return;
+      used.add(k);
+      order.push(...first.get(k));
+    });
+  }
   if (cabItemSort === 'wh') {
     const key = i => (TABLE[i][1] || '').trim().toLowerCase();
     order.sort((a, b) => {
@@ -1175,13 +1197,21 @@ function cabShipItemsHtml() {
       }
     }
     const qty = parseInt(r[5]) || 1;
-    // 10.11.2026: разновидности одного трека ([13] «i/n») — заголовок «одна посылка» и фиолетовая полоса
+    // 10.11.2026: разновидности одного трека ([13] «i/n») — заголовок «одна посылка» и фиолетовая полоса.
+    // 19.11.2026: одинаковые треки из ручного ввода или Excel — такой же заголовок, но ОРАНЖЕВЫЙ
+    // и с честной подписью «одинаковые треки · N позиций» (сколько пакетов — неизвестно).
     let grpHead = '';
-    const gk = r[13] ? String(r[0]) : '';
+    let grpDup = false;
+    const gk = (r[13] || isDupTrack(r)) ? String(r[0]) : '';
     if (gk && cabItemSort === 'track' && gk !== lastGrp) {
-      const gr = TABLE.filter(x => x[13] && String(x[0]) === gk);
+      const isExt = !!r[13];
+      const gr = TABLE.filter(x => String(x[0]) === gk && (isExt ? x[13] : isDupTrack(x)));
       const gq = gr.reduce((n, x) => n + (parseInt(x[5]) || 1), 0), gp = gr.reduce((n, x) => n + (parseFloat(String(x[3] || '').replace(',', '.')) || 0), 0);
-      grpHead = `<tr class="cab-item-grp cab-vgrp-hd"><td colspan="7"><i class="ti ti-package"></i> ${cabEsc(gk)} · одна посылка · ${gr.length} ${cabPl(gr.length, 'разновидность', 'разновидности', 'разновидностей')} · ${gq} шт. · ${cabFmt2(gp)} ¥</td></tr>`;
+      grpDup = !isExt;
+      const txt = isExt
+        ? `одна посылка · ${gr.length} ${cabPl(gr.length, 'разновидность', 'разновидности', 'разновидностей')} · ${gq} шт.`
+        : `одинаковые треки · ${gr.length} ${cabPl(gr.length, 'позиция', 'позиции', 'позиций')}`;
+      grpHead = `<tr class="cab-item-grp ${isExt ? 'cab-vgrp-hd' : 'cab-dgrp-hd'}"><td colspan="7"><i class="ti ${isExt ? 'ti-package' : 'ti-copy'}"></i> ${cabEsc(gk)} · ${txt} · ${cabFmt2(gp)} ¥</td></tr>`;
     }
     lastGrp = gk;
     const img = r[2] ? `<img src="${r[2]}" loading="lazy" onclick="cabImgZoom(event,this.src)" title="Увеличить" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in">` : '<div style="width:44px;height:44px;border-radius:6px;background:#f3f4f6"></div>';
@@ -1190,7 +1220,7 @@ function cabShipItemsHtml() {
       ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:600;color:#b42318;margin-top:3px;white-space:normal"><i class="ti ti-alert-triangle"></i> Не пришёл ${mv} раза — обратитесь в карго, возможно, посылка потерялась</div>`
       : `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;color:#6b7280;margin-top:3px;white-space:normal"><i class="ti ti-arrow-forward-up"></i> Перенесён из «${cabEsc(r[8] || 'прошлой закупки')}» — в том грузе не пришёл</div>`;
     const sel = cabPos.has(i);
-    return mkHead + head + grpHead + `<tr class="cab-item-row ${sel ? 'sel' : ''}${gk && cabItemSort === 'track' ? ' cab-vgrp' : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
+    return mkHead + head + grpHead + `<tr class="cab-item-row ${sel ? 'sel' : ''}${gk && cabItemSort === 'track' ? (grpDup ? ' cab-dgrp' : ' cab-vgrp') : ''}" data-idx="${i}" ${mv >= 2 ? 'style="background:#fdecea;box-shadow:inset 3px 0 0 #f04438"' : ''} data-q="${((r[0] || '') + ' ' + (r[1] || '') + ' ' + (r[6] || '') + ' ' + ((CAB_MK.find(x => x[0] && x[0] === cabMkOf(r)) || [])[1] || '')).toLowerCase().replace(/"/g, '')}">
       <td class="cab-chk-td"><input type="checkbox" class="cab-chk" ${sel ? 'checked' : ''} onchange="cabPosToggle(${i},this.checked,this)" aria-label="Выбрать позицию"></td>
       <td style="width:52px">${img}</td>
       <td style="font-family:monospace;font-size:13px;color:#4a5260">${r[0] || ''}${mvNote}${qty > 1 ? ` <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:12px;font-weight:700">×${qty}</span>` : ''}${pkVarsNote(r, 'cab-qty-note')}</td>
