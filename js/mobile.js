@@ -1149,6 +1149,7 @@ function pkManOpen(name, fromDraft, addTo) {
         <button type="button" class="pk-btn" id="pkManAddB" onclick="pkManAdd()"></button>
         <button type="button" class="pk-btn ghost" id="pkManDelB" style="display:none;color:var(--pk-bad)" onclick="pkManDel()"><i class="ti ti-trash" aria-hidden="true"></i> Удалить позицию</button>
       </div>
+      <div id="pkManDup"></div>
       <div class="pk-man-lh"><span id="pkManLh"></span><span id="pkManSumTop"></span></div>
       <div class="pk-man-list" id="pkManList"></div>
     </div>
@@ -1214,14 +1215,16 @@ function pkManAdd() {
   const t = (document.getElementById('pkManT').value || '').replace(/\s+/g, '').trim();
   const err = document.getElementById('pkManErr');
   if (!t) { err.textContent = 'Впишите трек-номер — без него товар не найти при сканировании'; document.getElementById('pkManT').focus(); return; }
+  // 19.11.2026: дубль трека больше НЕ блокируем — добавляем сразу, а внизу показываем
+  // предупреждение и подсвечиваем повторные позиции. Ответственность за верный код — на человеке.
   const dup = pkMan.items.findIndex((x, i) => i !== pkMan.edit && pkManNorm(x.t) === pkManNorm(t));
-  if (dup >= 0 || (pkMan.addTo && pkMan.addTo.tracks.has(pkManNorm(t)))) { err.textContent = 'Такой трек уже есть в этой закупке'; document.getElementById('pkManT').focus(); return; }
+  const wasDup = dup >= 0 || !!(pkMan.addTo && pkMan.addTo.tracks.has(pkManNorm(t)));
   const p = String(document.getElementById('pkManP').value || '').replace(',', '.').trim();
   const it = { t, n: (document.getElementById('pkManN').value || '').trim(), p: p && !isNaN(+p) ? String(+p) : '', w: (document.getElementById('pkManW').value || '').trim(), img: pkMan.img || '' };
   const size = JSON.stringify(pkMan.items).length + JSON.stringify(it).length;
   if (size > 850000) { err.textContent = 'Закупка слишком большая: уберите фото у части товаров или создайте ещё одну закупку'; return; }
   if (pkMan.edit != null) { pkMan.items[pkMan.edit] = it; pkMan.edit = null; showToast('Изменения сохранены'); }
-  else pkMan.items.unshift(it);
+  else { pkMan.items.unshift(it); if (wasDup) showToast('Позиция добавлена · такой трек уже есть в закупке'); }
   pkManSaveDraft(); pkManForm(); pkManRender();
   document.getElementById('pkManT').focus();
 }
@@ -1241,8 +1244,13 @@ function pkManRender() {
   document.getElementById('pkManSumL').textContent = `${n} ${pkPl(n, 'позиция', 'позиции', 'позиций')} · ${cl} ${pkPl(cl, 'клиент', 'клиента', 'клиентов')}`;
   document.getElementById('pkManSumR').textContent = 'Выкуп ' + fy(sum);
   document.getElementById('pkManSave').disabled = !n;
+  // 19.11.2026: считаем повторные треки — плашка над списком + подсветка позиций
+  const seenT = {}; const dupIdx = new Set();
+  its.forEach((x, i) => { const k = pkManNorm(x.t); if (seenT[k] != null) { dupIdx.add(i); dupIdx.add(seenT[k]); } else seenT[k] = i; });
+  const dupBar = document.getElementById('pkManDup');
+  if (dupBar) dupBar.innerHTML = dupIdx.size ? `<div class="pk-man-dupb"><i class="ti ti-alert-triangle" aria-hidden="true"></i><div><b>Такой трек уже есть в закупке</b>Если ввели неверно — удалите позицию.</div></div>` : '';
   document.getElementById('pkManList').innerHTML = n ? its.map((x, i) => `
-    <button type="button" class="pk-man-it ${x.w ? '' : 'nocl'} ${pkMan.edit === i ? 'on' : ''}" onclick="pkManEdit(${i})">
+    <button type="button" class="pk-man-it ${x.w ? '' : 'nocl'} ${pkMan.edit === i ? 'on' : ''} ${dupIdx.has(i) ? 'dup' : ''}" onclick="pkManEdit(${i})">
       <span class="th" ${x.img ? `style="background-image:url('${x.img}')"` : ''}>${x.img ? '' : '<i class="ti ti-photo-off" aria-hidden="true"></i>'}</span>
       <span class="m"><b>${pkEsc(x.t)}</b>${x.n ? `<span class="nm">${pkEsc(x.n)}</span>` : ''}${x.w ? `<span class="cl">${pkEsc(x.w)}</span>` : '<span class="nm" style="color:var(--pk-warn)">нет клиента</span>'}</span>
       <span class="pr">${x.p ? fy(+x.p) : '—'}</span></button>`).join('')

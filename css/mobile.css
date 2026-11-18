@@ -238,6 +238,13 @@ body.pk-man-on{overflow:hidden}
 .pk-man-it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--pk-card);border:1px solid var(--pk-line);border-radius:16px;padding:10px;cursor:pointer}
 .pk-man-it.nocl{background:var(--pk-warn-soft);border-color:transparent}
 .pk-man-it.on{border-color:var(--pk-acc)}
+/* 19.11.2026: повторный трек в ручной закупке — подсветка позиции и плашка над списком.
+   Решение Егора: не блокировать добавление, а показать, что код уже есть. */
+.pk-man-it.dup{border-color:var(--pk-warn);background:var(--pk-warn-soft)}
+.pk-man-dupb{display:flex;gap:9px;align-items:flex-start;background:var(--pk-warn-soft);color:var(--pk-warn);border-radius:12px;padding:10px 12px;margin:8px 0 2px;font-size:13px;line-height:1.45}
+.pk-man-dupb:empty{display:none}
+.pk-man-dupb i{font-size:18px;flex:none;margin-top:1px}
+.pk-man-dupb b{display:block;margin-bottom:2px;font-size:13.5px}
 .pk-man-it .th{width:52px;height:52px;flex:none;border-radius:12px;background:var(--pk-acc-soft) center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--pk-muted);font-size:20px}
 .pk-man-it .m{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
 .pk-man-it .m b{font-family:ui-monospace,Menlo,monospace;font-size:14px;word-break:break-all}
