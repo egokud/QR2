@@ -1620,14 +1620,19 @@ function lookup(code) {
   scanned[free.i] = true;
   saveScanned();
   const wh = [...new Set(rows.map(r=>r.w))].join(' + ');
-  showResult('success',rows[0].t,wh);
+  // 18.11.2026: одинаковые коды из таблицы Excel — считаем локально, без глобальных переменных
+  // (app.js и mobile.js грузятся на одной странице: глобальные имена могут конфликтовать).
+  const sameRows = TABLE.map((r,k)=>({i:k,r})).filter(x=>x.r[0]===rows[0].t);
+  const dup = (!sameRows.some(x=>x.r[13]) && sameRows.length > 1)
+    ? { done: sameRows.filter(x=>scanned[x.i]).length, total: sameRows.length } : null;
+  showResult('success',rows[0].t,wh,null,null,null,dup);
   addHistory(rows[0].t,free.w);
   updateStats(); beep(); vibrate();
 }
 
 // ============ SHOW RESULT ============
-function showResult(type, track, wh, msg, tracks, fMsg) {
-  if (type==='success'||type==='multi'||type==='fuzzy') showOverlay(type,track,wh,tracks,fMsg);
+function showResult(type, track, wh, msg, tracks, fMsg, dup) {
+  if (type==='success'||type==='multi'||type==='fuzzy') showOverlay(type,track,wh,tracks,fMsg,dup);
   const b = document.getElementById('resultBlock');
   if (type==='success') b.innerHTML=`<div class="result-card success"><div class="result-label">✅ Отмечено</div><div class="result-track">${track}</div><div class="result-warehouse"><i class="ti ti-package" style="font-size:36px;vertical-align:-5px;margin-right:6px;color:#6C4DB8"></i> ${wh}</div></div>`;
   else if (type==='already') b.innerHTML=`<div class="result-card already"><div class="result-label">⚠️ Уже отмечено</div><div class="result-track">${track}</div><div class="result-message">Склад: ${wh}</div></div>`;
@@ -1639,7 +1644,7 @@ function showResult(type, track, wh, msg, tracks, fMsg) {
 }
 
 // ============ OVERLAY ============
-function showOverlay(type,track,wh,tracks,fMsg) {
+function showOverlay(type,track,wh,tracks,fMsg,dup) {
   if (scanner) try{scanner.pause(true)}catch(e){}
   const ov=document.getElementById('scanOverlay'), card=document.getElementById('overlayCard'),
     ic=document.getElementById('overlayIcon'), w=document.getElementById('overlayWarehouse'), tr=document.getElementById('overlayTrack');
@@ -1671,6 +1676,14 @@ function showOverlay(type,track,wh,tracks,fMsg) {
       d.style.cssText='background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:#ea580c;margin:6px 0 12px';
       card.insertBefore(d,card.querySelector('.overlay-ok'));
     } else { w.innerHTML='<i class="ti ti-package" style="font-size:36px;vertical-align:-5px;margin-right:6px;color:#6C4DB8"></i> '+(wh||''); }
+    // 18.11.2026: счётчик одинаковых кодов — крупно «1 из 3» по центру
+    let dupEl=card.querySelector('.dup'); if(dupEl) dupEl.remove();
+    if (dup) {
+      const left = dup.total - dup.done;
+      const de=document.createElement('div'); de.className='dup';
+      de.innerHTML = '<div class="dup-n">'+dup.done+'<span>/'+dup.total+'</span></div><div class="dup-w'+(left>0?'':' last')+'">'+(left>0?'пакета с этим кодом':'все пакеты отмечены')+'</div>';
+      card.insertBefore(de, card.querySelector('.overlay-ok'));
+    }
   } else if (type==='fuzzy'||type==='multi') {
     card.style.border='2px solid '+(type==='fuzzy'?'#a5b4fc':'#e0e0e0');
     if(type==='fuzzy') card.style.background='#f5f3ff';
@@ -1688,6 +1701,7 @@ function overlayOk() {
   document.getElementById('scanOverlay').classList.remove('show');
   let mb=document.querySelector('.multi-btns'); if(mb)mb.remove();
   let mw=document.querySelector('.multi-warn'); if(mw)mw.remove();
+  let du=document.querySelector('.dup'); if(du)du.remove();
   if (scanner) try{scanner.resume()}catch(e){}
   if (pkCanAutoFocus()) setTimeout(()=>document.getElementById('manualInput').focus(),200);
   if (scanning) setTimeout(pkCamIntoView,150);

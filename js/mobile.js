@@ -325,6 +325,14 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
     <button class="pk-btn" style="width:100%" onclick="pkResOk()">Понятно, продолжить</button>`;
   } else if (type === 'success') {
     pkLastOk = { track, idx: pkNewIdx };
+    // 18.11.2026: одинаковые коды из таблицы Excel — «1 из 3». Считаем ЛОКАЛЬНО:
+    // app.js и mobile.js грузятся на одной странице, глобальные имена конфликтуют
+    // (был инцидент 18.11: двойное `let pkDupInfo` ломало весь mobile.js).
+    // Разновидности одного пакета (r[13]) не считаем — они один пакет.
+    const dupRows = TABLE.map((r, k) => ({ i: k, r })).filter(x => x.r[0] === track);
+    const dup = (!dupRows.some(x => x.r[13]) && dupRows.length > 1)
+      ? { done: dupRows.filter(x => scanned[x.i]).length, total: dupRows.length }
+      : null;
     const parts = [...new Set(String(wh || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
     const many = parts.length > 1;
     const who = pkEsc(parts.join(' и ') || 'Без клиента');
@@ -336,6 +344,7 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
       ${many ? `<div class="warn">В посылке товары для нескольких клиентов — разложите по пакетам</div>` : ''}
       ${row && row[6] ? `<div class="pnm">${pkEsc(row[6])}</div>` : ''}
       <div class="trk">${pkEsc(track)}</div>
+      ${dup ? pkDupHtml(dup) : ''}
     </div>
     <button class="pk-btn" style="width:100%" onclick="pkResOk()">Следующая посылка</button>
     <button class="undo" onclick="pkUndo()">Отменить отметку</button>`;
@@ -350,6 +359,13 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
   el.innerHTML = `<div class="hd"><span>${pkEsc(s ? s.name : '')}</span><small>${d} / ${t}</small></div>${body}`;
   el.classList.add('on');
   // фокус остаётся в поле сканера: следующий скан пистолетом сразу заменит этот экран
+}
+// 18.11.2026: разметка счётчика одинаковых кодов. Локальная функция внутри IIFE —
+// не глобальная, чтобы не пересекаться с именами из app.js.
+function pkDupHtml(d) {
+  const left = d.total - d.done;
+  const words = left > 0 ? 'пакета с этим кодом' : 'все пакеты отмечены';
+  return `<div class="dup"><div class="dup-n">${d.done}<span>/${d.total}</span></div><div class="dup-w${left > 0 ? '' : ' last'}">${words}</div></div>`;
 }
 function pkResOk(silent) {
   document.getElementById('pkResFull').classList.remove('on');

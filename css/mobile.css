@@ -186,6 +186,12 @@ body:not(.pk-m) .pk-tabs,body:not(.pk-m) .pk-top,body:not(.pk-m) .pk-pane{displa
 .pk-res-full .big-al{display:flex;align-items:center;justify-content:center;color:var(--pk-warn)}
 .pk-res-full .big-al svg{width:44px;height:44px}
 .pk-res-full .head-al{font-size:46px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--pk-warn);text-align:center;word-break:break-word}
+/* 18.11.2026: счётчик одинаковых кодов из таблицы — крупная цифра по центру */
+.pk-res-full .dup{text-align:center;padding:2px 0 0}
+.pk-res-full .dup-n{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--pk-ok)}
+.pk-res-full .dup-n span{font-size:26px;color:var(--pk-muted)}
+.pk-res-full .dup-w{font-size:13px;color:var(--pk-muted);margin-top:4px}
+.pk-res-full .dup-w.last{color:var(--pk-ok);font-weight:600}
 @media (min-width:561px){.pk-sheet{border-radius:22px;bottom:12px}}
 @media (prefers-reduced-motion:reduce){.pk-sheet{transition:none}}
 

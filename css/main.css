@@ -284,6 +284,16 @@ body.dark .calc-client.owner{background:#2a1518;border-color:#e24b4a}
 .overlay-icon{font-size:56px;margin-bottom:14px}
 .overlay-warehouse{font-size:48px;font-weight:700;color:#1a1a1a;margin-bottom:8px;line-height:1.2;text-align:center;word-wrap:break-word}
 .overlay-track{font-size:16px;color:#888;margin-bottom:16px;word-break:break-all;font-family:monospace}
+/* 18.11.2026: счётчик одинаковых кодов — крупно «1 из 3» по центру */
+.overlay-card .dup{text-align:center;margin:4px 0 14px}
+.overlay-card .dup-n{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1;color:#16a34a}
+.overlay-card .dup-n span{font-size:26px;color:#888}
+.overlay-card .dup-w{font-size:13px;color:#888;margin-top:4px}
+.overlay-card .dup-w.last{color:#16a34a;font-weight:600}
+body.dark .overlay-card .dup-n{color:#5ad38a}
+body.dark .overlay-card .dup-n span{color:#8b80b8}
+body.dark .overlay-card .dup-w{color:#8b80b8}
+body.dark .overlay-card .dup-w.last{color:#5ad38a}
 .overlay-ok{width:100%;background:#6C4DB8;color:#fff;border:none;border-radius:12px;padding:14px;font-size:17px;font-weight:700;cursor:pointer}
 .overlay-img{width:100%;max-height:240px;object-fit:contain;border-radius:12px;background:transparent;}
 
