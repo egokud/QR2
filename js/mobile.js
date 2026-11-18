@@ -305,7 +305,7 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
   const q = row ? parseInt(row[5] || '1', 10) || 1 : 1;
   const el = document.getElementById('pkResFull');
   let body;
-  const grp = TABLE.filter(r => r[0] === track && (r[13] || r[15] === 'p'));   // 1.10.7: разновидности одного трека; 18.11.2026: + ручные «в одном пакете» (dp='p')
+  const grp = TABLE.filter(r => r[0] === track && r[13]);   // 1.10.7: разновидности одного трека — сборный пакет
   if (type === 'success' && grp.length > 1) {
     pkLastOk = { track, idx: null, grp: true };
     body = pkBagHtml(track, grp);
@@ -325,18 +325,9 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
     <button class="pk-btn" style="width:100%" onclick="pkResOk()">Понятно, продолжить</button>`;
   } else if (type === 'success') {
     pkLastOk = { track, idx: pkNewIdx };
-    // 18.11.2026: две ситуации при скане.
-    // ФАЙЛ (закупка из Excel): одно имя — того, чью строку отметили, + счётчик «1 из 3».
-    // РАСШИРЕНИЕ: как было — имена всех строк трека, сборный пакет, плитки.
-    // pkShipFileSrc объявлена в app.js; файлы грузятся на одной странице, объявлять тут нельзя.
-    const isFile = (typeof pkShipFileSrc !== 'undefined') && pkShipFileSrc;
-    const dupRows = TABLE.map((r, k) => ({ i: k, r })).filter(x => x.r[0] === track);
-    const dup = (isFile && !dupRows.some(x => x.r[13]) && dupRows.length > 1)
-      ? { done: dupRows.filter(x => scanned[x.i]).length, total: dupRows.length }
-      : null;
     const parts = [...new Set(String(wh || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
-    const many = !isFile && parts.length > 1;
-    const who = pkEsc(isFile ? (String(wh || '').trim() || 'Без клиента') : (parts.join(' и ') || 'Без клиента'));
+    const many = parts.length > 1;
+    const who = pkEsc(parts.join(' и ') || 'Без клиента');
     body = `<div class="card">
       <div class="img ${img ? '' : 'no'}" style="${img ? `background-image:url('${pkEsc(img)}')` : ''}">${img ? '' : '<span><i class="ti ti-photo-off" style="font-size:22px;vertical-align:-5px;margin-right:6px"></i>фото товара нет</span>'}</div>
       <div class="pk-row" style="justify-content:flex-start"><span class="pk-pill" style="background:var(--pk-ok-soft);color:var(--pk-ok)"><i class="ti ti-check" aria-hidden="true"></i> Отмечено</span><span class="pk-muted" style="font-size:13px">кладите в пакет клиента</span></div>
@@ -345,7 +336,6 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
       ${many ? `<div class="warn">В посылке товары для нескольких клиентов — разложите по пакетам</div>` : ''}
       ${row && row[6] ? `<div class="pnm">${pkEsc(row[6])}</div>` : ''}
       <div class="trk">${pkEsc(track)}</div>
-      ${dup ? pkDupHtml(dup) : ''}
     </div>
     <button class="pk-btn" style="width:100%" onclick="pkResOk()">Следующая посылка</button>
     <button class="undo" onclick="pkUndo()">Отменить отметку</button>`;
@@ -361,13 +351,6 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
   el.classList.add('on');
   // фокус остаётся в поле сканера: следующий скан пистолетом сразу заменит этот экран
 }
-// 18.11.2026: разметка счётчика одинаковых кодов. Локальная функция внутри IIFE —
-// не глобальная, чтобы не пересекаться с именами из app.js.
-function pkDupHtml(d) {
-  const left = d.total - d.done;
-  const words = left > 0 ? 'пакета с этим кодом' : 'все пакеты отмечены';
-  return `<div class="dup"><div class="dup-n">${d.done}<span>/${d.total}</span></div><div class="dup-w${left > 0 ? '' : ' last'}">${words}</div></div>`;
-}
 function pkResOk(silent) {
   document.getElementById('pkResFull').classList.remove('on');
   if (silent) return;
@@ -377,8 +360,8 @@ function pkResOk(silent) {
 }
 function pkUndo() {
   if (!pkLastOk) return pkResOk();
-  if (pkLastOk.grp) {   // сборный пакет: снимаем отметку со всех строк трека (разновидности + ручные «в одном пакете»)
-    TABLE.forEach((r, k) => { if (r[0] === pkLastOk.track && (r[13] || r[15] === 'p')) delete scanned[k]; });
+  if (pkLastOk.grp) {   // сборный пакет: снимаем отметку со всех строк трека
+    TABLE.forEach((r, k) => { if (r[0] === pkLastOk.track && r[13]) delete scanned[k]; });
     saveScanned(); updateStats();
     if (typeof scanHistory !== 'undefined' && scanHistory[0] && scanHistory[0].track === pkLastOk.track) { scanHistory.shift(); saveHistory(); renderHistory(); }
     pkLastOk = null;
@@ -1231,59 +1214,16 @@ function pkManAdd() {
   const t = (document.getElementById('pkManT').value || '').replace(/\s+/g, '').trim();
   const err = document.getElementById('pkManErr');
   if (!t) { err.textContent = 'Впишите трек-номер — без него товар не найти при сканировании'; document.getElementById('pkManT').focus(); return; }
-  // 18.11.2026: дубль трека больше не блокируется. Спрашиваем, что это за пакет:
-  // отдельная посылка (при скане счётчик «1 из 3») или товар в том же пакете (вскрыть и разложить).
   const dup = pkMan.items.findIndex((x, i) => i !== pkMan.edit && pkManNorm(x.t) === pkManNorm(t));
-  const inShip = !!(pkMan.addTo && pkMan.addTo.tracks.has(pkManNorm(t)));
-  if (dup >= 0 || inShip) {
-    err.textContent = '';
-    pkManAskDup(t, inShip);
-    return;
-  }
-  pkManCommit(t, '');
-}
-// сборка позиции из формы и добавление (dp — тип дубля: '' обычная, 's' отдельный пакет, 'p' в одном пакете)
-function pkManCommit(t, dp) {
-  const err = document.getElementById('pkManErr');
+  if (dup >= 0 || (pkMan.addTo && pkMan.addTo.tracks.has(pkManNorm(t)))) { err.textContent = 'Такой трек уже есть в этой закупке'; document.getElementById('pkManT').focus(); return; }
   const p = String(document.getElementById('pkManP').value || '').replace(',', '.').trim();
   const it = { t, n: (document.getElementById('pkManN').value || '').trim(), p: p && !isNaN(+p) ? String(+p) : '', w: (document.getElementById('pkManW').value || '').trim(), img: pkMan.img || '' };
-  // 18.11.2026: при правке позиции сохраняем её тип дубля, если нового не выбрали
-  const prev = (pkMan.edit != null) ? pkMan.items[pkMan.edit] : null;
-  const keepDp = (prev && pkManNorm(prev.t) === pkManNorm(t)) ? (prev.dp || '') : '';   // тип сохраняем только если трек не меняли
-  const finalDp = dp || keepDp;
-  if (finalDp) it.dp = finalDp;
   const size = JSON.stringify(pkMan.items).length + JSON.stringify(it).length;
   if (size > 850000) { err.textContent = 'Закупка слишком большая: уберите фото у части товаров или создайте ещё одну закупку'; return; }
   if (pkMan.edit != null) { pkMan.items[pkMan.edit] = it; pkMan.edit = null; showToast('Изменения сохранены'); }
   else pkMan.items.unshift(it);
   pkManSaveDraft(); pkManForm(); pkManRender();
   document.getElementById('pkManT').focus();
-}
-// 18.11.2026: вопрос про дубль трека — окно поверх формы (телефон и Кабинет, форма одна)
-function pkManAskDup(t, inShip) {
-  pkMan.dupAsk = t;
-  const n = pkMan.items.filter(x => pkManNorm(x.t) === pkManNorm(t)).length + (inShip ? 1 : 0);
-  pkSheet(`<h3>Такой трек уже есть</h3>
-    <div class="pk-muted" style="font-size:14px;margin:6px 0 12px">Что это за пакет? От этого зависит, как Piksta покажет его при сканировании.</div>
-    <div class="pk-card" style="margin:0 0 12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
-      <b style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${pkEsc(t)}</b>
-      <span class="pk-muted" style="font-size:13px">${inShip ? 'уже в закупке' : (n > 1 ? 'таких уже ' + n : 'уже добавлен')}</span>
-    </div>
-    <button type="button" class="pk-btn" style="width:100%;text-align:left;padding:14px;margin-bottom:8px" onclick="pkManDupPick('s')">
-      <b style="display:block;font-size:15px;margin-bottom:3px">Отдельный пакет</b>
-      <span style="font-size:13px;opacity:.85;font-weight:500">Тот же код, но другая посылка. При сканировании будет счётчик: «1 из 2», «2 из 2»</span>
-    </button>
-    <button type="button" class="pk-btn ghost" style="width:100%;text-align:left;padding:14px;margin-bottom:8px" onclick="pkManDupPick('p')">
-      <b style="display:block;font-size:15px;margin-bottom:3px">Товар в том же пакете</b>
-      <span style="font-size:13px;opacity:.85;font-weight:500">Один пакет, несколько товаров. При сканировании — «вскройте пакет и разложите»</span>
-    </button>
-    <button type="button" class="pk-btn ghost" style="width:100%" onclick="pkSheetClose();pkMan.dupAsk=null;document.getElementById('pkManT').focus()">Отмена</button>`);
-}
-function pkManDupPick(kind) {
-  const t = pkMan && pkMan.dupAsk; if (!t) return;
-  pkMan.dupAsk = null;
-  pkSheetClose();
-  pkManCommit(t, kind);
 }
 function pkManEdit(i) { pkMan.edit = i; pkManForm(); document.querySelector('#pkMan .pk-man-body').scrollTo({ top: 0, behavior: 'smooth' }); }
 function pkManDel() {
@@ -1332,7 +1272,7 @@ async function pkManSave() {
   if (pkMan.addTo) {   // дописываем в существующую закупку
     const A = pkMan.addTo;
     try {
-      const add = pkMan.items.slice().reverse().map(x => { const o = { t: x.t, w: x.w || '', img: x.img || '', p: x.p || '', pc: '', q: '1' }; if (x.n) o.n = x.n; if (x.dp) o.dp = x.dp; return o; });
+      const add = pkMan.items.slice().reverse().map(x => { const o = { t: x.t, w: x.w || '', img: x.img || '', p: x.p || '', pc: '', q: '1' }; if (x.n) o.n = x.n; return o; });
       const ref = shipmentsRef().doc(A.id);
       await db.runTransaction(async tr => {
         const doc = await tr.get(ref); if (!doc.exists) throw new Error('закупка не найдена');
@@ -1359,7 +1299,6 @@ async function pkManSave() {
     const data = pkMan.items.slice().reverse().map(x => {
       const o = { t: x.t, w: x.w || '', img: x.img || '', p: x.p || '', pc: '', q: '1' };
       if (x.n) o.n = x.n;
-      if (x.dp) o.dp = x.dp;   // 18.11.2026: тип дубля — 's' отдельный пакет, 'p' в одном пакете
       return o;
     });
     const ref = await shipmentsRef().add({ name: pkMan.name, data, rates, status: 'forming', src: 'manual', created: firebase.firestore.FieldValue.serverTimestamp() });

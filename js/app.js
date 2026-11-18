@@ -1184,8 +1184,7 @@ function pkImg(u) {
 }
 function applyShipDoc(d) {
   d = d || {};
-  pkShipFileSrc = pkShipIsFileData(d);   // 18.11.2026: файл или расширение — для показа при скане
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'', r.v||null, r.qp||'', r.vs||'', r.vk||'', r.vo||'', r.dp||'']);   // [15] — тип дубля из ручной закупки (18.11.2026)   // [10] — разновидности (1.10.6), [11] — «штуки точные», [12] — свойства строки, [13] — «i/n» разновидность трека (1.10.7), [14] — свойства как на площадке (1.10.8)
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'', r.v||null, r.qp||'', r.vs||'', r.vk||'', r.vo||'']);   // [10] — разновидности (1.10.6), [11] — «штуки точные», [12] — свойства строки, [13] — «i/n» разновидность трека (1.10.7), [14] — свойства как на площадке (1.10.8)
   TABLE.forEach(r => { if (r[2]) r[2] = pkImg(r[2]); });  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};
@@ -1201,24 +1200,6 @@ function applyShipDoc(d) {
   applyClientRules();
 }
 
-// 18.11.2026: источник закупки — файл или расширение. Правило применяется ЦЕЛИКОМ к закупке.
-// Расширение всегда оставляет фото товара, маркетплейс, название или свойства разновидности;
-// в файле Excel есть только трек-код и клиент. Цену не считаем признаком — её вписывают и в файл.
-let pkShipFileSrc = false;   // объявлено только здесь: mobile.js читает, но не объявляет (иначе конфликт)
-function pkShipIsFileData(d) {
-  if (!d) return false;
-  if (d.src === 'file') return true;
-  if (d.src === 'manual') return true;   // 18.11.2026: ручная закупка — дубли это отдельные пакеты (пока не помечено «в одном пакете»)
-  const rows = d.data || [];
-  for (const r of rows) {
-    const o = Array.isArray(r)
-      ? { img:r[2], n:r[6], mk:r[9], vs:r[12], vk:r[13], vo:r[14] }
-      : r;
-    if (!o) continue;
-    if (o.img || o.n || o.mk || o.vs || o.vk || o.vo) return false;   // нашли признак расширения
-  }
-  return true;   // ни одной строки с признаками расширения — закупка файловая
-}
 async function loadShipmentData(id, keepActive) {
   if (!keepActive) { activeShipmentId = id; try { localStorage.setItem('pk_active_' + savedUid, id); } catch (e) {} }   // 07.11.2026: открыли приложение заново (в т.ч. без интернета) — та же закупка
   editingShipmentId = id;  // редактируемый приход = тот что грузим
@@ -1356,7 +1337,7 @@ async function uploadCSV() {
       const lastSnap = await shipmentsRef().orderBy('created', 'desc').limit(1).get();
       if (!lastSnap.empty && lastSnap.docs[0].data().rates) newRates = { ...DEFAULT_RATES, ...lastSnap.docs[0].data().rates };
     } catch(e) {}
-    const ref = await shipmentsRef().add({ name, data, rates: newRates, status: "forming", src: 'file', created: firebase.firestore.FieldValue.serverTimestamp() });   // 18.11.2026: источник — файл
+    const ref = await shipmentsRef().add({ name, data, rates: newRates, status: "forming", created: firebase.firestore.FieldValue.serverTimestamp() });
     closeUploadModal();
     activeShipmentId = ref.id;
     await loadShipments();
@@ -1622,9 +1603,8 @@ function lookup(code) {
   if (!rows.length) { pkSndSafe('no'); showResult('error',code,null,'«'+code+'» не найден'); return; }
   const ut=[...new Set(rows.map(r=>r.t))];
   if (isP && ut.length>1) { showResult('multi',code,null,null,ut); return; }
-  // 10.11.2026: строки-разновидности одного трека (расширение 1.10.7, [13] «i/n») — это ОДИН пакет: один скан отмечает все его строки.
-  // 18.11.2026: то же для ручной закупки, если человек сказал «товар в том же пакете» (dp='p', [15]).
-  if (ut.length === 1 && rows.some(r => TABLE[r.i] && (TABLE[r.i][13] || TABLE[r.i][15] === 'p'))) {
+  // 10.11.2026: строки-разновидности одного трека (расширение 1.10.7, [13] «i/n») — это ОДИН пакет: один скан отмечает все его строки
+  if (ut.length === 1 && rows.some(r => TABLE[r.i] && TABLE[r.i][13])) {
     const fr = rows.filter(r => !scanned[r.i]);
     if (!fr.length) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
     fr.forEach(r => { scanned[r.i] = true; });
@@ -1639,28 +1619,15 @@ function lookup(code) {
   if (!free) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
   scanned[free.i] = true;
   saveScanned();
-  // 18.11.2026: две разные ситуации при скане.
-  // ФАЙЛ (закупка из Excel): одинаковые коды — разные пакеты. Показываем ОДНО имя — того,
-  //   чью строку отметили (по порядку из таблицы), и счётчик «1 из 3».
-  // РАСШИРЕНИЕ: всё как было — имена всех строк трека, сборные пакеты, плитки.
-  const sameRows = TABLE.map((r,k)=>({i:k,r})).filter(x=>x.r[0]===rows[0].t);
-  // 18.11.2026: если человек в ручной закупке сказал «товар в том же пакете» (dp='p') —
-  // это один пакет, ведём как расширение. Иначе (файл, ручная) — отдельные пакеты со счётчиком.
-  const samePack = sameRows.some(x => x.r[15] === 'p');
-  const isFile = pkShipFileSrc && !samePack;
-  const wh = isFile
-    ? (free.w || '')
-    : [...new Set(rows.map(r=>r.w))].join(' + ');
-  const dup = (isFile && !sameRows.some(x=>x.r[13]) && sameRows.length > 1)
-    ? { done: sameRows.filter(x=>scanned[x.i]).length, total: sameRows.length } : null;
-  showResult('success',rows[0].t,wh,null,null,null,dup,isFile);
+  const wh = [...new Set(rows.map(r=>r.w))].join(' + ');
+  showResult('success',rows[0].t,wh);
   addHistory(rows[0].t,free.w);
   updateStats(); beep(); vibrate();
 }
 
 // ============ SHOW RESULT ============
-function showResult(type, track, wh, msg, tracks, fMsg, dup, fileMode) {
-  if (type==='success'||type==='multi'||type==='fuzzy') showOverlay(type,track,wh,tracks,fMsg,dup,fileMode);
+function showResult(type, track, wh, msg, tracks, fMsg) {
+  if (type==='success'||type==='multi'||type==='fuzzy') showOverlay(type,track,wh,tracks,fMsg);
   const b = document.getElementById('resultBlock');
   if (type==='success') b.innerHTML=`<div class="result-card success"><div class="result-label">✅ Отмечено</div><div class="result-track">${track}</div><div class="result-warehouse"><i class="ti ti-package" style="font-size:36px;vertical-align:-5px;margin-right:6px;color:#6C4DB8"></i> ${wh}</div></div>`;
   else if (type==='already') b.innerHTML=`<div class="result-card already"><div class="result-label">⚠️ Уже отмечено</div><div class="result-track">${track}</div><div class="result-message">Склад: ${wh}</div></div>`;
@@ -1672,7 +1639,7 @@ function showResult(type, track, wh, msg, tracks, fMsg, dup, fileMode) {
 }
 
 // ============ OVERLAY ============
-function showOverlay(type,track,wh,tracks,fMsg,dup,fileMode) {
+function showOverlay(type,track,wh,tracks,fMsg) {
   if (scanner) try{scanner.pause(true)}catch(e){}
   const ov=document.getElementById('scanOverlay'), card=document.getElementById('overlayCard'),
     ic=document.getElementById('overlayIcon'), w=document.getElementById('overlayWarehouse'), tr=document.getElementById('overlayTrack');
@@ -1697,21 +1664,13 @@ function showOverlay(type,track,wh,tracks,fMsg,dup,fileMode) {
 
   if (type==='success') {
     card.className='overlay-card success-card'; ic.innerHTML='<i class="ti ti-circle-check" style="font-size:56px;color:#16a34a"></i>'; tr.textContent=track;
-    if (wh && wh.includes(' и ') && !fileMode) {
+    if (wh && wh.includes(' и ')) {
       w.innerHTML = wh.split(' и ').map(x=>'<i class="ti ti-package" style="font-size:32px;vertical-align:-5px;margin-right:6px;color:#6C4DB8"></i> '+x.trim()).join('<br>'); w.style.fontSize='22px';
       const d=document.createElement('div'); d.className='multi-warn';
       d.textContent='⚠️ Товаров может быть несколько!';
       d.style.cssText='background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:#ea580c;margin:6px 0 12px';
       card.insertBefore(d,card.querySelector('.overlay-ok'));
     } else { w.innerHTML='<i class="ti ti-package" style="font-size:36px;vertical-align:-5px;margin-right:6px;color:#6C4DB8"></i> '+(wh||''); }
-    // 18.11.2026: счётчик одинаковых кодов — крупно «1 из 3» по центру
-    let dupEl=card.querySelector('.dup'); if(dupEl) dupEl.remove();
-    if (dup) {
-      const left = dup.total - dup.done;
-      const de=document.createElement('div'); de.className='dup';
-      de.innerHTML = '<div class="dup-n">'+dup.done+'<span>/'+dup.total+'</span></div><div class="dup-w'+(left>0?'':' last')+'">'+(left>0?'пакета с этим кодом':'все пакеты отмечены')+'</div>';
-      card.insertBefore(de, card.querySelector('.overlay-ok'));
-    }
   } else if (type==='fuzzy'||type==='multi') {
     card.style.border='2px solid '+(type==='fuzzy'?'#a5b4fc':'#e0e0e0');
     if(type==='fuzzy') card.style.background='#f5f3ff';
@@ -1729,7 +1688,6 @@ function overlayOk() {
   document.getElementById('scanOverlay').classList.remove('show');
   let mb=document.querySelector('.multi-btns'); if(mb)mb.remove();
   let mw=document.querySelector('.multi-warn'); if(mw)mw.remove();
-  let du=document.querySelector('.dup'); if(du)du.remove();
   if (scanner) try{scanner.resume()}catch(e){}
   if (pkCanAutoFocus()) setTimeout(()=>document.getElementById('manualInput').focus(),200);
   if (scanning) setTimeout(pkCamIntoView,150);
