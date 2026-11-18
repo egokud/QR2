@@ -1185,7 +1185,7 @@ function pkImg(u) {
 function applyShipDoc(d) {
   d = d || {};
   pkShipFileSrc = pkShipIsFileData(d);   // 18.11.2026: файл или расширение — для показа при скане
-  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'', r.v||null, r.qp||'', r.vs||'', r.vk||'', r.vo||'']);   // [10] — разновидности (1.10.6), [11] — «штуки точные», [12] — свойства строки, [13] — «i/n» разновидность трека (1.10.7), [14] — свойства как на площадке (1.10.8)
+  TABLE = (d.data || []).map(r => Array.isArray(r) ? r : [r.t, r.w, r.img||'', r.p||'', r.pc||'', r.q||'1', r.n||'', r.mv||0, r.mvFrom||'', r.mk||'', r.v||null, r.qp||'', r.vs||'', r.vk||'', r.vo||'', r.dp||'']);   // [15] — тип дубля из ручной закупки (18.11.2026)   // [10] — разновидности (1.10.6), [11] — «штуки точные», [12] — свойства строки, [13] — «i/n» разновидность трека (1.10.7), [14] — свойства как на площадке (1.10.8)
   TABLE.forEach(r => { if (r[2]) r[2] = pkImg(r[2]); });  // [6] — название товара; [7] — сколько раз трек переносили как «не пришёл», [8] — из какой закупки
   currentRates = d.rates ? { ...DEFAULT_RATES, ...d.rates } : { ...DEFAULT_RATES };
   currentWeights = d.weights ? { ...d.weights } : {};
@@ -1208,6 +1208,7 @@ let pkShipFileSrc = false;   // объявлено только здесь: mobi
 function pkShipIsFileData(d) {
   if (!d) return false;
   if (d.src === 'file') return true;
+  if (d.src === 'manual') return true;   // 18.11.2026: ручная закупка — дубли это отдельные пакеты (пока не помечено «в одном пакете»)
   const rows = d.data || [];
   for (const r of rows) {
     const o = Array.isArray(r)
@@ -1621,8 +1622,9 @@ function lookup(code) {
   if (!rows.length) { pkSndSafe('no'); showResult('error',code,null,'«'+code+'» не найден'); return; }
   const ut=[...new Set(rows.map(r=>r.t))];
   if (isP && ut.length>1) { showResult('multi',code,null,null,ut); return; }
-  // 10.11.2026: строки-разновидности одного трека (расширение 1.10.7, [13] «i/n») — это ОДИН пакет: один скан отмечает все его строки
-  if (ut.length === 1 && rows.some(r => TABLE[r.i] && TABLE[r.i][13])) {
+  // 10.11.2026: строки-разновидности одного трека (расширение 1.10.7, [13] «i/n») — это ОДИН пакет: один скан отмечает все его строки.
+  // 18.11.2026: то же для ручной закупки, если человек сказал «товар в том же пакете» (dp='p', [15]).
+  if (ut.length === 1 && rows.some(r => TABLE[r.i] && (TABLE[r.i][13] || TABLE[r.i][15] === 'p'))) {
     const fr = rows.filter(r => !scanned[r.i]);
     if (!fr.length) { pkSndSafe('al'); showResult('already',rows[0].t,[...new Set(rows.map(r=>r.w))].join(', ')); return; }
     fr.forEach(r => { scanned[r.i] = true; });
@@ -1641,11 +1643,14 @@ function lookup(code) {
   // ФАЙЛ (закупка из Excel): одинаковые коды — разные пакеты. Показываем ОДНО имя — того,
   //   чью строку отметили (по порядку из таблицы), и счётчик «1 из 3».
   // РАСШИРЕНИЕ: всё как было — имена всех строк трека, сборные пакеты, плитки.
-  const isFile = pkShipFileSrc;
+  const sameRows = TABLE.map((r,k)=>({i:k,r})).filter(x=>x.r[0]===rows[0].t);
+  // 18.11.2026: если человек в ручной закупке сказал «товар в том же пакете» (dp='p') —
+  // это один пакет, ведём как расширение. Иначе (файл, ручная) — отдельные пакеты со счётчиком.
+  const samePack = sameRows.some(x => x.r[15] === 'p');
+  const isFile = pkShipFileSrc && !samePack;
   const wh = isFile
     ? (free.w || '')
     : [...new Set(rows.map(r=>r.w))].join(' + ');
-  const sameRows = TABLE.map((r,k)=>({i:k,r})).filter(x=>x.r[0]===rows[0].t);
   const dup = (isFile && !sameRows.some(x=>x.r[13]) && sameRows.length > 1)
     ? { done: sameRows.filter(x=>scanned[x.i]).length, total: sameRows.length } : null;
   showResult('success',rows[0].t,wh,null,null,null,dup,isFile);
