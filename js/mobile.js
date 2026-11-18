@@ -325,17 +325,18 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
     <button class="pk-btn" style="width:100%" onclick="pkResOk()">Понятно, продолжить</button>`;
   } else if (type === 'success') {
     pkLastOk = { track, idx: pkNewIdx };
-    // 18.11.2026: одинаковые коды из таблицы Excel — «1 из 3». Считаем ЛОКАЛЬНО:
-    // app.js и mobile.js грузятся на одной странице, глобальные имена конфликтуют
-    // (был инцидент 18.11: двойное `let pkDupInfo` ломало весь mobile.js).
-    // Разновидности одного пакета (r[13]) не считаем — они один пакет.
+    // 18.11.2026: две ситуации при скане.
+    // ФАЙЛ (закупка из Excel): одно имя — того, чью строку отметили, + счётчик «1 из 3».
+    // РАСШИРЕНИЕ: как было — имена всех строк трека, сборный пакет, плитки.
+    // pkShipFileSrc объявлена в app.js; файлы грузятся на одной странице, объявлять тут нельзя.
+    const isFile = (typeof pkShipFileSrc !== 'undefined') && pkShipFileSrc;
     const dupRows = TABLE.map((r, k) => ({ i: k, r })).filter(x => x.r[0] === track);
-    const dup = (!dupRows.some(x => x.r[13]) && dupRows.length > 1)
+    const dup = (isFile && !dupRows.some(x => x.r[13]) && dupRows.length > 1)
       ? { done: dupRows.filter(x => scanned[x.i]).length, total: dupRows.length }
       : null;
     const parts = [...new Set(String(wh || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
-    const many = parts.length > 1;
-    const who = pkEsc(parts.join(' и ') || 'Без клиента');
+    const many = !isFile && parts.length > 1;
+    const who = pkEsc(isFile ? (String(wh || '').trim() || 'Без клиента') : (parts.join(' и ') || 'Без клиента'));
     body = `<div class="card">
       <div class="img ${img ? '' : 'no'}" style="${img ? `background-image:url('${pkEsc(img)}')` : ''}">${img ? '' : '<span><i class="ti ti-photo-off" style="font-size:22px;vertical-align:-5px;margin-right:6px"></i>фото товара нет</span>'}</div>
       <div class="pk-row" style="justify-content:flex-start"><span class="pk-pill" style="background:var(--pk-ok-soft);color:var(--pk-ok)"><i class="ti ti-check" aria-hidden="true"></i> Отмечено</span><span class="pk-muted" style="font-size:13px">кладите в пакет клиента</span></div>
