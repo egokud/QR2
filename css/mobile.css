@@ -180,6 +180,12 @@ body:not(.pk-m) .pk-tabs,body:not(.pk-m) .pk-top,body:not(.pk-m) .pk-pane{displa
 .pk-res-full .trk{font-family:ui-monospace,Menlo,monospace;font-size:15px;color:var(--pk-muted);letter-spacing:.03em}
 .pk-res-full .warn{background:var(--pk-warn-soft);color:var(--pk-warn);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600}
 .pk-res-full .undo{background:none;border:0;font:inherit;color:var(--pk-muted);text-decoration:underline;cursor:pointer;font-size:14px;align-self:center}
+/* 18.11.2026: повторный скан — окно вместо маленькой жёлтой плашки под сканером.
+   Причина: при выключенном звуке плашку не замечали и клали пакет дважды. */
+.pk-res-full .card.al{border-color:var(--pk-warn);justify-content:center}
+.pk-res-full .big-al{display:flex;align-items:center;justify-content:center;color:var(--pk-warn)}
+.pk-res-full .big-al svg{width:44px;height:44px}
+.pk-res-full .head-al{font-size:46px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--pk-warn);text-align:center;word-break:break-word}
 @media (min-width:561px){.pk-sheet{border-radius:22px;bottom:12px}}
 @media (prefers-reduced-motion:reduce){.pk-sheet{transition:none}}
 

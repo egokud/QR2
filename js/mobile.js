@@ -309,6 +309,20 @@ function pkShowScanResult(type, track, wh, tracks, fMsg) {
   if (type === 'success' && grp.length > 1) {
     pkLastOk = { track, idx: null, grp: true };
     body = pkBagHtml(track, grp);
+  } else if (type === 'already') {
+    // 18.11.2026: повторный скан — полноэкранное окно вместо маленькой плашки.
+    // Клиенты жаловались: при выключенном звуке плашку не видят и кладут пакет дважды.
+    pkLastOk = null;   // отменять тут нечего — отметка стояла до нас
+    const partsA = [...new Set(String(wh || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
+    const whoA = pkEsc(partsA.join(' и ') || 'Без клиента');
+    body = `<div class="card al">
+      <div class="big-al"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.534a1.914 1.914 0 0 0 -3.274 0"/><path d="M12 16h.01"/></svg></div>
+      <div class="head-al">Уже отмечено</div>
+      <div class="who ${whoA.length > 22 ? 'long' : ''}">${whoA}</div>
+      <div class="trk">${pkEsc(track)}</div>
+      <div class="warn">Этот пакет уже отсканирован. Отметка уже стоит.</div>
+    </div>
+    <button class="pk-btn" style="width:100%" onclick="pkResOk()">Понятно, продолжить</button>`;
   } else if (type === 'success') {
     pkLastOk = { track, idx: pkNewIdx };
     const parts = [...new Set(String(wh || '').split(/\s(?:и|\+)\s/).map(x => x.trim()).filter(Boolean))];
@@ -1411,7 +1425,7 @@ function pkSheetSwipe(sh) {
   window.showResult = function (type, track, wh, msg, tracks, fMsg) {
     if (!pkIsOn()) return origResult.apply(this, arguments);
     if (type === 'success') { pkNewIdx = null; for (const k of Object.keys(scanned)) if (!pkPrevKeys || !pkPrevKeys.has(k)) pkNewIdx = +k; }
-    if (type === 'success' || type === 'multi' || type === 'fuzzy') pkShowScanResult(type, track, wh, tracks, fMsg);
+    if (type === 'success' || type === 'multi' || type === 'fuzzy' || type === 'already') pkShowScanResult(type, track, wh, tracks, fMsg);   // already — 18.11.2026
     else { const rf = document.getElementById('pkResFull'); if (rf && rf.classList.contains('on')) { rf.classList.remove('on'); if (scanner) try { scanner.resume(); } catch (e) {} } }
     pkResultCard(type, track, wh, msg, tracks, fMsg);
   };
