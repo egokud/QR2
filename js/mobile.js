@@ -174,29 +174,91 @@ async function pkResetMarks() {
 }
 
 // «Сканирование окончено» (05.11.2026): неотсканированные треки — в новую или существующую закупку
+// 19.11.2026: в окне «Сканирование окончено» показываем САМИ треки (запрос клиентов): код, клиент,
+// название, цена. У каждой строки корзинка — удалить с подтверждением. Галочка — переносить или нет.
+let pkFinPick = null;   // Set индексов строк, отмеченных к переносу
 function pkFinishScan(mode) {
   const s = pkActive(); if (!s) return;
   const t = TABLE.length, d = Object.keys(scanned).length, left = t - d;
   if (left <= 0) return;
-  const again = TABLE.filter((r, i) => !scanned[i] && (parseInt(r[7]) || 0) >= 1).length;
+  // какие строки не отсканированы и ещё не удалены
+  const leftIdx = TABLE.map((r, i) => i).filter(i => !scanned[i] && !pkDelPending.has(String(TABLE[i][0] || '')));
+  if (!leftIdx.length) return;
+  // при первом открытии отмечаем все; при повторных вызовах (смена режима) сохраняем выбор
+  if (!pkFinPick || mode === undefined) pkFinPick = new Set(leftIdx);
+  else leftIdx.forEach(i => { if (!pkFinPick.has(i)) return; });
+  pkFinPick = new Set([...pkFinPick].filter(i => leftIdx.includes(i)));
+  const picked = leftIdx.filter(i => pkFinPick.has(i));
+  const again = leftIdx.filter(i => (parseInt(TABLE[i][7]) || 0) >= 1).length;
   const others = (allShipments || []).filter(x => x.id !== s.id && x.status !== 'done');
   mode = mode || 'new';
   const dt = new Date(); dt.setDate(dt.getDate() + 1);
+  const rowsHtml = leftIdx.map(i => {
+    const r = TABLE[i], on = pkFinPick.has(i);
+    const nm = String(r[6] || '').trim(), wh = String(r[1] || '').trim(), pr = String(r[3] || '').trim();
+    const sub = [wh || 'без клиента', nm, pr ? '¥ ' + pr : ''].filter(Boolean).join(' · ');
+    return `<div class="pk-fin-row${on ? '' : ' off'}">
+      <button type="button" class="pk-fin-chk${on ? ' on' : ''}" onclick="pkFinToggle(${i})" aria-label="Переносить"><i class="ti ${on ? 'ti-check' : ''}" aria-hidden="true"></i></button>
+      <span class="pk-fin-ph" ${r[2] ? `style="background-image:url('${pkEsc(r[2])}')"` : ''}>${r[2] ? '' : '<i class="ti ti-photo-off" aria-hidden="true"></i>'}</span>
+      <span class="pk-fin-tx"><b>${pkEsc(r[0] || '')}</b><small>${pkEsc(sub)}</small></span>
+      <button type="button" class="pk-fin-del" onclick="pkFinDel(${i})" aria-label="Удалить позицию"><i class="ti ti-trash" aria-hidden="true"></i></button>
+    </div>`;
+  }).join('');
   pkSheet(`<h3>Сканирование окончено?</h3>
-    <p class="pk-muted" style="margin:6px 0 12px;font-size:14.5px;line-height:1.45">Не отсканировано <b style="color:var(--pk-ink)">${left} ${pkPl(left, 'трек', 'трека', 'треков')}</b> — они не приехали в этом грузе. Перенесём их вместе с клиентами, фото и ценами, а в «${pkEsc(s.name)}» останутся только приехавшие.</p>
+    <p class="pk-muted" style="margin:6px 0 10px;font-size:14.5px;line-height:1.45">Не приехали <b style="color:var(--pk-ink)">${leftIdx.length} ${pkPl(leftIdx.length, 'трек', 'трека', 'треков')}</b> — остались на складе в Китае. Проверьте список: лишние можно удалить, остальные перенесём с клиентами, фото и ценами.</p>
     ${again ? `<div class="pk-fin-warn"><i class="ti ti-alert-triangle"></i><span><b>${again} ${pkPl(again, 'трек', 'трека', 'треков')}</b> ${again === 1 ? 'не приезжает уже второй раз — после переноса он будет отмечен' : 'не приезжают уже второй раз — после переноса они будут отмечены'} красным. Стоит написать в карго.</span></div>` : ''}
+    <div class="pk-fin-cnt"><span>Остались:</span><b>${leftIdx.length} ${pkPl(leftIdx.length, 'трек', 'трека', 'треков')}</b></div>
+    <div class="pk-fin-list">${rowsHtml}</div>
     <div class="pk-seg" style="margin:4px 0 12px"><button type="button" class="${mode === 'new' ? 'on' : ''}" onclick="pkFinishScan('new')">В новую закупку</button><button type="button" class="${mode === 'old' ? 'on' : ''}" ${others.length ? '' : 'disabled'} onclick="pkFinishScan('old')">В существующую</button></div>
     ${mode === 'new'
       ? `<label class="pk-muted" style="font-size:13px">Название новой закупки</label><input id="pkFinName" class="pk-inp" value="Отправка ${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}" style="width:100%;margin-top:4px">`
       : `<label class="pk-muted" style="font-size:13px">Куда перенести</label><select id="pkFinTo" class="pk-inp" style="width:100%;margin-top:4px">${others.map(x => `<option value="${x.id}">${pkEsc(x.name)} · ${pkSt(x.status || 'forming').label}</option>`).join('')}</select>`}
-    <button type="button" class="pk-btn" id="pkFinGo" style="width:100%;margin-top:14px" onclick="pkFinishGo('${mode}')"><i class="ti ti-arrow-forward-up"></i> Перенести ${left} ${pkPl(left, 'трек', 'трека', 'треков')}</button>
+    <button type="button" class="pk-btn" id="pkFinGo" style="width:100%;margin-top:14px" ${picked.length ? '' : 'disabled'} onclick="pkFinishGo('${mode}')"><i class="ti ti-arrow-forward-up"></i> Перенести ${picked.length} ${pkPl(picked.length, 'трек', 'трека', 'треков')}</button>
     <button type="button" class="pk-btn ghost" style="width:100%;margin-top:8px" onclick="pkSheetClose()">Продолжить сканирование</button>`);
+}
+// галочка «переносить» у строки
+function pkFinToggle(i) {
+  if (!pkFinPick) return;
+  if (pkFinPick.has(i)) pkFinPick.delete(i); else pkFinPick.add(i);
+  const mode = document.querySelector('.pk-seg button.on') && document.querySelector('.pk-seg button.on').textContent.includes('существ') ? 'old' : 'new';
+  pkFinishScan(mode);
+}
+// удаление позиции из окна — с подтверждением в отдельном окне
+function pkFinDel(i) {
+  const r = TABLE[i]; if (!r) return;
+  const sub = [String(r[1] || '').trim() || 'без клиента', String(r[6] || '').trim(), String(r[3] || '').trim() ? '¥ ' + String(r[3]).trim() : ''].filter(Boolean).join(' · ');
+  pkSheet(`<h3 style="text-align:center">Удалить позицию?</h3>
+    <div class="pk-card" style="margin:12px 0 14px;padding:10px 12px">
+      <b style="font-family:ui-monospace,Menlo,monospace;font-size:13px;display:block">${pkEsc(r[0] || '')}</b>
+      <span class="pk-muted" style="font-size:12.5px">${pkEsc(sub)}</span>
+    </div>
+    <p class="pk-muted" style="font-size:13.5px;margin:0 0 14px;text-align:center">Позиция удалится из закупки. Точно удалить?</p>
+    <button type="button" class="pk-btn" style="width:100%;background:var(--pk-bad)" onclick="pkFinDelGo(${i})">Удалить</button>
+    <button type="button" class="pk-btn ghost" style="width:100%;margin-top:8px" onclick="pkFinishScan()">Отмена</button>`);
+}
+async function pkFinDelGo(i) {
+  const r = TABLE[i]; if (!r) return;
+  const track = String(r[0] || '');
+  pkDelPending.add(track);
+  if (pkFinPick) pkFinPick.delete(i);
+  try {
+    await pkDeleteRows(editingShipmentId || activeShipmentId, [i], [track]);
+    pkFinPick = new Set([...(pkFinPick || [])].filter(x => x !== i));
+    showToast('Позиция удалена');
+    pkFinishScan();
+  } catch (e) {
+    pkDelPending.delete(track);
+    alert('Не удалось удалить: ' + (e && e.message || e));
+    pkFinishScan();
+  }
 }
 async function pkFinishGo(mode) {
   const b = document.getElementById('pkFinGo'); if (b) { b.disabled = true; b.textContent = 'Переношу…'; }
   try {
     const target = mode === 'old' ? { id: (document.getElementById('pkFinTo') || {}).value } : { newName: (document.getElementById('pkFinName') || {}).value };
+    target.only = pkFinPick ? [...pkFinPick] : null;   // 19.11.2026: переносим только отмеченные галочками
     const r = await pkMoveUnscanned(target);
+    pkFinPick = null;
     pkSheetClose(); pkRender();
     if (typeof showToast === 'function') showToast(`Перенесли ${r.moved} ${pkPl(r.moved, 'трек', 'трека', 'треков')} в «${r.toName}»`);
     setTimeout(() => { const w = document.getElementById('weighPrompt'); if (w && TABLE.length && Object.keys(scanned).length >= TABLE.length) w.classList.add('show'); }, 600);

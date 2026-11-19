@@ -2165,10 +2165,14 @@ async function pkMoveUnscanned(target) {   // target: { newName } или { id }
   const doc = await shipmentsRef().doc(fromId).get(); if (!doc.exists) throw new Error('закупка не найдена');
   const d = doc.data(), fromName = d.name || '';
   const items = (d.data || []).map(r => Array.isArray(r) ? { t: r[0], w: r[1] || '', img: r[2] || '', p: r[3] || '', pc: r[4] || '', q: r[5] || '1' } : r);
+  // 19.11.2026: target.only — индексы строк, отмеченных галочками (если не задан — переносим все неотсканированные)
+  const onlySet = (target && Array.isArray(target.only)) ? new Set(target.only) : null;
   const keep = [], move = [], newScanned = {};
   items.forEach((it, i) => {
-    if (scanned[i]) { newScanned[keep.length] = scanned[i]; keep.push(it); }
-    else move.push({ ...it, mv: (it.mv || 0) + 1, mvFrom: fromName });
+    const take = !scanned[i] && (!onlySet || onlySet.has(i));
+    if (take) { move.push({ ...it, mv: (it.mv || 0) + 1, mvFrom: fromName }); return; }
+    if (scanned[i]) newScanned[keep.length] = true;   // отметка переезжает на новый номер строки
+    keep.push(it);
   });
   if (!move.length) return { moved: 0 };
   let toId, toName;
