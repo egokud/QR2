@@ -309,7 +309,7 @@ function pkVerifyCardHtml() {
       <button class="vb2 gh" onclick="pkVerifyRecheck()">Я подтвердил</button>
       <button class="vb2 gh" onclick="pkVerifyEditOpen()">Изменить</button>
     </div>
-    <div class="vs" style="font-size:12px;color:#8a85a0;margin-top:7px">Письмо от noreply@piksta.online. Если не видно — проверьте «Спам» и «Промоакции».</div>
+    <div class="vs" style="font-size:12px;color:#8a85a0;margin-top:7px">Письмо от Piksta. Если не видно — проверьте «Спам», «Рассылки» и «Промоакции».</div>
   </div></div>`;
 }
 
