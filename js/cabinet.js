@@ -3606,7 +3606,10 @@ function cabAdminMailGo() {
   const subj = document.getElementById('cabMailSubj').value.trim();
   const body = document.getElementById('cabMailBody').value.replace(/\{имя\}/g, one ? (one.name || '') : '').trim();
   const E = encodeURIComponent;
-  const base = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + E(subj) + '&body=' + E(body);
+  // 22.11.2026: указываем аккаунт явно. Без authuser Gmail угадывает, в какой из нескольких
+  // ящиков войти, и в Safari выдаёт «аккаунт временно недоступен». Так письмо всегда от админа.
+  const who = (typeof ADMIN_EMAIL !== 'undefined' && ADMIN_EMAIL) ? ADMIN_EMAIL : (userProfile && userProfile.email) || '';
+  const base = 'https://mail.google.com/mail/?authuser=' + E(who) + '&view=cm&fs=1&su=' + E(subj) + '&body=' + E(body);
   let url = base + (emails.length === 1 ? '&to=' + E(emails[0]) : '&bcc=' + E(emails.join(',')));
   if (url.length > 7500) { cabAdminCopyEmails(); alert('Адресов слишком много для одной ссылки. Адреса скопированы — вставьте их в «Скрытую копию» в Gmail.'); url = base; }
   window.open(url, '_blank');
