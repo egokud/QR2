@@ -8,10 +8,9 @@ auth.onAuthStateChanged(async (user) => {
     savedUid = user.uid;
     try { savedToken = await (typeof pkTimeout === 'function' ? pkTimeout(user.getIdToken(), 6000) : user.getIdToken()); } catch(e) {}   // без интернета токен может не обновиться — работаем с копией на телефоне
     await loadUserProfile();
-    // Подтверждение e-mail (js/verify.js): новые — экран до подтверждения, старые — плашка
-    const vNeed = typeof pkNeedsVerify === 'function' ? pkNeedsVerify(user, userProfile) : null;
-    if (vNeed === 'gate') { document.getElementById('authScreen').classList.add('hide'); pkShowVerifyGate(showApp); }
-    else { showApp(); if (vNeed === 'bar') pkShowVerifyBar(); }
+    // 22.11.2026: подтверждение почты больше никого не запирает — вместо окна/плашки карточка на главной.
+    // Доступ к кабинету есть всегда, даже если письмо не дошло.
+    showApp();
   } else {
     if (typeof pkVStop === 'function') { pkVStop(); pkHideVerifyBar(); const vg = document.getElementById('pkVGate'); if (vg) vg.style.display = 'none'; }
     currentUser = null;

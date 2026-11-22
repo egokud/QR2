@@ -474,6 +474,7 @@ function pkRenderShips() {
   const chip = (k, l, c) => `<button type="button" class="${pkShipFilter === k ? 'on' : ''}" onclick="pkShipFilter='${k}';pkRender()">${c ? `<i class="d" style="background:${c}"></i>` : ''}${l}</button>`;
   document.getElementById('pkPane-ships').innerHTML = `
     <div class="pk-row"><h1 class="pk-h1">Закупки</h1><button class="pk-btn sm" onclick="pkNewShip()"><i class="ti ti-plus" aria-hidden="true"></i> Новая</button></div>
+    <div data-vcard></div>
     ${typeof pkLimitBanner === 'function' ? pkLimitBanner() : ''}
     <label class="pk-search"><i class="ti ti-search" aria-hidden="true"></i><input id="pkShipQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку по трек-коду" value="${pkEsc(pkShipQuery)}" oninput="pkShipQuery=this.value;pkShipSearch()"></label>
     <div id="pkShipRes"></div>
@@ -492,6 +493,7 @@ function pkRenderShips() {
       // 07.11.2026: компактная карточка — название и строка слева, статус и стрелка справа (было 3–4 строки)
       return `<div class="pk-ship c ${cur ? 'cur' : ''}" onclick="pkShipSheet('${s.id}')"><div class="pk-ship-r"><div class="mid"><div class="nm">${pkEsc(s.name)}</div><div class="ln">${line}</div>${typeof pkOffPill === 'function' ? pkOffPill(s) : ''}</div><span class="pk-stp st-${pkEsc(s.status || 'forming')}">${st.label}</span><i class="ti ti-chevron-right pk-chev" aria-hidden="true"></i></div>${extra}</div>`;
     }).join('') || '<div class="pk-card pk-empty">Закупок пока нет.<br>Создайте первую: вручную — прямо здесь, или импортом с Pinduoduo, Taobao и 1688 через расширение на компьютере.<button type="button" class="pk-btn" style="width:100%;margin-top:12px" onclick="pkNewShip()"><i class="ti ti-plus"></i> Создать закупку</button></div>'}`;
+  if (typeof pkVerifyPaint === 'function') pkVerifyPaint();
   pkShipSearch();
   if (hadFocus) { const i = document.getElementById('pkShipQ'); if (i) { i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch (e) {} } }
 }

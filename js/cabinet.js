@@ -926,6 +926,7 @@ function renderCabShipments(container) {
 
   container.innerHTML = `
     <div class="cab-main-title">Закупки</div>
+    <div data-vcard></div>
     ${CAB_TS_CSS}<label class="cab-ts"><i class="ti ti-search" aria-hidden="true"></i><input id="cabTrackQ" type="search" autocomplete="off" spellcheck="false" placeholder="Найти посылку: трек-код целиком, его часть или последние цифры" value="${String(cabTrackQ).replace(/"/g, '&quot;')}" oninput="cabTrackSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';cabTrackSearch('')}"></label>
     <div id="cabTrackRes"></div>
     ${cabShipsHero(ships)}
@@ -938,6 +939,7 @@ function renderCabShipments(container) {
       </table>
     </div>`;
   if (cabTrackQ) cabTrackSearch(cabTrackQ);
+  if (typeof pkVerifyPaint === 'function') pkVerifyPaint();
 }
 
 function cabFilterShipments(filter, btn) {
@@ -3375,7 +3377,7 @@ const CAB_ADMIN_CSS = `
 .cab-ac-mail{font-weight:600;font-size:15px;color:#1a1a2e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cab-ac-sub{display:flex;align-items:center;gap:8px;margin-top:3px;min-width:0}
 .cab-ac-pill{padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
-.cab-ac-unv{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;font-weight:600;color:#a16207;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cab-ac-unv i{font-size:14px;flex:none}.cab-ac-unv.late{color:#b91c1c}.cab-ac-unv.cab-ac-rep{color:#7c3aed}
+.cab-ac-unv{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:12px;font-weight:600;color:#a16207;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cab-ac-unv i{font-size:14px;flex:none}.cab-ac-unv.late{color:#b91c1c}.cab-ac-unv.cab-ac-rep{color:#7c3aed}.cab-ac-unv.cab-ac-nudge{color:#6C4DB8}
 .cab-ac-vbtn{color:#92400e;border-color:#f6d58a}.cab-ac-vbtn.late{background:#facc15;border-color:#eab308;color:#422006;font-weight:700;box-shadow:0 0 0 3px rgba(250,204,21,.35)}
 .cab-ac-name{font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cab-ac-m{display:flex;flex-direction:column;gap:2px;font-size:12px;color:#6b7280;white-space:nowrap;min-width:0}
@@ -3404,7 +3406,7 @@ body.dark .cab-ac .cab-uopt{color:#cfc9e6}
 body.dark .cab-ac-cty small{color:#8f89aa}
 body.dark .cab-ac-lim{background:#302a48}
 body.dark .cab-ac-bot{border-color:#302a48}
-body.dark .cab-ac-unv{color:#f2c879}body.dark .cab-ac-unv.late{color:#f08282}body.dark .cab-ac-unv.cab-ac-rep{color:#c4b5fd}
+body.dark .cab-ac-unv{color:#f2c879}body.dark .cab-ac-unv.late{color:#f08282}body.dark .cab-ac-unv.cab-ac-rep{color:#c4b5fd}body.dark .cab-ac-unv.cab-ac-nudge{color:#c4b5fd}
 body.dark .cab-ac-vbtn{color:#f2c879;border-color:#5a4318}
 body.dark .cab-sub-box{background:#1d1a2e;color:#e6e2f3}
 body.dark .cab-sub-l{color:#aaa4c2}
@@ -3523,6 +3525,7 @@ function cabAdminRenderList() {
     const vmTxt = !VM.n ? 'данных об отправке нет' : (VM.ok ? 'письмо ушло' : 'Google отказал: ' + (VM.err || '?')) + (vmAt ? ' · ' + vmAt.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '') + (VM.n > 1 ? ' · попыток ' + VM.n : '');
     const nudged = cabToDate(u.verifyNudge);
     const vPill = unver ? `<div class="cab-ac-unv${late ? ' late' : ''}" title="${cabEsc(vmTxt)}"><i class="ti ti-mail-exclamation"></i>Не подтверждена · ${hrs < 48 ? hrs + ' ч' : Math.floor(hrs / 24) + ' дн.'}${VM.n && !VM.ok ? ' · ошибка отправки' : ''}</div>` : '';
+    const vNudge = unver && nudged ? `<div class="cab-ac-unv cab-ac-nudge" title="${cabEsc('Вы просили подтвердить почту: ' + nudged.toLocaleString('ru-RU') + '. Письмо уходит, когда человек открывает приложение.')}"><i class="ti ti-mail-forward"></i>Просили подтвердить · ${nudged.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })} ${String(nudged.getHours()).padStart(2, '0')}:${String(nudged.getMinutes()).padStart(2, '0')}</div>` : '';
     const vBtn = unver ? `<button class="cab-filter-btn cab-ac-vbtn${late ? ' late' : ''}" onclick="cabAdminVerifyNudge('${u.id}')" title="${cabEsc('Попросить Piksta отправить новое письмо подтверждения при следующем входе и открыть письмо человеку в Gmail. ' + vmTxt + (nudged ? '. Уже просили: ' + nudged.toLocaleString('ru-RU') : ''))}"><i class="ti ti-mail-forward"></i><span class="t"> Подтверждение</span></button>` : '';
     const rPill = u._rep ? `<div class="cab-ac-unv cab-ac-rep" title="${cabEsc('Тот же браузер, что у ' + (u._rep.email || u._rep.id) + ' (регистрация ' + ((cabToDate(u._rep.created) || now).toLocaleDateString('ru-RU')) + ')')}"><i class="ti ti-copy"></i>Повторная регистрация · как ${cabEsc(u._rep.email || u._rep.id)}</div>` : '';
     return `<div class="cab-ac${['blocked', 'readonly'].includes(A.kind) ? ' off' : ''}"><div class="cab-ac-row">
@@ -3530,7 +3533,7 @@ function cabAdminRenderList() {
         <input type="checkbox" class="cab-ac-cb" ${cabAdminSel.has(u.id) ? 'checked' : ''} onchange="cabAdminToggle('${u.id}',this.checked)" title="Выбрать для письма">
         <div class="cab-ac-who"><span class="cab-uav">${cabEsc(ini)}</span><div style="min-width:0">
           <div class="cab-ac-mail" title="${cabEsc(u.email || u.id)}">${cabEsc(u.email || u.id)}</div>
-          <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>${vPill}${rPill}
+          <div class="cab-ac-sub"><span class="cab-ac-pill" style="color:${st[1]};background:${st[2]}">${st[0]}</span><span class="cab-ac-name">${cabEsc(u.name || '—')}</span></div>${vPill}${vNudge}${rPill}
         </div></div>
         <div class="cab-ac-m cab-ac-m1"><span>${A.from === 'sub' ? 'Подписка до' : 'Тест до'}</span><b>${endTxt}</b></div>
         <div class="cab-ac-m"><span>${useLbl}</span>${useHtml}</div>
@@ -3565,15 +3568,14 @@ async function cabAdminCopyEmails() {
 
 // Письмо: открывается окно Gmail (вошли как администратор), адресаты — в скрытой копии, друг друга не видят
 // «Подтверждение»: отметка в профиле (Piksta сама отправит свежее письмо, когда человек откроет приложение) + готовое письмо ему в Gmail
+// 22.11.2026: кнопка больше не открывает Gmail. Ставит отметку, письмо уйдёт само, когда человек откроет приложение.
+// Если письма не доходят — вторая кнопка «Письмо» рядом, оттуда можно написать вручную.
 async function cabAdminVerifyNudge(uid) {
   const u = cabAdminUsers.find(x => x.id === uid); if (!u) return;
   try { await db.collection('users').doc(uid).update({ verifyNudge: firebase.firestore.FieldValue.serverTimestamp() }); u.verifyNudge = new Date(); }
   catch (e) { alert('Не удалось: ' + e.message); return; }
-  cabAdminMailOpen(uid);
-  const sj = document.getElementById('cabMailSubj'), bd = document.getElementById('cabMailBody');
-  if (sj) sj.value = 'Piksta: подтверждение почты';
-  if (bd) bd.value = 'Здравствуйте, {имя}!\n\nВидим, что почта в Piksta ещё не подтверждена. Откройте, пожалуйста, piksta.online/app — Piksta сразу отправит вам новое письмо со ссылкой. Письмо приходит с адреса noreply@piksta.online; если его нет во «Входящих», загляните в «Спам» и «Промоакции».\n\nЕсли не получится — просто ответьте на это письмо, поможем.\n\nКоманда Piksta';
   cabAdminRenderList();
+  if (typeof showToast === 'function') showToast(u.email + ': отмечено. Письмо уйдёт, когда человек откроет приложение');
 }
 function cabAdminMailOpen(oneId) {
   const ids = oneId ? [oneId] : [...cabAdminSel];
@@ -3824,6 +3826,7 @@ function cabEmptyOverview() {
 }
 function cabEmptyShipments() {
   return `<div class="cab-main-title">Закупки</div>
+    <div data-vcard></div>
     <div class="cab-emp-head"><b>У вас пока нет ни одной закупки</b><span>Откуда ваши заказы? Выберите путь — к каждому есть короткий гайд на 1 страницу.</span></div>
     <div class="cab-choice">
       <div class="cab-ch rec"><div class="hd"><span class="ic pdd"><i class="ti ti-shopping-bag"></i></span><span><b>С маркетплейсов · автоматически</b><small>треки, фото, цены и названия подтянутся сами</small></span></div>

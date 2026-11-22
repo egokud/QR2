@@ -58,7 +58,23 @@ body.pk-m #pkVBar{left:50%;right:auto;width:min(536px,calc(100% - 24px));transfo
 @media(min-width:700px){body:has(#cabinetScreen.show) #pkVBar{left:auto;right:20px;bottom:20px;width:380px;transform:none}}
 #pkVBar b{white-space:nowrap}#pkVBar>i{font-size:24px;color:#f59e0b;flex:none}#pkVBar .x{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
 #pkVBar button{border:none;border-radius:9px;font-weight:700;font-size:12.5px;padding:7px 10px;cursor:pointer;font-family:inherit;background:#6C4DB8;color:#fff;white-space:nowrap}
-#pkVBar button.c{background:none;color:#8a85a0;font-size:18px;padding:2px 4px}`;
+#pkVBar button.c{background:none;color:#8a85a0;font-size:18px;padding:2px 4px}
+.pk-vcard{display:flex;gap:11px;background:#f9f7ff;border:1.5px solid #e4dcfb;border-radius:14px;padding:12px 13px;margin:0 0 12px;align-items:flex-start;text-align:left;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#17142a}
+.pk-vcard *{box-sizing:border-box}
+.pk-vcard .vic{width:38px;height:38px;border-radius:11px;background:#ede7fd;display:flex;align-items:center;justify-content:center;flex:none}
+.pk-vcard .vic i{font-size:20px;color:#6C4DB8}
+.pk-vcard .vb{min-width:0;flex:1}
+.pk-vcard .vt{font-size:14.5px;font-weight:800;line-height:1.25}
+.pk-vcard .va{font-size:12.5px;font-weight:700;color:#6C4DB8;margin-top:3px;word-break:break-all}
+.pk-vcard .vs{font-size:13px;color:#4a4560;line-height:1.4;margin-top:3px}
+.pk-vcard .vs i{font-size:14px;vertical-align:-2px}
+.pk-vcard .vw{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.pk-vcard .vb2{font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:9px;border:none;background:#6C4DB8;color:#fff;font-family:inherit;cursor:pointer}
+.pk-vcard .vb2.gh{background:#fff;color:#6C4DB8;border:1.5px solid #e4dcfb}
+.pk-vcard .vb2:disabled{color:#a8a3b8;cursor:default}
+.pk-vcard input{width:100%;border:1.5px solid #ddd5f3;border-radius:10px;padding:9px 11px;font-size:14px;font-family:inherit;outline:none;margin-top:8px}
+.pk-vcard input:focus{border-color:#6C4DB8}
+.pk-vcard .ver{color:#b91c1c;font-size:12.5px;margin-top:6px;line-height:1.35}`;
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 })();
 
@@ -232,4 +248,135 @@ async function pkVBarSend(btn) {
 function pkHideVerifyBar(byUser) {
   const b = document.getElementById('pkVBar'); if (b) b.style.display = 'none';
   if (byUser) { try { sessionStorage.setItem('pk_vbar_x', '1'); } catch (e) {} }
+}
+
+// ============ КАРТОЧКА «ПОДТВЕРДИТЕ ПОЧТУ» НА ГЛАВНОЙ (22.11.2026) ============
+// Никого не запираем: человек работает как обычно, карточка только напоминает.
+// Полноэкранное окно (pkVGate) больше не показывается само — осталось для смены адреса.
+let pkVerifyCardMode = '';     // '' | 'sent' | 'edit' | 'ok'
+let pkVerifyCardErr = '';
+let pkVerifyCardAt = 0;
+
+function pkVerifyNeed() {
+  if (!currentUser || !currentUser.email) return false;
+  if (currentUser.emailVerified) return false;
+  if (userProfile && userProfile.role === 'admin') return false;
+  return true;
+}
+
+function pkVerifyTime(ms) {
+  const d = new Date(ms), n = new Date();
+  const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  return d.toDateString() === n.toDateString() ? 'сегодня ' + hm : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' ' + hm;
+}
+
+// HTML карточки. Слоты на страницах помечены data-vcard — заполняются все сразу.
+function pkVerifyCardHtml() {
+  if (!pkVerifyNeed()) return '';
+  const cd = pkVCdLeft();
+  const em = pkVEsc(currentUser.email);
+  const head = `<div class="vic"><i class="ti ti-mail-check"></i></div>`;
+  if (pkVerifyCardMode === 'edit') {
+    return `<div class="pk-vcard">${head}<div class="vb">
+      <div class="vt">Новый адрес почты</div>
+      <div class="vs">Впишите правильный — отправим письмо туда. Адрес сменится, когда нажмёте ссылку в письме.</div>
+      <input id="pkVCardInp" type="email" inputmode="email" autocomplete="email" placeholder="name@mail.ru" onkeydown="if(event.key==='Enter')pkVerifyEditSave()">
+      ${pkVerifyCardErr ? '<div class="ver">' + pkVEsc(pkVerifyCardErr) + '</div>' : ''}
+      <div class="vw"><button class="vb2" id="pkVCardSave" onclick="pkVerifyEditSave()">Отправить на новый адрес</button>
+      <button class="vb2 gh" onclick="pkVerifyEditClose()">Отмена</button></div></div></div>`;
+  }
+  const sentLine = pkVerifyCardMode === 'sent' && pkVerifyCardAt
+    ? `<div class="vs" style="color:#15803d;font-weight:700"><i class="ti ti-circle-check"></i> Письмо отправлено · ${pkVerifyTime(pkVerifyCardAt)}</div>`
+    : `<div class="vs">Иначе мы не сможем написать вам об оплате и ответить на письма.</div>`;
+  return `<div class="pk-vcard">${head}<div class="vb">
+    <div class="vt">Подтвердите почту</div>
+    <div class="va">${em}</div>
+    ${sentLine}
+    ${pkVerifyCardErr ? '<div class="ver">' + pkVEsc(pkVerifyCardErr) + '</div>' : ''}
+    <div class="vw">
+      <button class="vb2" id="pkVCardSend" onclick="pkVerifySend()" ${cd ? 'disabled' : ''}>${cd ? 'Ещё раз через ' + pkVFmt(cd) : (pkVerifyCardMode === 'sent' ? 'Отправить ещё раз' : 'Отправить письмо')}</button>
+      <button class="vb2 gh" onclick="pkVerifyRecheck()">Я подтвердил</button>
+      <button class="vb2 gh" onclick="pkVerifyEditOpen()">Изменить</button>
+    </div>
+    <div class="vs" style="font-size:12px;color:#8a85a0;margin-top:7px">Письмо от noreply@piksta.online. Если не видно — проверьте «Спам» и «Промоакции».</div>
+  </div></div>`;
+}
+
+// Заполнить все слоты на странице (данные-атрибут data-vcard). Карточек может быть две — телефон и Кабинет.
+function pkVerifyPaint() {
+  const slots = document.querySelectorAll('[data-vcard]');
+  if (!slots.length) return;
+  const html = pkVerifyCardHtml();
+  slots.forEach(s => { s.innerHTML = html; });
+  if (pkVerifyCardMode === 'edit') { const i = document.getElementById('pkVCardInp'); if (i) { i.focus(); try { i.value = ''; } catch (e) {} } }
+}
+
+async function pkVerifySend() {
+  if (!currentUser || pkVCdLeft()) return;
+  pkVerifyCardErr = '';
+  document.querySelectorAll('#pkVCardSend').forEach(b => { b.disabled = true; });
+  try {
+    await currentUser.sendEmailVerification(pkVerifyAcs());
+    pkVMark(); pkVLog(true);
+    pkVerifyCardMode = 'sent'; pkVerifyCardAt = Date.now();
+    pkVerifyPaint();
+    clearInterval(pkVCdTimer);
+    pkVCdTimer = setInterval(() => {
+      const left = pkVCdLeft();
+      document.querySelectorAll('#pkVCardSend').forEach(b => {
+        if (left) { b.disabled = true; b.textContent = 'Ещё раз через ' + pkVFmt(left); }
+        else { b.disabled = false; b.textContent = 'Отправить ещё раз'; clearInterval(pkVCdTimer); }
+      });
+    }, 1000);
+  } catch (e) {
+    pkVLog(false, e.code || e.message);
+    if (e.code === 'auth/too-many-requests') pkVMark();
+    pkVerifyCardErr = pkVErrText(e.code || e.message);
+    pkVerifyPaint();
+  }
+}
+
+async function pkVerifyRecheck() {
+  if (!currentUser) return;
+  pkVerifyCardErr = '';
+  try {
+    await currentUser.reload();
+  } catch (e) {
+    pkVerifyCardErr = 'Нет связи. Попробуйте ещё раз.';
+    pkVerifyPaint(); return;
+  }
+  if (auth.currentUser && auth.currentUser.emailVerified) {
+    currentUser = auth.currentUser;
+    try { await currentUser.getIdToken(true); savedToken = await currentUser.getIdToken(); } catch (e) {}
+    try { pkVSync(); } catch (e) {}
+    pkVerifyCardMode = 'ok';
+    pkVerifyPaint();
+    return;
+  }
+  pkVerifyCardErr = 'Пока не подтверждена. Откройте письмо и нажмите ссылку — сразу после этого нажмите «Я подтвердил».';
+  pkVerifyPaint();
+}
+
+function pkVerifyEditOpen() { pkVerifyCardMode = 'edit'; pkVerifyCardErr = ''; pkVerifyPaint(); }
+function pkVerifyEditClose() { pkVerifyCardMode = ''; pkVerifyCardErr = ''; pkVerifyPaint(); }
+
+async function pkVerifyEditSave() {
+  const inp = document.getElementById('pkVCardInp');
+  const v = ((inp && inp.value) || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { pkVerifyCardErr = 'Проверьте адрес'; pkVerifyPaint(); if (inp) inp.value = v; return; }
+  const b = document.getElementById('pkVCardSave'); if (b) b.disabled = true;
+  try {
+    await currentUser.verifyBeforeUpdateEmail(v, pkVerifyAcs());
+    try { localStorage.setItem('pk_vnew', v); } catch (e) {}
+    pkVMark(); pkVLog(true);
+    pkVerifyCardMode = 'sent'; pkVerifyCardAt = Date.now(); pkVerifyCardErr = '';
+    pkVerifyPaint();
+  } catch (e) {
+    pkVerifyCardErr = e.code === 'auth/email-already-in-use' ? 'Этот адрес уже зарегистрирован — войдите с ним.'
+      : e.code === 'auth/invalid-email' ? 'Проверьте адрес'
+      : e.code === 'auth/requires-recent-login' ? 'Выйдите и войдите снова, затем смените адрес.'
+      : e.code === 'auth/too-many-requests' ? 'Слишком много попыток. Подождите пару минут.'
+      : pkVErrText(e.code || e.message);
+    pkVerifyPaint();
+  }
 }
