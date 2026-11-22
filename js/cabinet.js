@@ -644,7 +644,7 @@ function cabBnBlock(only) {   // only(b) — показать не все бан
   return `<div class="cab-bn" ${pkBnAttrs(PK_BN_SEC.cab)}>${L.map((b, k) => cabBnSlide(b, k === pkBnIdx)).join('')}${pkBnDots(L.length)}</div>`;
 }
 function renderCabOverview(container) {
-  if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyOverview(); return; }
+  if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyOverview(); if (typeof pkVerifyPaint === 'function') pkVerifyPaint(); return; }
   const ships = cabShipmentsCache;
   const money = cabMoney(ships);
   // Наценка в заказах (не «обещанная прибыль»): уже получено / точно — рассортированные, вес известен /
@@ -898,7 +898,7 @@ const CAB_TS_CSS = `<style>
 
 let cabShipFilter = 'all';
 function renderCabShipments(container) {
-  if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyShipments(); return; }
+  if (!cabShipmentsCache.length) { container.innerHTML = cabEmptyShipments(); if (typeof pkVerifyPaint === 'function') pkVerifyPaint(); return; }
   const ships = cabShipmentsCache;
   const nAct = ships.filter(s => s.status !== 'done').length, nDone = ships.length - nAct;
   const seg = (k, l, n) => `<button class="cab-seg-b${cabShipFilter === k ? ' on' : ''}" data-f="${k}" onclick="cabFilterShipments('${k}',this)">${l} <i>${n}</i></button>`;
@@ -3815,6 +3815,7 @@ const CAB_GUIDE_PDD = '/guides/piksta-start-marketplejsy.pdf', CAB_GUIDE_MAN = '
 function cabEmptyOverview() {
   const first = userProfile && userProfile.name ? String(userProfile.name).split(' ')[0] : '';
   return `<div class="cab-main-title">${first ? 'Добро пожаловать, ' + cabEsc(first) + '!' : 'Добро пожаловать в Piksta!'}</div>
+    <div data-vcard></div>
     ${cabBnBlock(b => b.kind === 'trial')}
     <div class="cab-start"><h2>С чего начать</h2><p>Три шага — и первая закупка разобрана по клиентам. Начните с закупки: всё остальное Piksta посчитает сама.</p></div>
     <div class="cab-start-steps">
