@@ -99,6 +99,16 @@ function pkShowVerifyGate(onDone) {
 }
 function pkVOnVis() { if (!document.hidden) pkVCheck(); }
 
+// 22.11.2026: «Подтвердить позже» — не запираем. Сутки окно не показываем, в кабинете напоминает карточка.
+const PK_VERIFY_LATER = 24 * 36e5;
+function pkVPostponed() { try { const t = +localStorage.getItem('pk_vlater') || 0; return !t ? false : (Date.now() - t < PK_VERIFY_LATER); } catch (e) { return false; } }
+function pkVSkip() {
+  try { localStorage.setItem('pk_vlater', String(Date.now())); } catch (e) {}
+  pkVStop();
+  const g = document.getElementById('pkVGate'); if (g) g.style.display = 'none';
+  if (typeof pkVDone === 'function' && pkVDone) pkVDone();
+}
+
 function pkVRender(note) {
   const g = document.getElementById('pkVGate'); if (!g || !currentUser) return;
   let pend = ''; try { pend = localStorage.getItem('pk_vnew') || ''; } catch (e) {}
@@ -131,6 +141,7 @@ function pkVRender(note) {
     <div class="ft">
       <div class="tip"><i class="ti ti-info-circle"></i><span>Нет письма? Проверьте папки <b>«Спам»</b> и <b>«Промоакции»</b>.</span></div>
       <button class="b gh" id="pkVSend" onclick="pkVResend()" ${cd ? 'disabled' : ''}>${cd ? '<i class="ti ti-clock"></i>Ещё раз — через <span id="pkVCd">' + pkVFmt(cd) + '</span>' : '<i class="ti ti-send"></i>Отправить ещё раз'}</button>
+      <button class="lk" onclick="pkVSkip()" style="color:#6b6780;font-weight:600">Подтвердить позже</button>
       <button class="lk" onclick="pkVMode='edit';pkVRender()">Ошиблись в адресе? Изменить</button>
       <button class="lk m" onclick="pkVLogout()">Выйти</button>
     </div></div>`;

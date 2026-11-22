@@ -8,9 +8,12 @@ auth.onAuthStateChanged(async (user) => {
     savedUid = user.uid;
     try { savedToken = await (typeof pkTimeout === 'function' ? pkTimeout(user.getIdToken(), 6000) : user.getIdToken()); } catch(e) {}   // без интернета токен может не обновиться — работаем с копией на телефоне
     await loadUserProfile();
-    // 22.11.2026: подтверждение почты больше никого не запирает — вместо окна/плашки карточка на главной.
-    // Доступ к кабинету есть всегда, даже если письмо не дошло.
-    showApp();
+    // 22.11.2026: новым — окно подтверждения, но с кнопкой «Подтвердить позже» (не запирает).
+    // Отложил — сутки не пристаём, в кабинете напоминает карточка на главной. Остальным — сразу в приложение.
+    const vNeed = typeof pkNeedsVerify === 'function' ? pkNeedsVerify(user, userProfile) : null;
+    const vLater = typeof pkVPostponed === 'function' && pkVPostponed();
+    if (vNeed === 'gate' && !vLater) { document.getElementById('authScreen').classList.add('hide'); pkShowVerifyGate(showApp); }
+    else showApp();
   } else {
     if (typeof pkVStop === 'function') { pkVStop(); pkHideVerifyBar(); const vg = document.getElementById('pkVGate'); if (vg) vg.style.display = 'none'; }
     currentUser = null;
